@@ -1,5 +1,5 @@
 User-agent: *
 Allow: /
 
-Sitemap: https://www.alquraan.live/sitemap.xml
+Sitemap: https://www.hadeeth.live/sitemap.xml
 # Replace with your actual domain above

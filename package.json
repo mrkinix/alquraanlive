@@ -1,5 +1,5 @@
 {
-  "name": "hadith-display",
+  "name": "quran-display",
   "version": "0.0.0",
   "scripts": {
     "dev": "vite",
@@ -7,14 +7,17 @@
     "preview": "vite preview"
   },
   "dependencies": {
-    "mespeak": "^2.0.2",
+    "html2canvas": "^1.4.1",
+    "idb": "^8.0.3",
     "tailwindcss": "^3.3.3",
+    "uuid": "^11.1.0",
     "vue": "^3.2.47"
   },
   "devDependencies": {
     "@vitejs/plugin-vue": "^4.2.3",
     "autoprefixer": "^10.4.21",
     "postcss": "^8.5.3",
-    "vite": "^4.4.9"
+    "vite": "^4.4.9",
+    "vite-plugin-pwa": "^1.0.0"
   }
 }
