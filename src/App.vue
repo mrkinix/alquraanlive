@@ -1809,7 +1809,32 @@ selectInitialLanguage(lang) {
 toggleLanguageMenu() {
   this.showLanguageMenu = !this.showLanguageMenu;
 },
-
+ async loadLocalMushafJson(type) {
+    let url = '';
+    if (type === 'warsh') url = '/warsh.json';
+    else if (type === 'qaloon') url = '/qaloon.json';
+    else return [];
+    try {
+      const response = await fetch(url);
+      if (!response.ok) throw new Error('Failed to load ' + url);
+      const data = await response.json();
+      // Normalize structure if needed
+      return data.map(aya => ({
+        uuid: `${aya.sura_no}:${aya.aya_no}-ar-${type}`,
+        surah: aya.sura_no,
+        verse: aya.aya_no,
+        verseKey: `${aya.sura_no}:${aya.aya_no}`,
+        text: aya.aya_text,
+        surahArabicName: aya.sura_name_ar?.trim() || '',
+        surahEnglishName: aya.sura_name_en || '',
+        audio: null,
+        language: 'ar',
+      }));
+    } catch (e) {
+      this.errorMessage = this.getLocalizedErrorMessage('loadError', e.message);
+      return [];
+    }
+  },
 setLanguage(lang) {
   this.currentLanguage = lang;
   localStorage.setItem('language', lang);
@@ -1832,6 +1857,16 @@ async loadInitialData() {
   this.isLoading = true;
   this.cacheStatus = 'checking';
   try {
+       if (this.mushafType === 'warsh' || this.mushafType === 'qaloon') {
+      this.allVerses = await this.loadLocalMushafJson(this.mushafType);
+      if (this.allVerses.length > 0) {
+        this.selectVerse();
+      } else {
+        this.errorMessage = this.getLocalizedErrorMessage('noDataAfterLoad');
+      }
+      this.isLoading = false;
+      return;
+    }
     if ('serviceWorker' in navigator && 'caches' in window) {
       const cached = await this.checkServiceWorkerCache();
       if (cached) {
