@@ -9,7 +9,7 @@
     @touchmove="handleAppTouchMove"
     @touchend="handleAppTouchEnd"
     @touchcancel="handleAppTouchCancel"
-    @touchend.stop= "" @click.stop="handleAppClick"
+    @click="handleAppClick"
   >
     <!-- Mushaf Selection Overlay -->
     <div
@@ -26,21 +26,21 @@
         </h2>
         <div class="flex flex-col gap-3">
           <button
-            @touchend.stop= "" @click.stop="selectMushaf('hafs')"
+            @click="selectMushaf('hafs')"
             class="p-3 rounded-lg"
             :class="currentTheme === 'dark' ? 'bg-gray-700 hover:bg-gray-600' : 'bg-gray-100 hover:bg-gray-200'"
           >
             {{ currentLanguage === 'ar' ? 'حفص عن عاصم' : 'Hafs' }}
           </button>
           <button
-            @touchend.stop= "" @click.stop="selectMushaf('warsh')"
+            @click="selectMushaf('warsh')"
             class="p-3 rounded-lg"
             :class="currentTheme === 'dark' ? 'bg-gray-700 hover:bg-gray-600' : 'bg-gray-100 hover:bg-gray-200'"
           >
             {{ currentLanguage === 'ar' ? 'ورش عن نافع' : 'Warsh' }}
           </button>
           <button
-            @touchend.stop= "" @click.stop="selectMushaf('qaloon')"
+            @click="selectMushaf('qaloon')"
             class="p-3 rounded-lg"
             :class="currentTheme === 'dark' ? 'bg-gray-700 hover:bg-gray-600' : 'bg-gray-100 hover:bg-gray-200'"
           >
@@ -65,7 +65,7 @@
         :key="verse.uuid"
         class="verse-line flex items-center justify-center py-2 cursor-pointer"
         :dir="currentLanguage === 'ar' ? 'rtl' : 'ltr'"
-        @touchend.stop= "" @click.stop="openVerseNote(verse)"
+        @click="openVerseNote(verse)"
       >
         <span class="verse-text text-xl font-amiri flex-1">
           <span
@@ -195,7 +195,7 @@
             ref="searchInput"
           />
           <button
-            @touchend.stop= "" @click.stop="performSearch"
+            @click="performSearch"
             class="mx-1 p-2 bg-gray-500 text-white rounded-none"
             :class="currentTheme === 'dark' ? 'hover:bg-blue-600' : 'hover:bg-blue-400'"
           >
@@ -204,7 +204,7 @@
             </svg>
           </button>
           <button
-            @touchend.stop= "" @click.stop="closeOverlay('search')"
+            @click="closeOverlay('search')"
             class="p-2 bg-gray-500 text-white rounded-r-lg"
           >
             ✕
@@ -220,7 +220,7 @@
           <div
             v-for="result in paginatedResults"
             :key="result.uuid"
-            @touchend.stop= "" @click.stop="selectSearchResult(result)"
+            @click="selectSearchResult(result)"
             class="search-result-item p-4 border-b cursor-pointer"
             :class="currentTheme === 'dark' ? 'border-gray-700 hover:bg-gray-700' : 'border-gray-200 hover:bg-gray-100'"
           >
@@ -234,7 +234,7 @@
           </div>
           <div v-if="searchResults.length > resultsPerPage" class="pagination">
             <button
-              @touchend.stop= "" @click.stop="searchPagination(-1)"
+              @click="searchPagination(-1)"
               :disabled="currentPage === 1"
               class="p-2 rounded-lg"
               :class="currentTheme === 'dark' ? 'bg-gray-700 text-white' : 'bg-gray-200 text-gray-800'"
@@ -243,7 +243,7 @@
             </button>
             <span>{{ currentPage }} / {{ Math.ceil(searchResults.length / resultsPerPage) }}</span>
             <button
-              @touchend.stop= "" @click.stop="searchPagination(1)"
+              @click="searchPagination(1)"
               :disabled="currentPage === Math.ceil(searchResults.length / resultsPerPage)"
               class="p-2 rounded-lg"
               :class="currentTheme === 'dark' ? 'bg-gray-700 text-white' : 'bg-gray-200 text-gray-800'"
@@ -260,10 +260,10 @@
       v-if="showVoiceSearchOverlay"
       class="voice-search-overlay fixed inset-0 flex items-center justify-center z-50"
       :class="currentTheme === 'dark' ? 'dark-theme' : 'light-theme'"
-      @touchend.stop= "" @click.stop="closeOverlay('voice')"
+      @click="closeOverlay('voice')"
     >
       <div class="voice-search-container bg-opacity-80 p-6 rounded-lg" @click.stop @touchend.stop>
-        <div class="voice-animation" @touchend.stop= "" @click.stop="resetVoiceSearch">
+        <div class="voice-animation" @click="resetVoiceSearch">
           <div class="ring pulse-1"></div>
           <div class="ring pulse-2"></div>
           <div class="ring pulse-3"></div>
@@ -303,7 +303,7 @@
       <button
         v-for="lang in ['ar', 'en', 'fr', 'bn', 'tr', 'ur']"
         :key="lang"
-        @touchend.stop= "" @click.stop="selectInitialLanguage(lang)"
+        @click="selectInitialLanguage(lang)"
         class="language-button text-xl"
       >
         {{ lang === 'ar' ? 'العربية' : langNames[lang] }}
@@ -315,7 +315,7 @@
       v-if="showSurahVerseMenu"
       class="surah-verse-overlay fixed inset-0 flex flex-col items-center justify-start pt-8 z-50"
       :class="currentTheme === 'dark' ? 'dark-theme' : 'light-theme'"
-      @touchend.stop= "" @click.stop="handleAppClick"
+      @click="handleAppClick"
     >
       <div
         class="surah-verse-container bg-opacity-80 p-6 rounded-lg w-full max-w-2xl"
@@ -327,7 +327,7 @@
             {{ currentLanguage === 'ar' ? 'اختر السورة والآية' : 'Select Surah and Verse' }}
           </h2>
           <button
-            @touchend.stop= "" @click.stop="showSurahVerseMenu = false"
+            @click="showSurahVerseMenu = false"
             class="p-2 bg-gray-500 text-white rounded-lg"
             :class="currentTheme === 'dark' ? 'hover:bg-gray-600' : 'hover:bg-gray-400'"
           >
@@ -362,8 +362,7 @@
             </option>
           </select>
           <button
-            @click.stop="selectSurahVerse"
-            @touchend.stop="selectSurahVerse"
+            @click="selectSurahVerse"
             class="p-2 bg-blue-500 text-white rounded-lg"
             :class="currentTheme === 'dark' ? 'hover:bg-blue-600' : 'hover:bg-blue-400'"
           >
@@ -378,7 +377,8 @@
       v-if="showNotesOverlay"
       class="notes-overlay fixed inset-0 flex items-center justify-center z-50"
       :class="currentTheme === 'dark' ? 'dark-theme' : 'light-theme'"
-      @touchend.stop="closeNotesOverlay" @click.stop="closeNotesOverlay"
+      @click="closeNotesOverlay"
+      
     >
       <div
         class="notes-container bg-opacity-80 p-6 rounded-lg w-full max-w-2xl"
@@ -391,7 +391,7 @@
             {{ currentLanguage === 'ar' ? 'ملاحظات الآية' : 'Verse Notes' }}
           </h2>
           <button
-            @touchend.stop="closeNotesOverlay" @click.stop="closeNotesOverlay"
+            @click="closeNotesOverlay"
             class="p-2 bg-red-500 text-white rounded-lg"
             :class="currentTheme === 'dark' ? 'hover:bg-red-600' : 'hover:bg-red-400'"
           >
@@ -400,8 +400,7 @@
         </div>
         <textarea
           v-model="currentNote"
-          @click.stop
-          @touchend.stop
+      
           class="w-full h-64 p-2 rounded-lg border"
           :class="currentTheme === 'dark' ? 'bg-gray-700 text-white border-gray-600' : 'bg-white text-gray-800 border-gray-300'"
           :placeholder="currentLanguage === 'ar' ? 'اكتب ملاحظاتك هنا...' : 'Write your notes here...'"
@@ -418,7 +417,7 @@
       <div
         class="loops-container bg-opacity-80 p-6 rounded-lg"
         :class="currentTheme === 'dark' ? 'bg-gray-800' : 'bg-white'"
-        @touchend.stop="showLoopsMenu = false" @click.stop="showLoopsMenu = false"
+        @click="showLoopsMenu = false"
         @touchstart="startLoopSwipe"
         @touchmove="handleLoopSwipe"
         @touchend="endLoopSwipe"
@@ -450,12 +449,12 @@
         <button
           v-for="color in highlightColors"
           :key="color"
-          @touchend.stop="applyHighlight(color)" @click.stop="applyHighlight(color)"
+          @click="applyHighlight(color)"
           class="w-8 h-8 rounded-full"
           :style="{ backgroundColor: color }"
         ></button>
         <button
-          @touchend.stop="removeHighlight" @click.stop="removeHighlight"
+          @click="removeHighlight"
           class="p-2 bg-red-500 text-white rounded-lg"
           :class="currentTheme === 'dark' ? 'hover:bg-red-600' : 'hover:bg-red-400'"
         >
@@ -469,7 +468,7 @@
       <!-- Revision Mode Button -->
       <button
         v-if="displayMode !== 'revision' && currentLanguage === 'ar'"
-        @touchend.stop="toggleRevisionMode" @click.stop="toggleRevisionMode"
+        @click="toggleRevisionMode"
         class="control-button opacity-65 hover:opacity-100"
         :title="currentLanguage === 'ar' ? 'وضع المراجعة' : 'Revision Mode'"
       >
@@ -479,7 +478,7 @@
       <!-- Hifz Mode Exit Button -->
       <button
         v-if="displayMode === 'hifz'"
-        @touchend.stop="exitHifzMode" @click.stop="exitHifzMode"
+        @click="exitHifzMode"
         class="control-button opacity-65 hover:opacity-100"
         :title="currentLanguage === 'ar' ? 'الخروج من وضع الحفظ' : 'Exit Hifz Mode'"
       >
@@ -489,7 +488,7 @@
       <!-- Notes Button (Hifz Mode) -->
       <button
         v-if="displayMode === 'hifz'"
-        @touchend.stop="toggleNotesOverlay" @click.stop="toggleNotesOverlay"
+        @click="toggleNotesOverlay"
         class="control-button opacity-65 hover:opacity-100"
         :title="currentLanguage === 'ar' ? 'ملاحظات' : 'Notes'"
       >
@@ -501,7 +500,7 @@
       <!-- Complete Button (Hifz Mode) -->
       <button
         v-if="displayMode === 'hifz'"
-        @touchend.stop="toggleComplete" @click.stop="toggleComplete"
+        @click="toggleComplete"
         @mousedown="startCompleteHold"
         @mouseup="stopCompleteHold"
         @mouseleave="stopCompleteHold"
@@ -518,7 +517,7 @@
       <button
         v-if="displayMode === 'hifz'"
         @click.stop="toggleLoopsMenu"
-        @touchend.stop="toggleLoopsMenu"
+        
         class="control-button opacity-65 hover:opacity-100"
         :title="currentLanguage === 'ar' ? 'عدد التكرارات' : 'Number of Loops'"
       >
@@ -527,7 +526,7 @@
 
       <!-- Audio Button -->
       <button
-        @touchend.stop="toggleAudio" @click.stop="toggleAudio"
+        @click="toggleAudio"
         @mousedown="startAudioHold"
         @mouseup="stopAudioHold"
         @touchstart="startAudioHold"
@@ -547,7 +546,7 @@
       <!-- Search Button (Desktop Only) -->
       <button
         v-if="!isMobile"
-        @touchend.stop= "" @click.stop="openSearchOverlay"
+        @click="openSearchOverlay"
         class="control-button opacity-65 hover:opacity-100"
         :title="currentLanguage === 'ar' ? 'بحث' : 'Search'"
       >
@@ -558,7 +557,7 @@
       
       <!-- Display Mode Menu -->
       <div class="relative">
-        <button @touchend.stop= "" @click.stop="toggleDisplayModeMenu" class="control-button opacity-65 hover:opacity-100" :aria-label="currentLanguage === 'ar' ? 'تغيير وضع العرض' : 'Change display mode'">
+        <button @click="toggleDisplayModeMenu" class="control-button opacity-65 hover:opacity-100" :aria-label="currentLanguage === 'ar' ? 'تغيير وضع العرض' : 'Change display mode'">
           <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24">
             <path fill="currentColor" d="M4 18h16v-2H4zm0-5h16v-2H4zm0-5h16V6H4z"/>
           </svg>
@@ -570,28 +569,28 @@
           >
             <button
               v-if="currentLanguage !== 'ar'"
-              @touchend.stop= "" @click.stop="setDisplayMode('verse')"
+              @click="setDisplayMode('verse')"
               class="control-button w-12 h-12 flex items-center justify-center text-lg font-bold opacity-65 hover:opacity-100"
               :aria-label="currentLanguage === 'ar' ? 'عرض الآية' : 'Verse view'"
             >
               {{ currentLanguage === 'ar' ? 'آية' : 'Verse' }}
             </button>
             <button
-              @touchend.stop= "" @click.stop="setDisplayMode('full-surah')"
+              @click="setDisplayMode('full-surah')"
               class="control-button w-12 h-12 flex items-center justify-center text-lg font-bold opacity-65 hover:opacity-100"
               :aria-label="currentLanguage === 'ar' ? 'عرض السورة كاملة' : 'Full Surah view'"
             >
               {{ currentLanguage === 'ar' ? 'سورة' : 'Surah' }}
             </button>
             <button
-              @touchend.stop= "" @click.stop="setDisplayMode('tafseer')"
+              @click="setDisplayMode('tafseer')"
               class="control-button w-12 h-12 flex items-center justify-center text-lg font-bold opacity-65 hover:opacity-100"
               :aria-label="currentLanguage === 'ar' ? 'عرض التفسير' : 'Tafseer view'"
             >
               {{ currentLanguage === 'ar' ? 'تفسير' : 'Tafseer' }}
             </button>
             <button
-              @touchend.stop= "" @click.stop="setDisplayMode('hifz')"
+              @click="setDisplayMode('hifz')"
               class="control-button w-12 h-12 flex items-center justify-center text-lg font-bold opacity-65 hover:opacity-100"
               :aria-label="currentLanguage === 'ar' ? 'وضع الحفظ' : 'Hifz Mode'"
             >
@@ -603,7 +602,7 @@
       
       <!-- Language Menu -->
       <div class="relative">
-        <button @touchend.stop= "" @click.stop="toggleLanguageMenu" class="control-button opacity-65 hover:opacity-100" :aria-label="languageToggleAriaLabel">
+        <button @click="toggleLanguageMenu" class="control-button opacity-65 hover:opacity-100" :aria-label="languageToggleAriaLabel">
           {{ currentLanguage === 'ar' ? 'ع' : (currentLanguage === 'en' ? 'EN' : (currentLanguage === 'fr' ? 'FR' : (currentLanguage === 'bn' ? 'BN' : (currentLanguage === 'tr' ? 'TR' : 'UR')))) }}
         </button>
         <transition name="fade">
@@ -614,7 +613,7 @@
             <button
               v-for="lang in otherLanguages"
               :key="lang"
-              @touchend.stop= "" @click.stop="setLanguage(lang)"
+              @click="setLanguage(lang)"
               class="control-button w-12 h-12 flex items-center justify-center text-lg font-bold opacity-65 hover:opacity-100"
               :aria-label="'Switch to ' + langNames[lang]"
             >
@@ -626,7 +625,7 @@
       
       <!-- Shuffle Button -->
       <button
-        @touchend.stop= "" @click.stop="toggleShuffleMode"
+        @click="toggleShuffleMode"
         class="control-button opacity-65 hover:opacity-100"
         :title="isShuffleMode ? (currentLanguage === 'ar' ? 'الوضع العشوائي' : 'Shuffle Mode') : (currentLanguage === 'ar' ? 'الوضع المتسلسل' : 'Continuous Mode')"
       >
@@ -642,7 +641,7 @@
       <!-- Pause Button -->
       <button
         v-if="displayMode !== 'hifz'"
-        @touchend.stop= "" @click.stop="togglePause"
+        @click="togglePause"
         class="control-button opacity-65 hover:opacity-100"
         :aria-label="isPausedByPause ? 'Resume' : 'Pause'"
       >
@@ -656,7 +655,7 @@
       </button>
       
       <!-- Theme Toggle Button -->
-      <button @touchend.stop= "" @click.stop="toggleTheme" class="control-button theme-toggle-button opacity-65 hover:opacity-100" :aria-label="currentTheme === 'dark' ? 'Switch to Light Theme' : 'Switch to Dark Theme'">
+      <button @click="toggleTheme" class="control-button theme-toggle-button opacity-65 hover:opacity-100" :aria-label="currentTheme === 'dark' ? 'Switch to Light Theme' : 'Switch to Dark Theme'">
         <svg v-if="currentTheme !== 'dark'" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" class="w-5 h-5">
           <path d="M12 2.25a.75.75 0 01.75.75v2.25a.75.75 0 01-1.5 0V3a.75.75 0 01.75-.75zM7.5 12a4.5 4.5 0 119 0 4.5 4.5 0 01-9 0zM18.894 6.166a.75.75 0 00-1.06-1.06l-1.591 1.59a.75.75 0 101.06 1.061l1.591-1.59zM21.75 12a.75.75 0 01-.75.75h-2.25a.75.75 0 010-1.5H21a.75.75 0 01.75.75zM17.834 18.894a.75.75 0 001.06-1.06l-1.59-1.591a.75.75 0 10-1.061 1.06l1.59 1.591zM12 18a.75.75 0 01.75.75V21a.75.75 0 01-1.5 0v-2.25A.75.75 0 0112 18zM7.758 17.303a.75.75 0 00-1.061-1.06l-1.591 1.59a.75.75 0 001.06 1.061l1.591-1.59zM6 12a.75.75 0 01-.75.75H3a.75.75 0 010-1.5h2.25A.75.75 0 016 12zM6.166 7.758a.75.75 0 001.06-1.06L5.634 5.106a.75.75 0 00-1.06 1.06l1.59 1.591z"/>
         </svg>
