@@ -1299,45 +1299,18 @@ if (advanceToNextVerse && !this.isTransitioning) {
   },
     
     // Existing methods
-    async loadSurahVerses(surahId) {
-            this.isLoading = true;
-
-      try {
-        const cached = await this.getCachedSurah(surahId);
-        if (cached) {
-          this.currentSurahData = cached;
-          this.lazyLoadVerses();
-          return;
-        }
-
-        const response = await fetch(`https://api.alquran.cloud/v1/surah/${surahId}`);
-        const data = await response.json();
-        if (data.code === 200) {
-          this.currentSurahData = {
-            id: surahId,
-            arabicName: data.data.name,
-            englishName: data.data.englishName,
-            verses: data.data.ayahs.map(ayah => ({
-              uuid: `${surahId}:${ayah.numberInSurah}`,
-              surah: surahId,
-              verse: ayah.numberInSurah,
-              text: ayah.text,
-              surahArabicName: data.data.name,
-              surahEnglishName: data.data.englishName,
-            })),
-          };
-          await this.cacheSurah(this.currentSurahData);
-          this.lazyLoadVerses();
-        } else {
-          this.errorMessage = this.getLocalizedErrorMessage('loadSurahError');
-        }
-      } catch (error) {
-        console.error('Error loading Surah:', error);
-          this.errorMessage = this.getLocalizedErrorMessage('loadSurahError', error.message);
-      } finally {
-        this.errorMessage = this.currentLanguage === 'ar' ? 'خطأ في الاتصال.' : 'Connection error.';
-      }
-    },
+  async loadSurahVerses(surahId) {
+  this.isLoading = true;
+  try {
+    const surahVerses = this.allVerses.filter(v => v.surah === surahId);
+    this.currentSurahData = this.SURAH_DATA.find(s => s.id === surahId);
+    this.displayedVerses = surahVerses;
+    this.isLoading = false;
+  } catch (error) {
+    this.errorMessage = this.getLocalizedErrorMessage('loadSurahError');
+    this.isLoading = false;
+  }
+},
     
     // ... (all other existing methods)
     
@@ -1841,7 +1814,11 @@ setLanguage(lang) {
   this.currentLanguage = lang;
   localStorage.setItem('language', lang);
   this.showLanguageMenu = false;
-  this.loadInitialData().then(() => {
+  if (lang === 'ar') {
+    this.showMushafSelection = true;
+  } else {
+    this.showMushafSelection = false;
+    this.loadInitialData().then(() => {
     if (this.allVerses.length > 0 && !this.errorMessage) {
       this.selectVerse();
     } else if (!this.errorMessage) {
@@ -1849,6 +1826,7 @@ setLanguage(lang) {
       this.isLoading = false;
     }
   });
+}
 },
 async loadInitialData() {
   this.isLoading = true;
@@ -2593,11 +2571,15 @@ getLocalizedErrorMessage(key, detail = '') {
 },
 togglePause() {
   if (this.isPausedByPause) {
-    console.log('Toggling pause: Resuming');
     this.resumeVerseDisplayFromPause();
+    if (this.currentAudio && this.currentAudio.paused) {
+      this.currentAudio.play();
+    }
   } else {
-    console.log('Toggling pause: Pausing');
     this.pauseVerseDisplayByPause();
+    if (this.currentAudio && !this.currentAudio.paused) {
+      this.currentAudio.pause();
+    }
   }
 },
 
@@ -3095,6 +3077,17 @@ completeCurrentLoop() {
   this.selectNextHifzVerse();
   this.saveVerseCompletion();
 },
+
+getNextVerse(current) {
+    if (!current) return null;
+    const surahInfo = this.SURAH_DATA.find(s => s.id === current.surah);
+    if (current.verse < surahInfo.verses) {
+      return this.allVerses.find(v => v.surah === current.surah && v.verse === current.verse + 1);
+    } else if (current.surah < 114) {
+      return this.allVerses.find(v => v.surah === current.surah + 1 && v.verse === 1);
+    }
+    return null;
+  },
   toggleLoopsMenu() {
     this.showLoopsMenu = !this.showLoopsMenu;
   },
@@ -3304,10 +3297,19 @@ shareVerse() {
     document.documentElement.setAttribute('data-theme', this.currentTheme);
     
     // Show mushaf selection when Arabic is selected
-    if (this.currentLanguage === 'ar') {
-      this.showMushafSelection = true;
-    } else {
-      await this.loadInitialData();
+ const savedLang = localStorage.getItem('language');
+  const savedMushaf = localStorage.getItem('mushafType');
+  if (savedLang) {
+    this.currentLanguage = savedLang;
+    this.showLanguageSelection = false;
+  } else {
+    this.showLanguageSelection = true;
+  }
+  if (this.currentLanguage === 'ar' && !savedMushaf) {
+    this.showMushafSelection = true;
+  } else {
+    this.showMushafSelection = false;
+    await this.loadInitialData();
       if (this.allVerses.length > 0 && !this.errorMessage) {
         this.selectVerse();
       } else if (!this.errorMessage) {
