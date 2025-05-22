@@ -65,15 +65,18 @@
       <div
         v-for="verse in displayedVerses"
         :key="verse.uuid"
+          :data-verse-uuid="verse.uuid"
+
         class="verse-line flex items-center justify-start py-2 cursor-pointer"
         :dir="currentLanguage === 'ar' ? 'rtl' : 'ltr'"
       >
-        <span class="verse-text text-xl font-amiri flex-1">
+      
+        <span class="verse-text text-2xl font-amiri flex-1">
 <span
   v-for="(word, index) in verse.text.split(' ')"
   :key="`${verse.uuid}-${index}`"
   :data-word-uuid="`${verse.uuid}-${index}`"
-  class="inline-block mx-1"
+  class="inline-block mx-1 py-3"
   :class="[
   { 'highlighted': isWordHighlighted(index, verse.uuid) },
   getHighlightClass(index, verse.uuid)
@@ -86,12 +89,31 @@
   @touchend.stop="endWordSelection($event)"
   @click.stop="handleWordClick(index, verse)"
 >
-  {{ word }}
-</span>
+  {{ word }} 
+</span>         <!-- Verse Number Decoration -->
+          <svg
+            @click="openVerseNote(verse)"
+            width="26"
+            height="26"
+            viewBox="0 0 26 26"
+            class="verse-number-svg ml-2 decorative-number cursor-pointer inline-block align-middle"
+            xmlns="http://www.w3.org/2000/svg"
+          >
+            <circle cx="13" cy="13" r="11.5" stroke="currentColor" stroke-width="1.5" fill="transparent" />
+            <text
+              x="50%"
+              y="50%"
+              dominant-baseline="middle"
+              text-anchor="middle"
+              fill="currentColor"
+              class="font-amiri"
+              style="font-size: 11px;" 
+            >
+              {{ verse.verse }}
+            </text>
+          </svg>
         </span>
-        <span class="verse-number text-sm font-amiri ml-4 decorative-number">
-          {{ verse.verse }}
-        </span>
+
       </div>
     </div>
   
@@ -480,9 +502,10 @@
 <!-- Highlight Context Menu -->
 <div
   v-if="showHighlightContextMenu"
-  class="highlight-context-menu fixed z-60 flex gap-2 items-center p-3 rounded-lg  justify-center "
+  class="highlight-context-menu fixed z-60 p-3 rounded-lg"
   :style="{ top: highlightContextMenuPosition.top + 'px', left: highlightContextMenuPosition.left + 'px' }"
   :class="currentTheme === 'dark' ? 'bg-gray-800 text-white' : 'bg-white text-gray-800'"
+  style="display: flex; flex-direction: row; align-items: center; justify-content: center; gap: 10px;"
   @mousedown.stop
   @mouseup.stop
   @touchstart.stop
@@ -505,7 +528,8 @@
   </button>
 </div>
     <!-- Control Buttons Container -->
-    <div class="control-buttons-container bg-black/30 rounded-xl p-2 max-sm:scale-90 fixed max-sm:bottom-12 bottom-5 sm:right-5 flex space-x-2 z-50">
+    <div   v-show="controlMenuVisible"
+class="control-buttons-container   bg-black/30 rounded-xl p-2 max-sm:scale-90 fixed max-sm:bottom-12 bottom-5 sm:right-5 flex space-x-2 z-50">
       <!-- Revision Mode Button -->
       <button
         v-if="displayMode !== 'revision' && currentLanguage === 'ar'"
@@ -702,6 +726,20 @@
         </svg>
       </button>
     </div>
+    <div   
+class="hamburg   !bg-none rounded-xl p-2 max-sm:scale-90 fixed max-sm:bottom-12 bottom-5 sm:right-5 flex space-x-2 z-50">
+    <button
+  v-if="hamburgerMenuVisible && isMobile"
+  style="width:56px;height:56px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:2rem;box-shadow:0 2px 8px rgba(0,0,0,0.2);"
+  @click="handleHamburgerClick"
+>
+  <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
+    <rect y="4" width="24" height="3" rx="1.5" fill="currentColor"/>
+    <rect y="10.5" width="24" height="3" rx="1.5" fill="currentColor"/>
+    <rect y="17" width="24" height="3" rx="1.5" fill="currentColor"/>
+  </svg>
+</button>
+  </div>
   </div>
 </template>
 
@@ -870,7 +908,9 @@ export default {
       hifzLoopCount: 10,
       currentLoopIteration: 0, // Track current loop iteration
             activeVerseUuidForHighlighting: null,
-
+controlMenuVisible: true,
+hamburgerMenuVisible: false,
+controlMenuTimeoutId: null,
       completedVerses: {}, // Track comple
       SURAH_DATA,
       // Other existing data properties
@@ -1010,6 +1050,24 @@ export default {
   },
 
   methods: {
+    showControlMenu() {
+  this.controlMenuVisible = true;
+  this.hamburgerMenuVisible = false;
+  if (this.controlMenuTimeoutId) clearTimeout(this.controlMenuTimeoutId);
+  if (this.isMobile) {
+    this.controlMenuTimeoutId = setTimeout(() => {
+      this.controlMenuVisible = false;
+      this.hamburgerMenuVisible = true;
+    }, 3000);
+  }
+},
+showHamburgerMenu() {
+  this.controlMenuVisible = false;
+  this.hamburgerMenuVisible = true;
+},
+handleHamburgerClick() {
+  this.showControlMenu();
+},
     closeInstructions() {
       console.log('Closing navigation instructions');
       this.showNavigationInstructions = false;
@@ -1380,6 +1438,7 @@ getWordHighlightColor(index, verseUuid) {
 
     // Now that data is loaded, display the current part
     this.displayCurrentPart();
+    this.saveLastViewed()
   },
 
   displayCurrentPart() {
@@ -1428,15 +1487,16 @@ getWordHighlightColor(index, verseUuid) {
   },
 
   displayNextPart() {
-    this.currentPartIndex = 0
-      // Reset revision highlights for the new part/verse
-  this.correctWords = [];
-  this.mistakeWords = [];
-  this.unreadVerses = [];
-    if (this.currentPartIndex < this.currentTextParts.length - 1) {
-      this.currentPartIndex++;
-      this.displayCurrentPart();
-    }
+     // If there are more parts, go to the next part
+  if (this.currentPartIndex < this.currentTextParts.length - 1) {
+    this.currentPartIndex++;
+    this.displayCurrentPart();
+  } else {
+    // If at the last part, auto-advance to the next verse after a short delay
+    setTimeout(() => {
+      this.selectVerse(true);
+    }, 800); // 800ms pause before next verse, adjust as needed
+  }
   },
     
     // Existing methods
@@ -1446,6 +1506,10 @@ getWordHighlightColor(index, verseUuid) {
     const surahVerses = this.allVerses.filter(v => v.surah === surahId);
     this.currentSurahData = this.SURAH_DATA.find(s => s.id === surahId);
     this.displayedVerses = surahVerses;
+    // Set currentVerseData to the first verse of the surah for bottom info bar
+    if (surahVerses.length > 0) {
+      this.currentVerseData = { ...surahVerses[0] };
+    }
     // Load highlights for all verses in this surah
     for (const verse of surahVerses) {
       await this.loadVerseHighlights(verse.uuid);
@@ -1455,6 +1519,7 @@ getWordHighlightColor(index, verseUuid) {
     this.errorMessage = this.getLocalizedErrorMessage('loadSurahError');
     this.isLoading = false;
   }
+  this.saveLastViewed();
 },
     
     // ... (all other existing methods)
@@ -1602,53 +1667,44 @@ getWordHighlightColor(index, verseUuid) {
     
     // Add Full Surah Mode to UI
     setDisplayMode(mode) {
-      this.displayMode = mode;
-            this.clearAnimationTimers(); // Clear timers when changing mode
+  this.displayMode = mode;
+  this.clearAnimationTimers();
+  this.showDisplayModeMenu = false;
 
-      this.showDisplayModeMenu = false;
-      
-      if (mode === 'hifz') {
-        this.enterHifzMode();
-      } else if (mode === 'tafseer') {
-        this.loadTafseer();
-      } else if (mode === 'full-surah') {
-   if (this.currentVerseData && this.currentVerseData.surah) {
-          this.loadSurahVerses(this.currentVerseData.surah);
-        } else if (this.allVerses.length > 0) {
-          // Fallback to first surah if currentVerseData is not set
-          this.loadSurahVerses(this.allVerses[0].surah);
-        } else {
-          this.errorMessage = this.getLocalizedErrorMessage('noVersesAvailable');
-        }      } else {
-                 // For 'verse' mode or other modes that show single verse
-        this.correctWords = []; this.mistakeWords = []; this.unreadVerses = []; // Reset revision mode highlights
-
-        if (this.originalSurah) {
-          const verse = this.allVerses.find(v => v.surah === this.originalSurah && v.verse === 1);
-          if (verse) {
-            this.currentVerseData = { ...verse };
-            this.currentTextParts = this.segmentText(verse.text);
-            this.currentPartIndex = 0;
-            this.displayedWords = [];
-            this.displayCurrentPart();
-          }
-          this.originalSurah = null;
-        } else {
-     // If not coming from tafseer, ensure a verse is selected
-          if (!this.currentVerseData && this.allVerses.length > 0) {
-            this.selectVerse(false); // Select first verse if none is current
-          } else if (this.currentVerseData) {
-            this.displayCurrentPart(); // Re-display current part if already selected
-          }        }
-        
-
-        
-        if (this.isAudioPlaying) {
-          this.$nextTick(() => {
-            this.playCurrentVerse();
-          });
-        }
-      }
+  if (mode === 'hifz') {
+    this.enterHifzMode();
+  } else if (mode === 'tafseer') {
+    this.loadTafseer();
+  } else if (mode === 'full-surah') {
+    if (this.currentVerseData && this.currentVerseData.surah) {
+      this.loadSurahVerses(this.currentVerseData.surah);
+    } else if (this.allVerses.length > 0) {
+      this.loadSurahVerses(this.allVerses[0].surah);
+    } else {
+      this.errorMessage = this.getLocalizedErrorMessage('noVersesAvailable');
+    }
+  } else {
+    // For 'verse' mode or other modes that show single verse
+    this.correctWords = [];
+    this.mistakeWords = [];
+    this.unreadVerses = [];
+    // If coming from full-surah mode, use the currentVerseData (which is now set to the first verse of the surah)
+    if (!this.currentVerseData && this.allVerses.length > 0) {
+      this.currentVerseData = { ...this.allVerses[0] };
+    }
+    if (this.currentVerseData) {
+      this.currentTextParts = this.segmentText(this.currentVerseData.text);
+      this.currentPartIndex = 0;
+      this.displayedWords = [];
+      this.displayCurrentPart();
+    }
+    if (this.isAudioPlaying) {
+      this.$nextTick(() => {
+        this.playCurrentVerse();
+      });
+    }
+  }
+  this.saveLastViewed();
     },
  
     
@@ -1713,18 +1769,28 @@ updateVerseOptions() {
   this.verseOptions = surah ? Array.from({ length: surah.verses }, (_, i) => i + 1) : [];
   this.selectedVerse = 1;
 },
-  selectSurahVerse() {
-    const verse = this.allVerses.find(v => v.surah === this.selectedSurah && v.verse === this.selectedVerse);
-    if (verse) {
-      this.currentVerseData = { ...verse };
-      this.currentTextParts = this.segmentText(verse.text);
-      this.currentPartIndex = 0;
-      this.displayedWords = [];
-      this.clearAnimationTimers();
-      this.displayCurrentPart();
-      this.showSurahVerseMenu = false;
+selectSurahVerse() {
+  const verse = this.allVerses.find(v => v.surah === this.selectedSurah && v.verse === this.selectedVerse);
+  if (verse) {
+    this.currentVerseData = { ...verse };
+    this.currentTextParts = this.segmentText(verse.text);
+    this.currentPartIndex = 0;
+    this.displayedWords = [];
+    this.clearAnimationTimers();
+    this.displayCurrentPart();
+    this.showSurahVerseMenu = false;
+
+    // FIX: If in full-surah mode, reload the surah verses
+    if (this.displayMode === 'full-surah') {
+      this.loadSurahVerses(this.selectedSurah);
+      // Optionally, scroll to the selected verse
+      this.$nextTick(() => {
+        const verseEl = document.querySelector(`[data-verse-uuid="${verse.uuid}"]`);
+        if (verseEl) verseEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      });
     }
-  },
+  }
+},
 
 async loadTafseer() {
   if (!this.currentVerseData || this.currentLanguage !== 'ar') {
@@ -3033,22 +3099,93 @@ handleAppTouchStart(event) {
   console.log('Touch start at x:', this.touchStartX, 'y:', this.touchStartY, 'time:', this.touchStartTime);
 },
 handleAppMouseUp(event) {
-  const isControlButtonClick = event.target.closest('.control-buttons-container') ||
-                              event.target.closest('.search-overlay') ||
-                              event.target.closest('.voice-search-overlay');
+    const isControlButtonClick =
+    event.target.closest('button') ||
+    event.target.closest('.control-buttons-container') ||
+    event.target.closest('.notes-overlay') ||
+    event.target.closest('.loops-overlay') ||
+    event.target.closest('.highlight-menu') ||
+    event.target.closest('.highlight-context-menu') ||
+    event.target.closest('.search-overlay') ||
+    event.target.closest('.voice-search-overlay') ||
+    event.target.closest('.surah-verse-overlay');
+
   clearTimeout(this.holdStartTimeoutId);
-  if (this.isPausedByHold && !this.hasSwiped) {
-    if (!isControlButtonClick) {
-      this.resumeVerseDisplayFromHold();
+
+  // Prevent navigation if clicking on any button or overlay
+  if (isControlButtonClick) {
+    this.isHoldingGlobal = false;
+    return;
+  }
+
+  if (this.displayMode === 'full-surah') {
+    const clickX = event.clientX;
+    const screenWidth = window.innerWidth;
+    if (clickX > screenWidth / 2) {
+      // Right side: next surah
+      if (this.currentSurahData && this.currentSurahData.id < 114) {
+        this.selectedSurah = this.currentSurahData.id + 1;
+        this.loadSurahVerses(this.selectedSurah);
+      }
+    } else {
+      // Left side: previous surah
+      if (this.currentSurahData && this.currentSurahData.id > 1) {
+        this.selectedSurah = this.currentSurahData.id - 1;
+        this.loadSurahVerses(this.selectedSurah);
+      }
     }
     this.isHoldingGlobal = false;
     return;
   }
     // If in full-surah mode, don't do any verse/part navigation from global clicks
-  if (this.displayMode === 'full-surah') {
-      this.isHoldingGlobal = false;
-      return;
+if (this.displayMode === 'full-surah') {
+  const clickX = event.clientX;
+  const screenWidth = window.innerWidth;
+  if (clickX > screenWidth / 2) {
+    // Right side: next surah
+    if (this.currentSurahData && this.currentSurahData.id < 114) {
+      this.selectedSurah = this.currentSurahData.id + 1;
+      this.loadSurahVerses(this.selectedSurah);
+    }
+  } else {
+    // Left side: previous surah
+    if (this.currentSurahData && this.currentSurahData.id > 1) {
+      this.selectedSurah = this.currentSurahData.id - 1;
+      this.loadSurahVerses(this.selectedSurah);
+    }
   }
+  this.isHoldingGlobal = false;
+  return;
+}
+
+
+if (this.displayMode === 'verse' || this.displayMode === 'revision') {
+  const x = event.clientX || (event.changedTouches && event.changedTouches[0].clientX);
+  const screenWidth = window.innerWidth;
+  const isArabic = this.currentLanguage === 'ar';
+
+  // For Arabic: right side = previous, left side = next
+  // For non-Arabic: right side = next, left side = previous
+  if ((isArabic && x < screenWidth / 2) || (!isArabic && x > screenWidth / 2)) {
+    // Next part/verse
+    if (this.currentPartIndex < this.currentTextParts.length - 1) {
+      this.displayNextPart();
+    } else {
+      this.selectVerse(true);
+    }
+  } else {
+    // Previous part/verse
+    if (this.currentPartIndex > 0) {
+      this.displayPreviousPart();
+    } else {
+      this.displayPreviousVerse();
+    }
+  }
+  this.isHoldingGlobal = false;
+  return;
+}
+
+
   if (this.isHoldingGlobal && !isControlButtonClick) {
     if (this.isPausedByPause) {
       console.log('Resuming from pause due to UI click');
@@ -3078,24 +3215,67 @@ if ((clickX > screenWidth / 2 && !isArabic) || (clickX > screenWidth / 2 && isAr
   this.isHoldingGlobal = false;
   console.log('Mouse up at x:', event.clientX);
 },
-
+// Save last viewed verse and surah to localStorage
+saveLastViewed() {
+  if (this.currentVerseData) {
+    localStorage.setItem('lastVerseUuid', this.currentVerseData.uuid);
+    localStorage.setItem('lastSurahId', this.currentVerseData.surah);
+    localStorage.setItem('lastVerseNumber', this.currentVerseData.verse);
+    localStorage.setItem('lastDisplayMode', this.displayMode);
+  }
+  if (this.currentSurahData) {
+    localStorage.setItem('lastSurahId', this.currentSurahData.id);
+  }
+},
 handleAppTouchEnd(event) {
   const isControlButtonTouch =
+    event.target.closest('button') ||
     event.target.closest('.control-buttons-container') ||
     event.target.closest('.notes-overlay') ||
     event.target.closest('.loops-overlay') ||
     event.target.closest('.highlight-menu') ||
+    event.target.closest('.highlight-context-menu') ||
     event.target.closest('.search-overlay') ||
-    event.target.closest('.voice-search-overlay');
+    event.target.closest('.voice-search-overlay') ||
+    event.target.closest('.surah-verse-overlay');
+
   clearTimeout(this.holdStartTimeoutId);
-   // If in full-surah mode, don't do any verse/part navigation from global taps
+
+  // Prevent navigation if tapping on any button or overlay
+  if (isControlButtonTouch) {
+    this.isHoldingGlobal = false;
+    this.touchStartX = null;
+    this.touchStartY = null;
+    this.touchStartTime = null;
+    this.hasSwiped = false;
+    return;
+  }
+
+  // Full-surah navigation for mobile
   if (this.displayMode === 'full-surah') {
-      this.isHoldingGlobal = false;
-      this.touchStartX = null;
-      this.touchStartY = null;
-      this.touchStartTime = null;
-      this.hasSwiped = false;
-      return;
+    if (event.changedTouches && event.changedTouches.length > 0) {
+      const touchX = event.changedTouches[0].clientX;
+      const screenWidth = window.innerWidth;
+      if (touchX > screenWidth / 2) {
+        // Right side: next surah
+        if (this.currentSurahData && this.currentSurahData.id < 114) {
+          this.selectedSurah = this.currentSurahData.id + 1;
+          this.loadSurahVerses(this.selectedSurah);
+        }
+      } else {
+        // Left side: previous surah
+        if (this.currentSurahData && this.currentSurahData.id > 1) {
+          this.selectedSurah = this.currentSurahData.id - 1;
+          this.loadSurahVerses(this.selectedSurah);
+        }
+      }
+    }
+    this.isHoldingGlobal = false;
+    this.touchStartX = null;
+    this.touchStartY = null;
+    this.touchStartTime = null;
+    this.hasSwiped = false;
+    return;
   }
   if (this.isPausedByHold && !this.hasSwiped) {
     if (!isControlButtonTouch) {
@@ -3108,7 +3288,7 @@ handleAppTouchEnd(event) {
     this.hasSwiped = false;
     return;
   }
-  if (this.isHoldingGlobal && !isControlButtonTouch && this.touchStartY !== null && !this.hasSwiped) {
+  if (this.isHoldingGlobal && !isControlButtonTouch && this.touchStartTime !== null && !this.hasSwiped) { // Check touchStartTime instead of touchStartY
     if (this.isPausedByPause) {
       console.log('Resuming from pause due to UI tap');
       this.resumeVerseDisplayFromPause();
@@ -3119,10 +3299,11 @@ handleAppTouchEnd(event) {
       const isArabic = this.currentLanguage === 'ar';
       const currentTime = Date.now();
       const isDoubleTap = currentTime - this.lastTapTime < this.DOUBLE_TAP_THRESHOLD;
+      const rightSideTapped = (touchX > screenWidth / 2 && !isArabic) || (touchX <= screenWidth / 2 && isArabic);
 
       if (this.displayMode === 'tafseer') {
         if (isDoubleTap) {
-          if ((touchX > screenWidth / 2 && !isArabic) || (touchX > screenWidth / 2 && isArabic)) {
+          if (rightSideTapped) {
             console.log('Double tap - Next Surah');
             this.selectVerse(true);
             this.loadTafseer();
@@ -3132,42 +3313,42 @@ handleAppTouchEnd(event) {
             this.loadTafseer();
           }
         } else {
-          if ((touchX > screenWidth / 2 && !isArabic) || (touchX > screenWidth / 2 && isArabic)) {
+          if (rightSideTapped) {
             console.log('Single tap - Next Tafseer part');
-            this.displayPreviousPart();
+            this.displayNextPart(); // Corrected
           } else {
             console.log('Single tap - Previous Tafseer part');
-            this.displayNextPart();
+            this.displayPreviousPart(); // Corrected
           }
         }
       } else if (this.displayMode === 'hifz') {
         if (!this.isSelectingWords) {
-          if ((touchX > screenWidth / 2 && !isArabic) || (touchX > screenWidth / 2 && isArabic)) {
+          if (rightSideTapped) {
             console.log('Tap - Next Hifz verse');
-            this.displayPreviousVerse();
+            this.selectNextHifzVerse(); // Corrected
           } else {
             console.log('Tap - Previous Hifz verse');
-            this.selectNextHifzVerse();
+            this.displayPreviousVerse(); // Corrected
           }
         }
-      } else {
-if ((clickX > screenWidth / 2 && !isArabic) || (clickX > screenWidth / 2 && isArabic)) {
-  if (this.currentPartIndex < this.currentTextParts.length - 1) {
-    console.log('Mouse up - Next part');
-    this.displayNextPart();
-  } else {
-    console.log('Mouse up - Next verse');
-    this.selectVerse(true);
-  }
-} else {
-  if (this.currentPartIndex > 0) {
-    console.log('Mouse up - Previous part');
-    this.displayPreviousPart();
-  } else {
-    console.log('Mouse up - Previous verse');
-    this.displayPreviousVerse();
-  }
-}
+      } else { // Handles 'verse', 'revision' modes
+        if (rightSideTapped) {
+          if (this.currentPartIndex < this.currentTextParts.length - 1) {
+            console.log('Tap - Next part');
+            this.displayNextPart();
+          } else {
+            console.log('Tap - Next verse');
+            this.selectVerse(true);
+          }
+        } else {
+          if (this.currentPartIndex > 0) {
+            console.log('Tap - Previous part');
+            this.displayPreviousPart();
+          } else {
+            console.log('Tap - Previous verse');
+            this.displayPreviousVerse();
+          }
+        }
       }
 
       this.lastTapTime = currentTime;
@@ -3758,6 +3939,32 @@ shareVerse() {
         this.mushafType = savedMushaf;
     }
     await this.loadInitialData();
+     const lastDisplayMode = localStorage.getItem('lastDisplayMode');
+  const lastVerseUuid = localStorage.getItem('lastVerseUuid');
+  const lastSurahId = parseInt(localStorage.getItem('lastSurahId'));
+  const lastVerseNumber = parseInt(localStorage.getItem('lastVerseNumber'));
+
+  if (lastDisplayMode === 'full-surah' && lastSurahId) {
+    this.setDisplayMode('full-surah');
+    this.selectedSurah = lastSurahId;
+    await this.loadSurahVerses(lastSurahId);
+    // Optionally scroll to last verse
+    this.$nextTick(() => {
+      if (lastVerseUuid) {
+        const verseEl = document.querySelector(`[data-verse-uuid="${lastVerseUuid}"]`);
+        if (verseEl) verseEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      }
+    });
+  } else if (lastVerseUuid) {
+    const verse = this.allVerses.find(v => v.uuid === lastVerseUuid);
+    if (verse) {
+      this.currentVerseData = { ...verse };
+      this.currentTextParts = this.segmentText(verse.text);
+      this.currentPartIndex = 0;
+      this.displayedWords = [];
+      this.displayCurrentPart();
+    }
+  }
    if (this.allVerses.length > 0 && !this.errorMessage) {
       this.selectVerse();
     } else if (!this.errorMessage) {
@@ -3766,6 +3973,7 @@ shareVerse() {
     this.isLoading = false; // Ensure isLoading is false after initial attempt
   }
     document.addEventListener('click', this.hideHighlightContextMenu);
+  this.showControlMenu();
 
   },
   
@@ -4512,6 +4720,14 @@ select {
   }
 }
 
+.hamburg {
+      right: auto;
+    bottom: 1.5rem;
+    opacity: 0.48;
+    position: absolute;
+    right: .1rem;
+}
+
 
 
 /* Responsive adjustments for mobile */
@@ -4610,5 +4826,31 @@ select {
   background-color: #34d399 !important; /* emerald-400 */
   color: white !important;
 }
-
+.highlight-context-menu {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  justify-content: center; /* Center horizontally */
+  gap: 16px; /* Space between buttons */
+  min-width: 120px;
+  min-height: 48px;
+  /* Optional: add background, border, or padding as needed */
+}
+.sepia-theme .control-buttons-container {
+  background-color: #e6dfc9 !important;
+  color: #5f4b32 !important;
+}
+.sepia-theme .control-button,
+.sepia-theme .control-button svg {
+  background-color: #e6dfc9 !important;
+  color: #5f4b32 !important;
+  fill: #5f4b32 !important;
+  border-color: #bfb59f !important;
+}
+.sepia-hamburger {
+  background-color: #e6dfc9 !important;
+  color: #5f4b32 !important;
+  fill: #5f4b32 !important;
+  border: 1px solid #bfb59f !important;
+}
 </style>
