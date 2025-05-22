@@ -24,7 +24,7 @@
         <h2 class="text-xl mb-4 text-center">
           {{ currentLanguage === 'ar' ? 'اختر نوع المصحف' : 'Select Mushaf Type' }}
         </h2>
-        <div class="flex flex-col gap-3">
+        <div class="flex flex-col gap-3 mt-10">
           <button
             @click="selectMushaf('hafs')"
             class="p-3 rounded-lg"
@@ -53,17 +53,19 @@
     <!-- Full Surah Display -->
     <div
       v-if="displayMode === 'full-surah' && currentSurahData"
-      class="full-surah-display text-center"
+      class="full-surah-display text-justify sm:px-[30%] leading-relaxed"
       :key="currentSurahData.id"
       ref="versesContainer"
     >
-      <h2 class="text-2xl font-amiri mb-4" :dir="currentLanguage === 'ar' ? 'rtl' : 'ltr'">
-        {{ currentLanguage === 'ar' ? currentSurahData.arabicName : currentSurahData.englishName }}
+      <h2 class="surah-title-header font-amiri" :dir="currentLanguage === 'ar' ? 'rtl' : 'ltr'">
+        <span class="title-text">
+          {{ currentLanguage === 'ar' ? currentSurahData.arabicName : currentSurahData.englishName }}
+        </span>
       </h2>
       <div
         v-for="verse in displayedVerses"
         :key="verse.uuid"
-        class="verse-line flex items-center justify-center py-2 cursor-pointer"
+        class="verse-line flex items-center justify-start py-2 cursor-pointer"
         :dir="currentLanguage === 'ar' ? 'rtl' : 'ltr'"
         @click="openVerseNote(verse)"
       >
@@ -92,7 +94,7 @@
       </div>
     </div>
   
-    <transition name="fade" mode="out-in" class="main-content-transition">
+    <transition v-if="displayMode !== 'full-surah'" name="fade" mode="out-in" class="main-content-transition">
       <div v-if="isLoading" class="loading-message text-xl text-center" key="loading">
         <p v-if="currentLanguage === 'ar'">بِسْمِ اللَّهِ الرَّحْمَنِ الرَّحِيمِ</p>
         <p v-else>In the name of Allah, the Most Gracious, the Most Merciful.</p>
@@ -162,8 +164,9 @@
     <!-- Bottom Information Display -->
     <div
       v-if="!isLoading && !errorMessage && currentVerseData"
-      class="bottom-info text-sm font-amiri fixed bottom-5 w-full text-center cursor-pointer"
+      class="bottom-info text-sm font-amiri z-[55] fixed bottom-5 w-full text-center cursor-pointer"
       :dir="currentLanguage === 'ar' ? 'rtl' : 'ltr'"
+        @touchend.stop="toggleSurahVerseMenu"
       @click.stop="toggleSurahVerseMenu"
     >
       <p>
@@ -261,7 +264,7 @@
       :class="currentTheme === 'dark' ? 'dark-theme' : 'light-theme'"
       @click="closeOverlay('voice')"
     >
-      <div class="voice-search-container bg-opacity-80 p-6 rounded-lg" @click.stop>
+      <div class="voice-search-container bg-opacity-80 p-6 rounded-lg" @click.stop @touchend.stop>
         <div class="voice-animation" @click="resetVoiceSearch">
           <div class="ring pulse-1"></div>
           <div class="ring pulse-2"></div>
@@ -319,7 +322,7 @@
       <div
         class="surah-verse-container bg-opacity-80 p-6 rounded-lg w-full max-w-2xl"
         :class="currentTheme === 'dark' ? 'bg-gray-800' : 'bg-white'"
-        @click.stop
+        @click.stop @touchend.stop
       >
         <div class="flex justify-between items-center mb-4">
           <h2 class="text-xl">
@@ -339,7 +342,8 @@
             class="p-2 rounded-lg border"
             :class="currentTheme === 'dark' ? 'bg-gray-700 text-white border-gray-600' : 'bg-white text-gray-800 border-gray-300'"
             @change="updateVerseOptions"
-            @click="handleSelectClick"
+            @touchend.stop="handleSelectClick"
+            @click.stop="handleSelectClick"
             ref="surahSelect"
             aria-label="Select Surah"
           >
@@ -351,7 +355,8 @@
             v-model="selectedVerse"
             class="p-2 rounded-lg border"
             :class="currentTheme === 'dark' ? 'bg-gray-700 text-white border-gray-600' : 'bg-white text-gray-800 border-gray-300'"
-            @click="handleSelectClick"
+            @click.stop="handleSelectClick"
+            @touchend.stop="handleSelectClick"
             ref="verseSelect"
           >
             <option v-for="verse in verseOptions" :key="verse" :value="verse">
@@ -375,11 +380,13 @@
       class="notes-overlay fixed inset-0 flex items-center justify-center z-50"
       :class="currentTheme === 'dark' ? 'dark-theme' : 'light-theme'"
       @click="closeNotesOverlay"
+      
     >
       <div
         class="notes-container bg-opacity-80 p-6 rounded-lg w-full max-w-2xl"
         :class="currentTheme === 'dark' ? 'bg-gray-800' : 'bg-white'"
         @click.stop
+        @touchend.stop
       >
         <div class="flex justify-between items-center mb-4">
           <h2 class="text-xl">
@@ -395,6 +402,7 @@
         </div>
         <textarea
           v-model="currentNote"
+      
           class="w-full h-64 p-2 rounded-lg border"
           :class="currentTheme === 'dark' ? 'bg-gray-700 text-white border-gray-600' : 'bg-white text-gray-800 border-gray-300'"
           :placeholder="currentLanguage === 'ar' ? 'اكتب ملاحظاتك هنا...' : 'Write your notes here...'"
@@ -466,9 +474,7 @@
         class="control-button opacity-65 hover:opacity-100"
         :title="currentLanguage === 'ar' ? 'وضع المراجعة' : 'Revision Mode'"
       >
-        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="currentColor">
-          <path d="M12 3a9 9 0 100 18 9 9 0 000-18zm0 16a7 7 0 110-14 7 7 0 010 14zm1-11h-2v3H8v2h3v3h2v-3h3v-2h-3V8z"/>
-        </svg>
+        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 384 512"><path fill="currentColor" d="M192 0c-53 0-96 43-96 96v160c0 53 43 96 96 96s96-43 96-96V96c0-53-43-96-96-96M64 216c0-13.3-10.7-24-24-24s-24 10.7-24 24v40c0 89.1 66.2 162.7 152 174.4V464h-48c-13.3 0-24 10.7-24 24s10.7 24 24 24h144c13.3 0 24-10.7 24-24s-10.7-24-24-24h-48v-33.6c85.8-11.7 152-85.3 152-174.4v-40c0-13.3-10.7-24-24-24s-24 10.7-24 24v40c0 70.7-57.3 128-128 128S64 326.7 64 256z"/></svg>
       </button>
 
       <!-- Hifz Mode Exit Button -->
@@ -513,6 +519,7 @@
       <button
         v-if="displayMode === 'hifz'"
         @click.stop="toggleLoopsMenu"
+        
         class="control-button opacity-65 hover:opacity-100"
         :title="currentLanguage === 'ar' ? 'عدد التكرارات' : 'Number of Loops'"
       >
@@ -664,6 +671,8 @@
 
 <script>
 import { openDB } from 'idb';
+import {ratio} from 'fuzzball';
+
 
 const SURAH_DATA = [
   { id: 1, arabicName: "الفاتحة", englishName: "Al-Fatiha", verses: 7 },
@@ -815,7 +824,7 @@ export default {
       hifzLoopCount: 10,
       currentLoopIteration: 0, // Track current loop iteration
       completedVerses: {}, // Track comple
-      
+      SURAH_DATA,
       // Other existing data properties
       showLanguageSelection: true,
       showLanguageMenu: false,
@@ -1040,84 +1049,270 @@ export default {
       this.mistakeWords = [];
       this.unreadVerses = [];
     },
-    
-    matchRecitedText(transcript) {
-      if (!this.currentVerseData) return;
-      
-      const verseText = this.currentVerseData.text;
-      const verseWords = verseText.split(' ');
-      const recitedWords = transcript.split(' ');
-      
-      // Simple matching algorithm - match words sequentially
-      this.correctWords = [];
-      this.mistakeWords = [];
-            this.unreadVerses = [];
 
-      for (let i = 0; i < recitedWords.length && i < verseWords.length; i++) {
-        if (verseWords[i].includes(recitedWords[i])) {
-          this.correctWords.push(i);
+
+// Adjusted to take a single string and return a single cleaned string
+removeCharacters(inputTextString) { // Renamed parameter for clarity
+  if (typeof inputTextString !== 'string') {
+    console.error("removeCharacters expects a string input.");
+    return ""; // Or handle the error as appropriate
+  }
+
+ const upperCharactersToRemove = [
+    // Common Waqf (Pause) Marks:
+    "\u06D6", // ۖ  (SALLI / AL-WASL AWLA) - Prefer to continue
+    "\u06D7", // ۗ  (QALLI / AL-WAQF AWLA) - Prefer to stop
+    "\u06D8", // ۘ  (WAQF LAZIM) - Mandatory stop (often a Meem-like symbol, also used for QIF)
+    "\u06D9", // ۙ  (LA) - Prohibited stop symbol
+    "\u06DA", // ۚ  (JA'IZ) - Permissible stop (often a Jeem-like symbol)
+    "\u06DB", // ۛ  (MU'ANAQAH) - Embracing stop (three dots, stop at one of the pair)
+    "\u06DC", // ۜ  (SAKTAH) - Brief pause without breath (often a Seen-like symbol)
+
+    // Other common Quranic symbols you might want to remove:
+    "\u06DD", // ۝  (ARABIC END OF AYAH) - Marks the end of a verse
+    "\u06DE", // ۞  (ARABIC START OF RUB EL HIZB) - Marks a section/ حزب
+    "\u06E9", // ۩  (ARABIC PLACE OF SAJDAH) - Indicates a prostration point
+
+    // Less common as symbols but sometimes appear as small high characters for stops:
+    "\u0615", //  ARABIC SMALL HIGH TAH - Can signify Waqf Mutlaq (Absolute Stop)
+
+    // You can add more characters to this list if needed
+  ];
+
+  let currentString = inputTextString; // Work directly with the input string
+
+  for (let j = 0; j < upperCharactersToRemove.length; j++) {
+    const charToRemove = upperCharactersToRemove[j];
+    // Modern environments (ES2021+) can use:
+    // currentString = currentString.replaceAll(charToRemove, "");
+    // For broader compatibility, the while loop is fine:
+    while (currentString.includes(charToRemove)) {
+      currentString = currentString.replace(charToRemove, "");
+    }
+  }
+  return currentString; // Return the single cleaned string
+},
+
+async matchRecitedText(transcript) {
+    if (!this.currentVerseData || typeof this.currentVerseData.text !== 'string') {
+      console.error("Current verse data or text is missing or not a string.");
+      return;
+    }
+    // Prevent processing if a verse transition is pending
+    if (this.isTransitioning) return;
+
+    // Clear state for highlighting
+    this.currentPartIndex = 0;
+    this.correctWords = [];
+    this.mistakeWords = [];
+    this.unreadVerses = [];
+
+    const verseText = this.removeCharacters(this.currentVerseData.text);
+    const verseWords = verseText.split(' ').filter(word => word.trim());
+    const recitedWords = transcript.split(' ').filter(word => word.trim());
+
+    let currentRunCorrectWords = [];
+    let currentRunMistakeWords = [];
+    let currentRunUnreadWords = [];
+
+    for (let i = 0; i < verseWords.length; i++) {
+      if (i < recitedWords.length) {
+        const verseWord = this.removeTashkeel(verseWords[i]).toLowerCase();
+        const recitedWord = this.removeTashkeel(recitedWords[i]).toLowerCase();
+        // Use fuzzball.js for fuzzy matching
+        const similarity = ratio(verseWord, recitedWord, { ignoreCase: true });
+        if (similarity >= 80) { // 80% similarity threshold
+          currentRunCorrectWords.push(i);
         } else {
-          this.mistakeWords.push(i);
-          // Provide feedback for mistakes
+          currentRunMistakeWords.push(i);
           if (navigator.vibrate) navigator.vibrate([200]);
         }
+      } else {
+        currentRunUnreadWords.push(i);
       }
-      
-            // Mark remaining verse words as unread
+    }
 
-      for (let i = recitedWords.length; i < verseWords.length; i++) {
-               this.unreadVerses.push(i); // Store global word index
+    // Update UI state
+    this.correctWords = currentRunCorrectWords;
+    this.mistakeWords = currentRunMistakeWords;
+    this.unreadVerses = currentRunUnreadWords;
 
+    let advanceToNextVerse = false;
+    const totalVerseWords = verseWords.length;
+
+    if (totalVerseWords === 0) return;
+
+// Advance if the last word was read (correct or mistake)
+const lastIndex = totalVerseWords - 1;
+if (
+  this.correctWords.includes(lastIndex) ||
+  this.mistakeWords.includes(lastIndex)
+) {
+  advanceToNextVerse = true;
+}
+
+// Go back if user recites last 3 words of previous verse in order
+if (this.currentVerseData && this.allVerses && this.allVerses.length > 1) {
+  const currentIndex = this.allVerses.findIndex(
+    v => v.uuid === this.currentVerseData.uuid
+  );
+  if (currentIndex > 0) {
+    const prevVerse = this.allVerses[currentIndex - 1];
+    const prevVerseText = this.removeCharacters(prevVerse.text);
+    const prevVerseWords = prevVerseText.split(' ').filter(word => word.trim());
+    const last3Prev = prevVerseWords.slice(-3).map(w => this.removeTashkeel(w).toLowerCase());
+    const recitedLast3 = recitedWords.slice(-3).map(w => this.removeTashkeel(w).toLowerCase());
+    if (
+      last3Prev.length === 3 &&
+      recitedLast3.length === 3 &&
+      last3Prev.join(' ') === recitedLast3.join(' ')
+    ) {
+      // Go back to previous verse
+      this.isTransitioning = true;
+      setTimeout(() => {
+        this.selectVerse(false);
+        this.isTransitioning = false;
+      }, 1000);
+      return;
+    }
+  }
+}
+
+if (advanceToNextVerse && !this.isTransitioning) {
+  this.isTransitioning = true;
+  setTimeout(() => {
+    this.selectVerse(true);
+    this.isTransitioning = false;
+  }, 1000);
+}
+
+  },
+
+  selectVerse(next = true) {
+    if (this.displayMode === 'hifz') {
+      this.selectNextHifzVerse();
+      return;
+    }
+        if (this.isRevisionMode) {
+          this.toggleRevisionMode();
+          this.toggleRevisionMode();
+    }
+    this.clearAnimationTimers();
+    // Fully reset display state
+    this.displayedWords = [];
+    this.currentTextParts = [];
+    this.currentPartWords = [];
+    this.currentPartIndex = 0;
+    this.correctWords = [];
+    this.mistakeWords = [];
+    this.unreadVerses = [];
+
+    if (!this.allVerses || this.allVerses.length === 0) {
+      this.currentVerseData = null;
+      this.currentTextParts = [];
+      if (!this.isLoading && !this.errorMessage) {
+        this.errorMessage = this.getLocalizedErrorMessage('noVersesAvailable');
       }
-      
-      // If entire verse is correct, move to next verse
-      if (this.correctWords.length === verseWords.length && this.mistakeWords.length === 0) {
-        setTimeout(() => {
-          this.selectVerse(true);
-        }, 1000);
+      return;
+    }
+    let newIndex;
+    if (this.isShuffleMode) {
+      newIndex = Math.floor(Math.random() * this.allVerses.length);
+    } else if (next && this.currentVerseData) {
+      const currentSurah = this.currentVerseData.surah;
+      const currentVerseNum = this.currentVerseData.verse;
+      const surahInfo = SURAH_DATA.find(s => s.id === currentSurah);
+      if (currentVerseNum < surahInfo.verses) {
+        newIndex = this.allVerses.findIndex(verse => verse.surah === currentSurah && verse.verse === currentVerseNum + 1);
+      } else if (currentSurah < 114) {
+        newIndex = this.allVerses.findIndex(verse => verse.surah === currentSurah + 1 && verse.verse === 1);
+      } else {
+        newIndex = this.allVerses.findIndex(verse => verse.surah === 1 && verse.verse === 1);
       }
-    },
+    } else {
+      newIndex = this.allVerses.findIndex(verse => verse.surah === 1 && verse.verse === 1);
+    }
+    if (newIndex === -1) {
+      console.error('Next verse not found, falling back to random');
+      newIndex = 1;
+    }
+    this.currentVerseData = { ...this.allVerses[newIndex] };
+    this.currentTextParts = this.segmentText(this.currentVerseData.text);
+    this.currentPartIndex = 0;
+    this.errorMessage = null;
+    this.displayCurrentPart();
+  },
+
+  displayCurrentPart() {
+    this.clearAnimationTimers();
+
+        this.currentPartIndex = 0
+      // Reset revision highlights for the new part/verse
+  this.correctWords = [];
+  this.mistakeWords = [];
+  this.unreadVerses = [];
+    this.displayedWords = [];
+    this.currentPartWords = [];
+    this.$forceUpdate();
+    this.$nextTick(() => {
+      if (!this.currentVerseData || this.currentPartIndex >= this.currentTextParts.length) {
+        console.log('No more parts, moving to next verse');
+        this.partTimeoutId = setTimeout(() => this.selectVerse(true), this.NEXT_VERSE_DELAY);
+        return;
+      }
+      const partText = this.currentTextParts[this.currentPartIndex];
+      if (!partText || partText.trim() === '') {
+        console.warn('Empty part text, skipping to next part');
+        this.displayNextPart();
+        return;
+      }
+      this.currentPartWords = partText.split(' ').filter(word => word.trim() !== '');
+      console.log('Displaying part:', this.currentPartIndex, 'Words:', this.currentPartWords);
+      this.animateWords();
+      let currentPartDuration = this.currentAudio && this.currentAudio.duration 
+        ? this.currentAudio.duration * 1000 
+        : this.PART_DISPLAY_DURATION;
+      if (this.currentPartWords.length < (this.WORDS_PER_PART * 0.8) && this.WORDS_PER_PART > 0 && !this.currentAudio) {
+        const proportion = this.currentPartWords.length / this.WORDS_PER_PART;
+        currentPartDuration = Math.max(
+          proportion * this.PART_DISPLAY_DURATION,
+          (this.currentPartWords.length * this.WORD_ANIMATION_INTERVAL) + 1000
+        );
+      }
+      const minDurationForAnimation = (this.currentPartWords.length * this.WORD_ANIMATION_INTERVAL) + 1000;
+      currentPartDuration = Math.max(currentPartDuration, minDurationForAnimation);
+      this.currentActivePartDuration = currentPartDuration;
+      this.partTimeoutStartTime = Date.now();
+      console.log('Part duration:', currentPartDuration);
+      this.partTimeoutId = setTimeout(() => this.displayNextPart(), currentPartDuration);
+    });
+  },
+
+  displayNextPart() {
+    this.currentPartIndex = 0
+      // Reset revision highlights for the new part/verse
+  this.correctWords = [];
+  this.mistakeWords = [];
+  this.unreadVerses = [];
+    if (this.currentPartIndex < this.currentTextParts.length - 1) {
+      this.currentPartIndex++;
+      this.displayCurrentPart();
+    }
+  },
     
     // Existing methods
-    async loadSurahVerses(surahId) {
-            this.isLoading = true;
-
-      try {
-        const cached = await this.getCachedSurah(surahId);
-        if (cached) {
-          this.currentSurahData = cached;
-          this.lazyLoadVerses();
-          return;
-        }
-
-        const response = await fetch(`https://api.alquran.cloud/v1/surah/${surahId}`);
-        const data = await response.json();
-        if (data.code === 200) {
-          this.currentSurahData = {
-            id: surahId,
-            arabicName: data.data.name,
-            englishName: data.data.englishName,
-            verses: data.data.ayahs.map(ayah => ({
-              uuid: `${surahId}:${ayah.numberInSurah}`,
-              surah: surahId,
-              verse: ayah.numberInSurah,
-              text: ayah.text,
-              surahArabicName: data.data.name,
-              surahEnglishName: data.data.englishName,
-            })),
-          };
-          await this.cacheSurah(this.currentSurahData);
-          this.lazyLoadVerses();
-        } else {
-          this.errorMessage = this.getLocalizedErrorMessage('loadSurahError');
-        }
-      } catch (error) {
-        console.error('Error loading Surah:', error);
-          this.errorMessage = this.getLocalizedErrorMessage('loadSurahError', error.message);
-      } finally {
-        this.errorMessage = this.currentLanguage === 'ar' ? 'خطأ في الاتصال.' : 'Connection error.';
-      }
-    },
+  async loadSurahVerses(surahId) {
+  this.isLoading = true;
+  try {
+    const surahVerses = this.allVerses.filter(v => v.surah === surahId);
+    this.currentSurahData = this.SURAH_DATA.find(s => s.id === surahId);
+    this.displayedVerses = surahVerses;
+    this.isLoading = false;
+  } catch (error) {
+    this.errorMessage = this.getLocalizedErrorMessage('loadSurahError');
+    this.isLoading = false;
+  }
+},
     
     // ... (all other existing methods)
     
@@ -1180,9 +1375,9 @@ export default {
         const isArabic = this.currentLanguage === 'ar';
         
         if ((clickX > screenWidth / 2 && !isArabic) || (clickX <= screenWidth / 2 && isArabic)) {
-          this.displayNextPart();
-        } else {
           this.displayPreviousPart();
+        } else {
+          this.displayNextPart();
         }
         return;
       }
@@ -1381,11 +1576,11 @@ toggleSurahVerseMenu() {
   }
 },
 
-  updateVerseOptions() {
-    const surah = SURAH_DATA.find(s => s.id === this.selectedSurah);
-    this.verseOptions = Array.from({ length: surah.verses }, (_, i) => i + 1);
-    this.selectedVerse = 1;
-  },
+updateVerseOptions() {
+  const surah = this.SURAH_DATA.find(s => s.id === this.selectedSurah);
+  this.verseOptions = surah ? Array.from({ length: surah.verses }, (_, i) => i + 1) : [];
+  this.selectedVerse = 1;
+},
   selectSurahVerse() {
     const verse = this.allVerses.find(v => v.surah === this.selectedSurah && v.verse === this.selectedVerse);
     if (verse) {
@@ -1437,6 +1632,13 @@ getLocalizedErrorMessage(key, detail = '') {
       tr: `Not yükleme hatası: ${detail}`,
       ur: `نوٹ لوڈ کرنے میں خرابی: ${detail}`,
     },
+    hifzComplete: {
+      ar: 'تم إكمال الحفظ! ابدأ من جديد؟',
+      en: 'Hifz completed! Start over?',
+      fr: `Erreur lors du chargement de la note : ${detail}`,
+      bn: `নোট লোডিংয়ে ত্রুটি: ${detail}`,
+      tr: `Not yükleme hatası: ${detail}`,
+      ur: `نوٹ لوڈ کرنے میں خرابی: ${detail}`,    },
     saveCompletionError: {
       ar: `خطأ في حفظ الإكمال: ${detail}`,
       en: `Error saving completion: ${detail}`,
@@ -1534,51 +1736,7 @@ getLocalizedErrorMessage(key, detail = '') {
     this.isShuffleMode = !this.isShuffleMode;
     console.log('Shuffle mode:', this.isShuffleMode);
   },
-selectVerse(next = true) {
-    if (this.displayMode === 'hifz') {
-      this.selectNextHifzVerse()
-      return
-    }
-  this.clearAnimationTimers();
-  this.displayedWords = [];
-  if (!this.allVerses || this.allVerses.length === 0) {
-    this.currentVerseData = null;
-    this.currentTextParts = [];
-    if (!this.isLoading && !this.errorMessage) {
-      this.errorMessage = this.getLocalizedErrorMessage('noVersesAvailable');
-    }
-    return;
-  }
-  let newIndex;
-  if (this.isShuffleMode) {
-    newIndex = Math.floor(Math.random() * this.allVerses.length);
-  } else if (next && this.currentVerseData) {
-    const currentSurah = this.currentVerseData.surah;
-    const currentVerseNum = this.currentVerseData.verse;
-    const surahInfo = SURAH_DATA.find(s => s.id === currentSurah);
-    if (currentVerseNum < surahInfo.verses) {
-      // Next verse in same surah
-      newIndex = this.allVerses.findIndex(verse => verse.surah === currentSurah && verse.verse === currentVerseNum + 1);
-    } else if (currentSurah < 114) {
-      // First verse of next surah
-      newIndex = this.allVerses.findIndex(verse => verse.surah === currentSurah + 1 && verse.verse === 1);
-    } else {
-      // Loop to Surah 1, Verse 1
-      newIndex = this.allVerses.findIndex(verse => verse.surah === 1 && verse.verse === 1);
-    }
-  } else {
-    newIndex = this.allVerses.findIndex(verse => verse.surah === 1 && verse.verse === 1); // Start from first verse
-  }
-  if (newIndex === -1) {
-    console.error('Next verse not found, falling back to random');
-    newIndex = 1;
-  }
-  this.currentVerseData = { ...this.allVerses[newIndex] };
-  this.currentTextParts = this.segmentText(this.currentVerseData.text);
-  this.currentPartIndex = 0;
-  this.errorMessage = null;
-  this.displayCurrentPart();
-},
+
     searchPagination(direction) {
     this.currentPage += direction;
     if (this.currentPage < 1) this.currentPage = 1;
@@ -1653,12 +1811,41 @@ selectInitialLanguage(lang) {
 toggleLanguageMenu() {
   this.showLanguageMenu = !this.showLanguageMenu;
 },
-
+ async loadLocalMushafJson(type) {
+    let url = '';
+    if (type === 'warsh') url = '/warsh.json';
+    else if (type === 'qaloon') url = '/qaloon.json';
+    else return [];
+    try {
+      const response = await fetch(url);
+      if (!response.ok) throw new Error('Failed to load ' + url);
+      const data = await response.json();
+      // Normalize structure if needed
+      return data.map(aya => ({
+        uuid: `${aya.sura_no}:${aya.aya_no}-ar-${type}`,
+        surah: aya.sura_no,
+        verse: aya.aya_no,
+        verseKey: `${aya.sura_no}:${aya.aya_no}`,
+        text: aya.aya_text.replace(/[\uFBC0-\uFC63]/g, ''),
+        surahArabicName: aya.sura_name_ar?.trim() || '',
+        surahEnglishName: aya.sura_name_en || '',
+        audio: null,
+        language: 'ar',
+      }));
+    } catch (e) {
+      this.errorMessage = this.getLocalizedErrorMessage('loadError', e.message);
+      return [];
+    }
+  },
 setLanguage(lang) {
   this.currentLanguage = lang;
   localStorage.setItem('language', lang);
   this.showLanguageMenu = false;
-  this.loadInitialData().then(() => {
+  if (lang === 'ar') {
+    this.showMushafSelection = true;
+  } else {
+    this.showMushafSelection = false;
+    this.loadInitialData().then(() => {
     if (this.allVerses.length > 0 && !this.errorMessage) {
       this.selectVerse();
     } else if (!this.errorMessage) {
@@ -1666,11 +1853,22 @@ setLanguage(lang) {
       this.isLoading = false;
     }
   });
+}
 },
 async loadInitialData() {
   this.isLoading = true;
   this.cacheStatus = 'checking';
   try {
+       if (this.mushafType === 'warsh' || this.mushafType === 'qaloon') {
+      this.allVerses = await this.loadLocalMushafJson(this.mushafType);
+      if (this.allVerses.length > 0) {
+        this.selectVerse();
+      } else {
+        this.errorMessage = this.getLocalizedErrorMessage('noDataAfterLoad');
+      }
+      this.isLoading = false;
+      return;
+    }
     if ('serviceWorker' in navigator && 'caches' in window) {
       const cached = await this.checkServiceWorkerCache();
       if (cached) {
@@ -2159,6 +2357,7 @@ toggleAudio() {
     this.currentAudio.pause();
     this.isAudioPlaying = false;
   } else {
+    if (this.currentAudio) this.currentAudio.pause();
     this.initAudioPlayback();
   }
 },
@@ -2277,12 +2476,7 @@ displayCurrentPart() {
   });
 },
 
-displayNextPart() {
-  if (this.currentPartIndex < this.currentTextParts.length - 1) {
-    this.currentPartIndex++;
-    this.displayCurrentPart();
-  }
-},
+
 
 animateWords() {
   let wordIndex = 0; // Start fresh for the new part
@@ -2414,11 +2608,15 @@ getLocalizedErrorMessage(key, detail = '') {
 },
 togglePause() {
   if (this.isPausedByPause) {
-    console.log('Toggling pause: Resuming');
     this.resumeVerseDisplayFromPause();
+    if (this.currentAudio && this.currentAudio.paused) {
+      this.currentAudio.play();
+    }
   } else {
-    console.log('Toggling pause: Pausing');
     this.pauseVerseDisplayByPause();
+    if (this.currentAudio && !this.currentAudio.paused) {
+      this.currentAudio.pause();
+    }
   }
 },
 
@@ -2626,7 +2824,7 @@ handleAppMouseUp(event) {
     const clickX = event.clientX;
     const screenWidth = window.innerWidth;
     const isArabic = this.currentLanguage === 'ar';
-    if ((clickX > screenWidth / 2 && !isArabic) || (clickX <= screenWidth / 2 && isArabic)) {
+    if ((clickX > screenWidth / 2 && !isArabic) || (clickX > screenWidth / 2 && isArabic)) {
       console.log('Mouse up - Next verse');
       this.selectVerse(true);
     } else {
@@ -2672,7 +2870,7 @@ handleAppTouchEnd(event) {
 
       if (this.displayMode === 'tafseer') {
         if (isDoubleTap) {
-          if ((touchX > screenWidth / 2 && !isArabic) || (touchX <= screenWidth / 2 && isArabic)) {
+          if ((touchX > screenWidth / 2 && !isArabic) || (touchX > screenWidth / 2 && isArabic)) {
             console.log('Double tap - Next Surah');
             this.selectVerse(true);
             this.loadTafseer();
@@ -2682,31 +2880,31 @@ handleAppTouchEnd(event) {
             this.loadTafseer();
           }
         } else {
-          if ((touchX > screenWidth / 2 && !isArabic) || (touchX <= screenWidth / 2 && isArabic)) {
+          if ((touchX > screenWidth / 2 && !isArabic) || (touchX > screenWidth / 2 && isArabic)) {
             console.log('Single tap - Next Tafseer part');
-            this.displayNextPart();
+            this.displayPreviousPart();
           } else {
             console.log('Single tap - Previous Tafseer part');
-            this.displayPreviousPart();
+            this.displayNextPart();
           }
         }
       } else if (this.displayMode === 'hifz') {
         if (!this.isSelectingWords) {
-          if ((touchX > screenWidth / 2 && !isArabic) || (touchX <= screenWidth / 2 && isArabic)) {
+          if ((touchX > screenWidth / 2 && !isArabic) || (touchX > screenWidth / 2 && isArabic)) {
             console.log('Tap - Next Hifz verse');
-            this.selectNextHifzVerse();
+            this.displayPreviousVerse();
           } else {
             console.log('Tap - Previous Hifz verse');
-            this.displayPreviousVerse();
+            this.selectNextHifzVerse();
           }
         }
       } else {
-        if ((touchX > screenWidth / 2 && !isArabic) || (touchX <= screenWidth / 2 && isArabic)) {
-          console.log('Tap - Next verse');
-          this.selectVerse(true);
-        } else {
+        if ((touchX > screenWidth / 2 && !isArabic) || (touchX > screenWidth / 2 && isArabic)) {
           console.log('Tap - Previous verse');
           this.displayPreviousVerse();
+        } else {
+          console.log('Tap - Next verse');
+          this.selectVerse(true);
         }
       }
 
@@ -2894,13 +3092,38 @@ async loadVerseCompletion() {
     this.errorMessage = this.getLocalizedErrorMessage('loadCompletionError', error.message);
   }
 },
-  completeCurrentLoop() {
-    this.currentLoop++;
-    if (this.currentLoop > this.hifzLoopCount) {
-      this.currentLoop = 1;
+completeCurrentLoop() {
+  if (!this.currentVerseData || this.hifzVerseQueue.length === 0) return;
+  this.currentLoopIteration++;
+  if (this.currentLoopIteration >= this.hifzLoopCount) {
+    // Move to the next verse after the current queue
+    const lastVerse = this.hifzVerseQueue[this.hifzVerseQueue.length - 1];
+    const nextVerse = this.getNextVerse(lastVerse);
+    if (nextVerse) {
+      this.currentVerseData = nextVerse;
+      this.updateHifzVerseQueue(); // Rebuild queue starting from next verse
+      this.currentLoopIteration = 0;
+      this.isVerseCompleted = false;
+    } else {
+      // End of Quran, reset to start or show completion
       this.hifzVerseQueue = [];
+      this.displayMode = 'verse';
+      this.errorMessage = this.getLocalizedErrorMessage('hifzComplete');
     }
-    this.selectNextHifzVerse();
+  }
+  this.selectNextHifzVerse();
+  this.saveVerseCompletion();
+},
+
+getNextVerse(current) {
+    if (!current) return null;
+    const surahInfo = this.SURAH_DATA.find(s => s.id === current.surah);
+    if (current.verse < surahInfo.verses) {
+      return this.allVerses.find(v => v.surah === current.surah && v.verse === current.verse + 1);
+    } else if (current.surah < 114) {
+      return this.allVerses.find(v => v.surah === current.surah + 1 && v.verse === 1);
+    }
+    return null;
   },
   toggleLoopsMenu() {
     this.showLoopsMenu = !this.showLoopsMenu;
@@ -3111,10 +3334,19 @@ shareVerse() {
     document.documentElement.setAttribute('data-theme', this.currentTheme);
     
     // Show mushaf selection when Arabic is selected
-    if (this.currentLanguage === 'ar') {
-      this.showMushafSelection = true;
-    } else {
-      await this.loadInitialData();
+ const savedLang = localStorage.getItem('language');
+  const savedMushaf = localStorage.getItem('mushafType');
+  if (savedLang) {
+    this.currentLanguage = savedLang;
+    this.showLanguageSelection = false;
+  } else {
+    this.showLanguageSelection = true;
+  }
+  if (this.currentLanguage === 'ar' && !savedMushaf) {
+    this.showMushafSelection = true;
+  } else {
+    this.showMushafSelection = false;
+    await this.loadInitialData();
       if (this.allVerses.length > 0 && !this.errorMessage) {
         this.selectVerse();
       } else if (!this.errorMessage) {
@@ -3645,11 +3877,7 @@ html, body {
 }
 
 
-.full-surah-display {
-  max-height: 80vh;
-  overflow-y: auto;
-  padding: 1rem;
-}
+
 .verse-line {
   transition: opacity 0.3s ease;
 }
@@ -3700,7 +3928,11 @@ html, body {
 
 /* Mushaf Selection Overlay */
 .mushaf-selection-overlay {
-  background: rgba(0, 0, 0, 0.7);
+  position: fixed;
+  height: 100%;
+  width: 100%;
+  z-index: 99;
+  background: rgba(0, 0, 0, 0.9);
   backdrop-filter: blur(10px);
 }
 
@@ -3790,9 +4022,12 @@ html, body {
 
 /* Full Surah Mode */
 .full-surah-display {
-  max-height: 80vh;
-  overflow-y: auto;
-  padding: 1rem;
+  position: fixed;
+  width: 100vw;
+  height: 100vh;
+  overflow-y: scroll;
+  padding: 7.5%;
+
 }
 
 .verse-line {
@@ -3861,4 +4096,89 @@ select {
     right: 10px;
   }
 }
+
+
+
+/* Responsive adjustments for mobile */
+@media (max-width: 768px) {
+  .control-buttons-container {
+    right: auto;
+    bottom: 1.5rem;
+    width: 98vw;
+    max-width: 98vw;
+    padding: 0.5rem 0.25rem;
+    gap: 0.25rem;
+    flex-wrap: wrap;
+    justify-content: center;
+  }
+  .control-button {
+    margin-bottom: 0.25rem;
+    flex: 1 1 40px;
+    min-width: 40px;
+    max-width: 60px;
+  }
+}
+
+.surah-title-header {
+  font-size: 1.5rem; /* Equivalent to text-2xl */
+  line-height: 2rem;
+  margin-bottom: 3rem; /* Equivalent to mb-12 */
+  text-align: center; /* Equivalent to text-center */
+  padding-top: 0.75rem; /* Slightly more than py-2 for balance with borders */
+  padding-bottom: 0.75rem;
+  border-top-width: 1px;
+  border-bottom-width: 1px;
+  border-style: solid;
+  /* Theme-specific colors will be applied below */
+  transition: background-color 0.3s ease, color 0.3s ease, border-color 0.3s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.light-theme .surah-title-header {
+  background-image: url("data:image/svg+xml,%3Csvg width='20' height='20' xmlns='http://www.w3.org/2000/svg'%3E%3Cg transform='rotate(35 10 10)'%3E%3Cpath d='M0 5 V15 H5 V20 H15 V15 H20 V5 H15 V0 H5 V5Z' stroke-width='0.75' stroke-opacity='0.15' stroke='rgb(0,0,0)' fill='none'/%3E%3C/g%3E%3C/svg%3E");
+
+  color: #1f2937;          /* Tailwind gray-800 - strong contrast for text */
+  border-color: #d1d5db;     /* Tailwind gray-300 - subtle border */
+}
+
+.dark-theme .surah-title-header {
+  background-image: url("data:image/svg+xml,%3Csvg width='20' height='20' xmlns='http://www.w3.org/2000/svg'%3E%3Cg transform='rotate(35 10 10)'%3E%3Cpath d='M0 5 V15 H5 V20 H15 V15 H20 V5 H15 V0 H5 V5Z' stroke-width='0.75' stroke-opacity='0.15' stroke='rgb(255,255,255)' fill='none'/%3E%3C/g%3E%3C/svg%3E");
+
+  color: #e5e7eb;          /* Tailwind gray-200 - clear text on dark bg */
+  border-color: #4b5563;     /* Tailwind gray-600 - subtle border */
+}
+
+.sepia-theme .surah-title-header {
+   background-image: url("data:image/svg+xml,%3Csvg width='20' height='20' xmlns='http://www.w3.org/2000/svg'%3E%3Cg transform='rotate(35 10 10)'%3E%3Cpath d='M0 5 V15 H5 V20 H15 V15 H20 V5 H15 V0 H5 V5Z' stroke-width='0.75' stroke-opacity='0.10' stroke='rgb(95,75,50)' fill='none'/%3E%3C/g%3E%3C/svg%3E");
+  color: #5f4b32;          /* Main sepia text color */
+  border-color: #bfb59f;     /* A mid-tone sepia for the border */
+}
+
+.surah-title-header::before,
+.surah-title-header::after {
+  content: '۞'; /* ARABIC START OF RUB EL HIZB symbol (U+06DE) */
+  font-family: 'Amiri', serif; /* Ensure it uses the same font */
+  font-size: 0.7em; /* Make it smaller than the title text */
+  opacity: 0.65; /* Make it subtle */
+  padding: 0 0.6em; /* Add some horizontal spacing */
+  line-height: 1; /* Helps with vertical alignment */
+}
+
+.light-theme .surah-title-header::before,
+.light-theme .surah-title-header::after {
+  color: #4b5563; /* Tailwind gray-600 */
+}
+
+.dark-theme .surah-title-header::before,
+.dark-theme .surah-title-header::after {
+  color: #9ca3af; /* Tailwind gray-400 */
+}
+
+.sepia-theme .surah-title-header::before,
+.sepia-theme .surah-title-header::after {
+  color: #8c7b60; /* A darker, less prominent sepia tone */
+}
+/* ...existing code... */
 </style>
