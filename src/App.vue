@@ -92,7 +92,8 @@
   {{ word }} 
 </span>         <!-- Verse Number Decoration -->
           <svg
-            @click="openVerseNote(verse)"
+            @click.stop.prevent="openVerseNote(verse)"
+            @touchend.stop.prevent="openVerseNote(verse)"
             width="26"
             height="26"
             viewBox="0 0 26 26"
@@ -158,7 +159,7 @@
             <span
               v-for="(word, index) in displayedWords"
   :key="`${currentVerseData.uuid}-${currentPartIndex}-${index}`"
-              class="inline-block mx-1.5 pulsing-word py-8"
+              class="inline-block flex-shrink mx-1.5 pulsing-word py-8"
               :class="[
     { 'highlighted': isWordHighlighted(index, currentVerseData.uuid) }, // Pass currentVerseData.uuid
     getHighlightClass(index, currentVerseData.uuid),                   // Pass currentVerseData.uuid
@@ -186,8 +187,9 @@
     <!-- Bottom Information Display -->
     <div
       v-if="!isLoading && !errorMessage && currentVerseData"
-      class="bottom-info text-sm font-amiri z-[55] fixed bottom-5 w-full text-center cursor-pointer"
+      class="bottom-info control-buttons-container w-auto text-sm font-amiri z-[55] fixed bottom-5 px-5 rounded-md text-center cursor-pointer"
       :dir="currentLanguage === 'ar' ? 'rtl' : 'ltr'"
+        @touchstart.stop="toggleSurahVerseMenu"
         @touchend.stop="toggleSurahVerseMenu"
       @click.stop="toggleSurahVerseMenu"
     >
@@ -337,7 +339,7 @@
     <!-- Surah and Verse Selection Overlay -->
     <div
       v-if="showSurahVerseMenu"
-      class="surah-verse-overlay fixed inset-0 flex flex-col items-center justify-start pt-8 z-50"
+      class="surah-verse-overlay  fixed inset-0 flex flex-col items-center justify-start pt-8 z-50"
       :class="currentTheme === 'dark' ? 'dark-theme' : 'light-theme'"
       @click.stop="handleAppClick"
             @mousedown.stop
@@ -347,7 +349,7 @@
   @keydown.stop
     >
       <div
-        class="surah-verse-container bg-opacity-80 p-6 rounded-lg w-full max-w-2xl"
+        class="surah-verse-container  bg-opacity-80 p-6 rounded-lg w-full max-w-2xl"
         :class="currentTheme === 'dark' ? 'bg-gray-800' : 'bg-white'"
         @click.stop @touchend.stop
       >
@@ -424,8 +426,11 @@
           </button>
         </div>
         <textarea
-          v-model="currentNote"
-          ref="notesTextarea"
+  v-model="currentNote"
+  ref="notesTextarea"
+  @touchend="focusTextarea"
+  @focus="notesTextareaFocused = true"
+  @blur="notesTextareaFocused = false"
           class="w-full h-64 p-2 rounded-lg border"
           :class="currentTheme === 'dark' ? 'bg-gray-700 text-white border-gray-600' : 'bg-white text-gray-800 border-gray-300'"
           :placeholder="currentLanguage === 'ar' ? 'اكتب ملاحظاتك هنا...' : 'Write your notes here...'"
@@ -528,7 +533,9 @@
   </button>
 </div>
     <!-- Control Buttons Container -->
-    <div   v-show="controlMenuVisible"
+    <div   v-show="controlMenuVisible || !isMobile"    :class="['control-buttons-container', { 'fade-out': controlMenuFading }, `${controlMenuVisible ? '' :'max-sm:hidden'}`]"
+  @mousedown.stop="showControlMenu"
+  @touchstart.stop="showControlMenu"
 class="control-buttons-container   bg-black/30 rounded-xl p-2 max-sm:scale-90 fixed max-sm:bottom-12 bottom-5 sm:right-5 flex space-x-2 z-50">
       <!-- Revision Mode Button -->
       <button
@@ -730,6 +737,7 @@ class="control-buttons-container   bg-black/30 rounded-xl p-2 max-sm:scale-90 fi
 class="hamburg   !bg-none rounded-xl p-2 max-sm:scale-90 fixed max-sm:bottom-12 bottom-5 sm:right-5 flex space-x-2 z-50">
     <button
   v-if="hamburgerMenuVisible && isMobile"
+  class="fixed bottom-5 left-1/2 z-50 transform -translate-x-1/2 sepia-hamburger"
   style="width:56px;height:56px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:2rem;box-shadow:0 2px 8px rgba(0,0,0,0.2);"
   @click="handleHamburgerClick"
 >
@@ -886,7 +894,10 @@ export default {
       // Mushaf selection
       showMushafSelection: false,
       mushafType: 'hafs', // 'hafs', 'warsh', 'qaloon'
-      
+         controlMenuVisible: true,
+    hamburgerMenuVisible: false,
+    controlMenuTimeoutId: null,
+    controlMenuFading: false,
       // Revision mode
       isRevisionMode: false,
       speechRecognition: null,
@@ -902,6 +913,7 @@ export default {
       wordIndex: null,
       color: null,
     },
+wasScrolling: false,
 
           hifzVerseQueue: [],
       hifzCurrentVerseIndex: 0,
@@ -1050,24 +1062,43 @@ controlMenuTimeoutId: null,
   },
 
   methods: {
+    focusTextarea() {
+  this.$nextTick(() => {
+    if (this.$refs.notesTextarea) {
+      this.$refs.notesTextarea.focus();
+    }
+  });
+},
     showControlMenu() {
   this.controlMenuVisible = true;
   this.hamburgerMenuVisible = false;
+  this.controlMenuFading = false;
   if (this.controlMenuTimeoutId) clearTimeout(this.controlMenuTimeoutId);
   if (this.isMobile) {
     this.controlMenuTimeoutId = setTimeout(() => {
-      this.controlMenuVisible = false;
-      this.hamburgerMenuVisible = true;
-    }, 3000);
+      this.controlMenuFading = true;
+      setTimeout(() => {
+        this.controlMenuVisible = false;
+        this.hamburgerMenuVisible = true;
+        this.controlMenuFading = false;
+      }, 2000); // 2000ms fade after 4000ms = 6000ms total
+    }, 4000);
   }
+},
+hideControlMenu() {
+  this.controlMenuVisible = false;
+  this.hamburgerMenuVisible = true;
+  this.controlMenuFading = false;
+  if (this.controlMenuTimeoutId) clearTimeout(this.controlMenuTimeoutId);
+},
+handleHamburgerClick() {
+  this.showControlMenu();
 },
 showHamburgerMenu() {
   this.controlMenuVisible = false;
   this.hamburgerMenuVisible = true;
 },
-handleHamburgerClick() {
-  this.showControlMenu();
-},
+
     closeInstructions() {
       console.log('Closing navigation instructions');
       this.showNavigationInstructions = false;
@@ -1605,7 +1636,7 @@ getWordHighlightColor(index, verseUuid) {
         const screenWidth = window.innerWidth;
         const isArabic = this.currentLanguage === 'ar';
         
-        if ((clickX > screenWidth / 2 && !isArabic) || (clickX <= screenWidth / 2 && isArabic)) {
+        if ((clickX > screenWidth )) {
           this.displayPreviousPart();
         } else {
           this.displayNextPart();
@@ -2040,23 +2071,32 @@ updateWordSelection(event, index, verseUuidParam = null) {
 },
 
 endWordSelection(event) {
-  const highlightEnabledModes = ['hifz', 'full-surah']; // Add 'verse', 'tafseer' if needed
+ const highlightEnabledModes = ['hifz', 'full-surah'];
   if (!highlightEnabledModes.includes(this.displayMode) || !this.isSelectingWords) {
-    this.isSelectingWords = false; // Ensure flag is reset
+    this.isSelectingWords = false;
     return;
   }
   this.isSelectingWords = false;
+  if (this.wasScrolling) {
+    this.wasScrolling = false;
+    return; // Don't show highlight menu if user was scrolling
+  }
   if (this.selectedWordIndices.length > 0) {
-    // Use the target element to get positioning (you may adjust this selector if needed)
     let target = event.target;
     while (target && !target.classList.contains('inline-block')) {
       target = target.parentElement;
     }
     if (target) {
       const rect = target.getBoundingClientRect();
+      const menuWidth = 180; // Approximate width of your highlight menu
+      let left = rect.left + window.scrollX + (rect.width / 2) - menuWidth / 2;
+      // On mobile, center in viewport if menu would overflow
+      if (window.innerWidth < 600) {
+        left = Math.max(8, Math.min(left, window.innerWidth - menuWidth - 8));
+      }
       this.highlightMenuPosition = {
         top: rect.top + window.scrollY - 60,
-        left: rect.left + window.scrollX + (rect.width / 2) - 80,
+        left,
       };
       this.showHighlightMenu = true;
     }
@@ -2364,7 +2404,24 @@ removeTashkeel(text) {
 },
 
 handleAppTouchMove(event) {
- if (this.displayMode === 'full-surah') { // Allow native scrolling in full-surah mode
+   if (this.displayMode === 'full-surah') {
+    // Only trigger swipe down if at top of scroll
+    const container = this.$refs.versesContainer;
+    if (container && container.scrollTop === 0) {
+      const touchY = event.changedTouches[0].clientY;
+      const deltaY = touchY - this.touchStartY;
+      if (deltaY > this.SWIPE_THRESHOLD) {
+        this.showSearchOverlay = true;
+        this.focusSearchInput();
+        this.hasSwiped = true;
+        return;
+      }
+    }
+    this.wasScrolling = true;
+    return;
+  }
+  if (this.displayMode === 'full-surah') {
+    this.wasScrolling = true; // Mark that a scroll/drag happened
     return;
   }
   if (!this.isHoldingGlobal || this.hasSwiped || this.showSearchOverlay || this.showVoiceSearchOverlay ) return;
@@ -2399,6 +2456,7 @@ handleAppTouchMove(event) {
 },
 
 openSearchOverlay() {
+
   this.showSearchOverlay = true;
   this.showVoiceSearchOverlay = false;
   this.searchQuery = '';
@@ -2451,7 +2509,27 @@ performSearch() {
     }, 300);
   },
   selectSearchResult(result) {
+    
     const verse = this.allVerses.find(v => v.uuid === result.uuid);
+     if (this.displayMode === 'full-surah' && this.currentSurahData && result.surah === this.currentSurahData.id) {
+    // Same surah, just scroll to verse
+    this.showSearchOverlay = false;
+    this.$nextTick(() => {
+      const verseEl = document.querySelector(`[data-verse-uuid="${result.uuid}"]`);
+      if (verseEl) verseEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    });
+  } else {
+    // Switch to surah mode and scroll
+    this.setDisplayMode('full-surah');
+    this.selectedSurah = result.surah;
+    this.loadSurahVerses(result.surah).then(() => {
+      this.showSearchOverlay = false;
+      this.$nextTick(() => {
+        const verseEl = document.querySelector(`[data-verse-uuid="${result.uuid}"]`);
+        if (verseEl) verseEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      });
+    });
+  }
     if (verse) {
       this.currentVerseData = { ...verse };
       this.currentTextParts = this.segmentText(verse.text);
@@ -3045,29 +3123,6 @@ displayCurrentPart() {
   this.partTimeoutStartTime = Date.now();
   this.partTimeoutId = setTimeout(this.displayNextPart, currentPartDuration);
 },
-handleAppMouseDown(event) {
-  // Skip if clicking on inputs, buttons, or overlays
-  if (
-    event.target.closest('input') ||
-    event.target.closest('button') ||
-    event.target.closest('.control-buttons-container') ||
-    event.target.closest('.search-overlay') ||
-    event.target.closest('.voice-search-overlay')
-  ) {
-    return;
-  }
-  event.preventDefault();
-  this.isHoldingGlobal = true;
-  clearTimeout(this.holdStartTimeoutId);
-  if (!this.isPausedByHold) {
-    this.holdStartTimeoutId = setTimeout(() => {
-      if (this.isHoldingGlobal && !this.hasSwiped) {
-        this.pauseVerseDisplayByHold();
-      }
-    }, this.HOLD_THRESHOLD);
-  }
-  console.log('Mouse down at x:', event.clientX);
-},
 
 handleAppTouchStart(event) {
   // Skip if touching inputs, buttons, or overlays
@@ -3080,7 +3135,12 @@ handleAppTouchStart(event) {
   ) {
     return;
   }
-  event.preventDefault();
+
+  // Only preventDefault if NOT in full-surah mode
+  if (this.displayMode !== 'full-surah') {
+    event.preventDefault();
+  }
+  this.wasScrolling = false;
   this.isHoldingGlobal = true;
   this.hasSwiped = false;
   clearTimeout(this.holdStartTimeoutId);
@@ -3098,7 +3158,39 @@ handleAppTouchStart(event) {
   }
   console.log('Touch start at x:', this.touchStartX, 'y:', this.touchStartY, 'time:', this.touchStartTime);
 },
+
+handleAppMouseDown(event) {
+  // Skip if clicking on inputs, buttons, or overlays
+  if (
+    event.target.closest('input') ||
+    event.target.closest('button') ||
+    event.target.closest('.control-buttons-container') ||
+    event.target.closest('.search-overlay') ||
+    event.target.closest('.voice-search-overlay')
+  ) {
+    return;
+  }
+
+  // Only preventDefault if NOT in full-surah mode
+  if (this.displayMode !== 'full-surah') {
+    event.preventDefault();
+  }
+
+  this.isHoldingGlobal = true;
+  clearTimeout(this.holdStartTimeoutId);
+  if (!this.isPausedByHold) {
+    this.holdStartTimeoutId = setTimeout(() => {
+      if (this.isHoldingGlobal && !this.hasSwiped) {
+        this.pauseVerseDisplayByHold();
+      }
+    }, this.HOLD_THRESHOLD);
+  }
+  console.log('Mouse down at x:', event.clientX);
+},
 handleAppMouseUp(event) {
+  if (this.showNotesOverlay) {
+  return;
+}
     const isControlButtonClick =
     event.target.closest('button') ||
     event.target.closest('.control-buttons-container') ||
@@ -3166,7 +3258,7 @@ if (this.displayMode === 'verse' || this.displayMode === 'revision') {
 
   // For Arabic: right side = previous, left side = next
   // For non-Arabic: right side = next, left side = previous
-  if ((isArabic && x < screenWidth / 2) || (!isArabic && x > screenWidth / 2)) {
+  if (( x > screenWidth / 2)) {
     // Next part/verse
     if (this.currentPartIndex < this.currentTextParts.length - 1) {
       this.displayNextPart();
@@ -3194,7 +3286,7 @@ if (this.displayMode === 'verse' || this.displayMode === 'revision') {
     const clickX = event.clientX;
     const screenWidth = window.innerWidth;
     const isArabic = this.currentLanguage === 'ar';
-if ((clickX > screenWidth / 2 && !isArabic) || (clickX > screenWidth / 2 && isArabic)) {
+if ((clickX > screenWidth / 2)) {
   if (this.currentPartIndex < this.currentTextParts.length - 1) {
     console.log('Mouse up - Next part');
     this.displayNextPart();
@@ -3228,6 +3320,7 @@ saveLastViewed() {
   }
 },
 handleAppTouchEnd(event) {
+
   const isControlButtonTouch =
     event.target.closest('button') ||
     event.target.closest('.control-buttons-container') ||
@@ -3253,6 +3346,16 @@ handleAppTouchEnd(event) {
 
   // Full-surah navigation for mobile
   if (this.displayMode === 'full-surah') {
+    if (this.wasScrolling) {
+      // Don't navigate if user was scrolling
+      this.isHoldingGlobal = false;
+      this.touchStartX = null;
+      this.touchStartY = null;
+      this.touchStartTime = null;
+      this.hasSwiped = false;
+      this.wasScrolling = false;
+      return;
+    }
     if (event.changedTouches && event.changedTouches.length > 0) {
       const touchX = event.changedTouches[0].clientX;
       const screenWidth = window.innerWidth;
@@ -3275,6 +3378,8 @@ handleAppTouchEnd(event) {
     this.touchStartY = null;
     this.touchStartTime = null;
     this.hasSwiped = false;
+        this.wasScrolling = false;
+
     return;
   }
   if (this.isPausedByHold && !this.hasSwiped) {
@@ -3783,6 +3888,10 @@ this.displayCurrentPart();
 },
 
 handleAppTouchMove(event) {
+  if (this.displayMode === 'full-surah') {
+    this.wasScrolling = true; // Mark that a scroll/drag happened
+    return;
+  }
   if (!this.isHoldingGlobal || this.hasSwiped) return;
   if (this.showVoiceSearchOverlay) {
     this.handleVoiceSearchTouchMove(event);
@@ -3818,6 +3927,10 @@ handleAppTouchMove(event) {
 },
 
 handleAppTouchMove(event) {
+  if (this.displayMode === 'full-surah') {
+    this.wasScrolling = true; // Mark that a scroll/drag happened
+    return;
+  }
   if (!this.isHoldingGlobal || this.hasSwiped) return;
   if (this.showVoiceSearchOverlay) {
     this.handleVoiceSearchTouchMove(event);
@@ -3885,6 +3998,19 @@ displayPreviousPart() {
     this.displayCurrentPart();
   }
 },
+ handleGlobalClick(e) {
+    // If not clicking inside the control menu, hide it
+     if (this.showHighlightMenu && !e.target.closest('.highlight-menu')) {
+    this.showHighlightMenu = false;
+    e.stopPropagation();
+    e.preventDefault();
+    return;
+  }
+    const menu = document.querySelector('.control-buttons-container');
+    if (menu && !menu.contains(e.target)) {
+      this.hideControlMenu();
+    }
+  },
 shareVerse() {
   if (!this.currentVerseData || !this.currentVerseData.text) {
     console.error('No verse data to share');
@@ -3974,14 +4100,18 @@ shareVerse() {
   }
     document.addEventListener('click', this.hideHighlightContextMenu);
   this.showControlMenu();
-
+ document.addEventListener('mousedown', this.handleGlobalClick);
+  document.addEventListener('touchstart', this.handleGlobalClick);
+  
   },
   
   beforeUnmount() {
     this.clearAnimationTimers();
     this.stopSpeechRecognition();
       document.removeEventListener('click', this.hideHighlightContextMenu);
-
+ document.removeEventListener('mousedown', this.handleGlobalClick);
+  document.removeEventListener('touchstart', this.handleGlobalClick);
+  
   }
 };
 </script>
@@ -4852,5 +4982,15 @@ select {
   color: #5f4b32 !important;
   fill: #5f4b32 !important;
   border: 1px solid #bfb59f !important;
+}
+
+.control-buttons-container.fade-out {
+  opacity: 0;
+  transition: opacity 2s;
+  pointer-events: none;
+}
+.control-buttons-container {
+  opacity: 1;
+  transition: opacity 0.3s;
 }
 </style>
