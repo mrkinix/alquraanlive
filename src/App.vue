@@ -203,16 +203,20 @@
     <!-- Search Overlay -->
     <div
       v-if="showSearchOverlay"
-      class="search-overlay fixed inset-0 flex flex-col items-center justify-start pt-8 z-50"
+      class="search-overlay bg-none fixed inset-0 flex flex-col items-center justify-start sm:p-[2rem] sm:pt-8 z-50"
       :class="currentTheme === 'dark' ? 'dark-theme' : 'light-theme'"
+      style="background-color: transparent !important;"
+            @click="closeOverlay('search')"
+
     >
       <div
         class="search-container bg-opacity-80 p-6 rounded-lg w-full !flex !flex-col h-full max-w-2xl"
-        :class="currentTheme === 'dark' ? 'bg-gray-800' : 'bg-white'"
+        :class="currentTheme === 'dark' ? 'bg-black/40' : 'bg-white'"
       >
-        <div class="flex items-center mb-4">
+        <div class="flex items-center mb-4 max-sm:flex-col">
           <input
             v-model="searchQuery"
+             @click.stop
             @keyup.enter="performSearch"
             type="text"
             :placeholder="currentLanguage === 'ar' ? 'ابحث في القرآن...' : 'Search in Quran...'"
@@ -220,10 +224,12 @@
             :class="[currentTheme === 'dark' ? 'bg-gray-700 text-white' : 'bg-white text-gray-800', currentLanguage === 'ar' ? 'text-right' : 'text-left']"
             ref="searchInput"
           />
+        <div class="flex items-center mt-4 max-sm:flex-row">
+
           <button
             @click.stop="performSearch"
-            class="mx-1 p-2 bg-gray-500 text-white rounded-none"
-            :class="currentTheme === 'dark' ? 'hover:bg-blue-600' : 'hover:bg-blue-400'"
+            class="mx-1 p-2   text-white rounded-2xl"
+        :class="currentTheme === 'dark' ? 'text-white' : 'text-black'"
           >
             <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="currentColor">
               <path d="M15.5 14h-.79l-.28-.27a6.5 6.5 0 001.48-4.23c0-3.58-2.92-6.5-6.5-6.5S3 5.92 3 9.5s2.92 6.5 6.5 6.5c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z"/>
@@ -231,10 +237,12 @@
           </button>
           <button
             @click.stop="closeOverlay('search')"
-            class="p-2 bg-gray-500 text-white rounded-r-lg"
+            class="mx-1 p-2 0  text-white rounded-2xl"
+        :class="currentTheme === 'dark' ? 'text-white' : 'text-black'"
           >
             ✕
           </button>
+          </div>
         </div>
         <div v-if="isSearching" class="text-center py-4">
           {{ currentLanguage === 'ar' ? 'جاري البحث...' : 'Searching...' }}
@@ -2404,7 +2412,7 @@ removeTashkeel(text) {
 },
 
 handleAppTouchMove(event) {
-   if (this.displayMode === 'full-surah') {
+if (this.displayMode === 'full-surah') {
     // Only trigger swipe down if at top of scroll
     const container = this.$refs.versesContainer;
     if (container && container.scrollTop === 0) {
@@ -2418,10 +2426,6 @@ handleAppTouchMove(event) {
       }
     }
     this.wasScrolling = true;
-    return;
-  }
-  if (this.displayMode === 'full-surah') {
-    this.wasScrolling = true; // Mark that a scroll/drag happened
     return;
   }
   if (!this.isHoldingGlobal || this.hasSwiped || this.showSearchOverlay || this.showVoiceSearchOverlay ) return;
@@ -3888,8 +3892,20 @@ this.displayCurrentPart();
 },
 
 handleAppTouchMove(event) {
-  if (this.displayMode === 'full-surah') {
-    this.wasScrolling = true; // Mark that a scroll/drag happened
+if (this.displayMode === 'full-surah') {
+    // Only trigger swipe down if at top of scroll
+    const container = this.$refs.versesContainer;
+    if (container && container.scrollTop === 0) {
+      const touchY = event.changedTouches[0].clientY;
+      const deltaY = touchY - this.touchStartY;
+      if (deltaY > this.SWIPE_THRESHOLD) {
+        this.showSearchOverlay = true;
+        this.focusSearchInput();
+        this.hasSwiped = true;
+        return;
+      }
+    }
+    this.wasScrolling = true;
     return;
   }
   if (!this.isHoldingGlobal || this.hasSwiped) return;
@@ -3927,8 +3943,20 @@ handleAppTouchMove(event) {
 },
 
 handleAppTouchMove(event) {
-  if (this.displayMode === 'full-surah') {
-    this.wasScrolling = true; // Mark that a scroll/drag happened
+if (this.displayMode === 'full-surah') {
+    // Only trigger swipe down if at top of scroll
+    const container = this.$refs.versesContainer;
+    if (container && container.scrollTop === 0) {
+      const touchY = event.changedTouches[0].clientY;
+      const deltaY = touchY - this.touchStartY;
+      if (deltaY > this.SWIPE_THRESHOLD) {
+        this.showSearchOverlay = true;
+        this.focusSearchInput();
+        this.hasSwiped = true;
+        return;
+      }
+    }
+    this.wasScrolling = true;
     return;
   }
   if (!this.isHoldingGlobal || this.hasSwiped) return;
@@ -4383,9 +4411,8 @@ html, body {
   overflow-y: auto;
   align-items: center;
   justify-content: flex-start;
-  padding: 2rem;
   z-index: 8;
-  background: rgba(0, 0, 0, 0.327);
+  background: rgba(0, 0, 0, 0.542);
   backdrop-filter: blur(12px);
 }
 
@@ -4566,7 +4593,7 @@ html, body {
   background: rgba(255, 255, 255, 0.5);
 }
 .search-container {
-  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.034);
   transition: background 0.5s ease, color 0.5s ease;
 }
 .search-input {
@@ -4800,7 +4827,7 @@ select {
 .loops-overlay.dark-theme,
 .search-overlay.dark-theme,
 .voice-search-overlay.dark-theme {
-  background: rgba(0, 0, 0, 0.7);
+  background: rgb(0, 0, 0);
 }
 
 .surah-verse-overlay.light-theme,
