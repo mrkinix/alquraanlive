@@ -1494,7 +1494,10 @@ getWordHighlightColor(index, verseUuid) {
     this.$nextTick(() => {
       if (!this.currentVerseData || this.currentPartIndex >= this.currentTextParts.length) {
         console.log('No more parts, moving to next verse');
-        this.partTimeoutId = setTimeout(() => this.selectVerse(true), this.NEXT_VERSE_DELAY);
+        // Prevent auto-advancing in revision mode
+        if (this.displayMode !== 'revision') {
+          this.partTimeoutId = setTimeout(() => this.selectVerse(true), this.NEXT_VERSE_DELAY);
+        }
         return;
       }
       const partText = this.currentTextParts[this.currentPartIndex];
