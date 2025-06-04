@@ -2,10 +2,10 @@
 import { defineConfig } from 'vite'
 import vue from '@vitejs/plugin-vue'
 import { VitePWA } from 'vite-plugin-pwa'
-
+import mkcert from 'vite-plugin-mkcert'
 export default defineConfig({
   plugins: [
-    vue(),
+    vue(), mkcert(),
 
     VitePWA({
       registerType: 'autoUpdate', // Or 'prompt' for user interaction

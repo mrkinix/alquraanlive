@@ -132,23 +132,7 @@
         class="quran-verse-display text-center"
         :key="currentVerseData.uuid"
       >
-        <!-- Revision Mode Visual Feedback -->
-        <div v-if="displayMode === 'revision'" class="revision-feedback mb-4">
-          <div class="flex justify-center gap-4">
-            <div class="flex items-center">
-              <div class="w-4 h-4 rounded-full bg-green-500 mr-2"></div>
-              <span>{{ currentLanguage === 'ar' ? 'صحيح' : 'Correct' }}</span>
-            </div>
-            <div class="flex items-center">
-              <div class="w-4 h-4 rounded-full bg-red-500 mr-2"></div>
-              <span>{{ currentLanguage === 'ar' ? 'خطأ' : 'Mistake' }}</span>
-            </div>
-            <div class="flex items-center">
-              <div class="w-4 h-4 rounded-full opacity-40 mr-2"></div>
-              <span>{{ currentLanguage === 'ar' ? 'غير مقروء' : 'Unread' }}</span>
-            </div>
-          </div>
-        </div>
+       
 
         <p
           :key="currentPartIndex"
@@ -548,6 +532,14 @@ class="control-buttons-container   bg-black/30 rounded-xl p-2 max-sm:scale-90 fi
       <!-- Revision Mode Button -->
       <button
         v-if="displayMode !== 'revision' && currentLanguage === 'ar'"
+         @click.stop="openOcr" 
+        class="control-button opacity-65 hover:opacity-100"
+        :title="currentLanguage === 'ar' ? 'وضع المراجعة' : 'Revision Mode'"
+      >
+<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24"><path fill="currentColor" d="M13.925 2.504a2.25 2.25 0 0 1 1.94 1.11l.814 1.387h2.071A3.25 3.25 0 0 1 22 8.25v9.5A3.25 3.25 0 0 1 18.75 21H5.25A3.25 3.25 0 0 1 2 17.75v-9.5A3.25 3.25 0 0 1 5.25 5h2.08l.875-1.424a2.25 2.25 0 0 1 1.917-1.073zM12 8a4.5 4.5 0 1 0 0 9a4.5 4.5 0 0 0 0-9m0 1.5a3 3 0 1 1 0 6a3 3 0 0 1 0-6"/></svg>      </button>
+      <!-- Revision Mode Button -->
+      <button
+        v-if="displayMode !== 'revision' && currentLanguage === 'ar'"
         @click.stop="toggleRevisionMode"
         class="control-button opacity-65 hover:opacity-100"
         :title="currentLanguage === 'ar' ? 'وضع المراجعة' : 'Revision Mode'"
@@ -762,6 +754,7 @@ class="hamburg   !bg-none rounded-xl p-2 max-sm:scale-90 fixed max-sm:bottom-12 
 <script>
 import { openDB } from 'idb';
 import {ratio} from 'fuzzball';
+import fassarli from './components/fassarli.vue';
 
 
 const SURAH_DATA = [
@@ -895,7 +888,8 @@ import instructions from './components/instructions.vue';
 
 export default {
   components: {
-    instructions
+    instructions,
+    fassarli
   },
   data() {
     return {
@@ -914,6 +908,7 @@ export default {
       mistakeWords: [],
       unreadVerses: [],
     showNavigationInstructions: false,
+      ocrInstructions: false,
          showHighlightContextMenu: false,
     highlightContextMenuPosition: { top: 0, left: 0 },
     highlightContextMenu: {
@@ -1070,6 +1065,15 @@ controlMenuTimeoutId: null,
   },
 
   methods: {
+    openOcr() {
+      const hasSeen = localStorage.getItem('ocrInstructions');
+      this.ocrInstructions = true
+
+    },
+    closeOcrUi() {
+      this.ocrInstructions = false;
+      localStorage.setItem('ocrInstructions', 'true');
+    },
     focusTextarea() {
   this.$nextTick(() => {
     if (this.$refs.notesTextarea) {
@@ -1082,16 +1086,7 @@ controlMenuTimeoutId: null,
   this.hamburgerMenuVisible = false;
   this.controlMenuFading = false;
   if (this.controlMenuTimeoutId) clearTimeout(this.controlMenuTimeoutId);
-  if (this.isMobile) {
-    this.controlMenuTimeoutId = setTimeout(() => {
-      this.controlMenuFading = true;
-      setTimeout(() => {
-        this.controlMenuVisible = false;
-        this.hamburgerMenuVisible = true;
-        this.controlMenuFading = false;
-      }, 2000); // 2000ms fade after 4000ms = 6000ms total
-    }, 4000);
-  }
+  
 },
 hideControlMenu() {
   this.controlMenuVisible = false;
@@ -1169,6 +1164,10 @@ if (!localStorage.getItem('hasSeenInstructions')) {
     },
     
     initSpeechRecognition() {
+            this.correctWords = [];
+      this.mistakeWords = [];
+      this.unreadVerses = [];
+      this.$forceUpdate()
       const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
       if (!SpeechRecognition) {
         this.errorMessage = this.getLocalizedErrorMessage('voiceSearchNotSupported');
@@ -1259,9 +1258,11 @@ async matchRecitedText(transcript) {
 
     // Clear state for highlighting
     this.currentPartIndex = 0;
-    this.correctWords = [];
-    this.mistakeWords = [];
-    this.unreadVerses = [];
+    this.correctWords = [0];
+    this.mistakeWords = [0];
+    this.unreadVerses = [0];
+
+    this.$forceUpdate()
 
     const verseText = this.removeCharacters(this.currentVerseData.text);
     const verseWords = verseText.split(' ').filter(word => word.trim());
@@ -1277,7 +1278,7 @@ async matchRecitedText(transcript) {
         const recitedWord = this.removeTashkeel(recitedWords[i]).toLowerCase();
         // Use fuzzball.js for fuzzy matching
         const similarity = ratio(verseWord, recitedWord, { ignoreCase: true });
-        if (similarity >= 80) { // 80% similarity threshold
+        if (similarity >= 70) { // 80% similarity threshold
           currentRunCorrectWords.push(i);
         } else {
           currentRunMistakeWords.push(i);
@@ -1304,35 +1305,38 @@ if (
   this.correctWords.includes(lastIndex) ||
   this.mistakeWords.includes(lastIndex)
 ) {
+    this.$forceUpdate()
+    await new Promise(resolve => setTimeout(resolve, 100));
+
   advanceToNextVerse = true;
 }
 
 // Go back if user recites last 3 words of previous verse in order
-if (this.currentVerseData && this.allVerses && this.allVerses.length > 1) {
-  const currentIndex = this.allVerses.findIndex(
-    v => v.uuid === this.currentVerseData.uuid
-  );
-  if (currentIndex > 0) {
-    const prevVerse = this.allVerses[currentIndex - 1];
-    const prevVerseText = this.removeCharacters(prevVerse.text);
-    const prevVerseWords = prevVerseText.split(' ').filter(word => word.trim());
-    const last3Prev = prevVerseWords.slice(-3).map(w => this.removeTashkeel(w).toLowerCase());
-    const recitedLast3 = recitedWords.slice(-3).map(w => this.removeTashkeel(w).toLowerCase());
-    if (
-      last3Prev.length === 3 &&
-      recitedLast3.length === 3 &&
-      last3Prev.join(' ') === recitedLast3.join(' ')
-    ) {
-      // Go back to previous verse
-      this.isTransitioning = true;
-      setTimeout(() => {
-        this.selectVerse(false);
-        this.isTransitioning = false;
-      }, 1000);
-      return;
-    }
-  }
-}
+// if (this.currentVerseData && this.allVerses && this.allVerses.length > 1) {
+//   const currentIndex = this.allVerses.findIndex(
+//     v => v.uuid === this.currentVerseData.uuid
+//   );
+//   if (currentIndex > 0) {
+//     const prevVerse = this.allVerses[currentIndex - 1];
+//     const prevVerseText = this.removeCharacters(prevVerse.text);
+//     const prevVerseWords = prevVerseText.split(' ').filter(word => word.trim());
+//     const last3Prev = prevVerseWords.slice(-3).map(w => this.removeTashkeel(w).toLowerCase());
+//     const recitedLast3 = recitedWords.slice(-3).map(w => this.removeTashkeel(w).toLowerCase());
+//     if (
+//       last3Prev.length === 3 &&
+//       recitedLast3.length === 3 &&
+//       last3Prev.join(' ') === recitedLast3.join(' ')
+//     ) {
+//       // Go back to previous verse
+//       this.isTransitioning = true;
+//       setTimeout(() => {
+//         this.selectVerse(false);
+//         this.isTransitioning = false;
+//       }, 1000);
+//       return;
+//     }
+//   }
+// }
 
 if (advanceToNextVerse && !this.isTransitioning) {
   this.isTransitioning = true;
@@ -1409,9 +1413,11 @@ getWordHighlightColor(index, verseUuid) {
       this.selectNextHifzVerse();
       return;
     }
-        if (this.isRevisionMode) {
-          this.toggleRevisionMode();
-          this.toggleRevisionMode();
+    if (this.isRevisionMode) {
+      this.toggleRevisionMode();
+      this.toggleRevisionMode();
+      this.displayMode = "revision"
+
     }
     this.clearAnimationTimers();
     // Fully reset display state
@@ -1482,7 +1488,6 @@ getWordHighlightColor(index, verseUuid) {
 
   displayCurrentPart() {
     this.clearAnimationTimers();
-
         this.currentPartIndex = 0
       // Reset revision highlights for the new part/verse
   this.correctWords = [];
@@ -1524,7 +1529,9 @@ getWordHighlightColor(index, verseUuid) {
       this.currentActivePartDuration = currentPartDuration;
       this.partTimeoutStartTime = Date.now();
       console.log('Part duration:', currentPartDuration);
-      this.partTimeoutId = setTimeout(() => this.displayNextPart(), currentPartDuration);
+        if (this.displayMode !== 'revision') {
+          this.partTimeoutId = setTimeout(() => this.displayNextPart(), currentPartDuration);
+        }
     });
   },
 
@@ -1535,9 +1542,11 @@ getWordHighlightColor(index, verseUuid) {
     this.displayCurrentPart();
   } else {
     // If at the last part, auto-advance to the next verse after a short delay
+        if (this.displayMode !== 'revision'){
     setTimeout(() => {
       this.selectVerse(true);
     }, 800); // 800ms pause before next verse, adjust as needed
+    }
   }
   },
     
@@ -1812,13 +1821,22 @@ updateVerseOptions() {
   this.selectedVerse = 1;
 },
 selectSurahVerse() {
+  this.clearAnimationTimers();
+  this.correctWords = [];
+  this.mistakeWords = [];
+  this.unreadVerses = [];
+    this.displayedWords = [];
+    this.currentPartWords = [];
+    this.$forceUpdate();
   const verse = this.allVerses.find(v => v.surah === this.selectedSurah && v.verse === this.selectedVerse);
+  
   if (verse) {
     this.currentVerseData = { ...verse };
     this.currentTextParts = this.segmentText(verse.text);
     this.currentPartIndex = 0;
     this.displayedWords = [];
     this.clearAnimationTimers();
+    
     this.displayCurrentPart();
     this.showSurahVerseMenu = false;
 
@@ -2813,6 +2831,12 @@ stopAudioHold() {
 displayCurrentPart() {
   // Clear any ongoing animations and timers
   this.clearAnimationTimers();
+  
+    this.correctWords = [];
+  this.mistakeWords = [];
+  this.unreadVerses = [];
+    this.displayedWords = [];
+    this.currentPartWords = [];
 
   // Clear previous words immediately
   this.displayedWords = [];
@@ -2821,7 +2845,8 @@ displayCurrentPart() {
   this.$forceUpdate();
   this.$nextTick(() => {
     // Check if there's valid data to display
-    if (!this.currentVerseData || this.currentPartIndex >= this.currentTextParts.length) {
+    if ((!this.currentVerseData ||  this.currentPartIndex >= this.currentTextParts.length)
+  && (this.displayMode !== 'revision') ) {
       console.log('No more parts, moving to next verse');
       this.partTimeoutId = setTimeout(() => this.selectVerse(true), this.NEXT_VERSE_DELAY);
       return;
@@ -2851,7 +2876,9 @@ displayCurrentPart() {
     console.log('Part duration:', currentPartDuration);
 
     // Schedule the next part
-    this.partTimeoutId = setTimeout(() => this.displayNextPart(), currentPartDuration);
+    if (this.displayMode !== 'revision')  {  
+      this.partTimeoutId = setTimeout(() => this.displayNextPart(), currentPartDuration);
+    }
   });
 },
 
@@ -3106,6 +3133,12 @@ resumeVerseDisplayFromHold() {
 
 displayCurrentPart() {
   this.clearAnimationTimers();
+  this.correctWords = [];
+  this.mistakeWords = [];
+  this.unreadVerses = [];
+    this.displayedWords = [];
+    this.currentPartWords = [];
+    this.$forceUpdate();
 
   if (!this.currentVerseData || this.currentPartIndex >= this.currentTextParts.length) {
     this.displayedWords = [];
@@ -3258,7 +3291,7 @@ if (this.displayMode === 'full-surah') {
 }
 
 
-if (this.displayMode === 'verse' || this.displayMode === 'revision') {
+if (this.displayMode === 'verse') {
   const x = event.clientX || (event.changedTouches && event.changedTouches[0].clientX);
   const screenWidth = window.innerWidth;
   const isArabic = this.currentLanguage === 'ar';
@@ -3443,7 +3476,7 @@ handleAppTouchEnd(event) {
             this.displayPreviousVerse(); // Corrected
           }
         }
-      } else { // Handles 'verse', 'revision' modes
+      } else if (this.displayMode === 'verse') {
         if (rightSideTapped) {
           if (this.currentPartIndex < this.currentTextParts.length - 1) {
             console.log('Tap - Next part');
@@ -4147,7 +4180,7 @@ shareVerse() {
 };
 </script>
 
-<style>
+<style >
 /* Existing styles... */
 :root {
   --text-color-dark: #e5e7eb; /* gray-200 */
@@ -4300,8 +4333,8 @@ html, body {
 
 .control-button {
   font-family:Arial, Helvetica, sans-serif;
-  width: 2.75rem; /* ~44px */
-  height: 2.75rem; /* ~44px */
+  width: 4rem; /* ~44px */
+  height: 4rem; /* ~44px */
   border-radius: 9999px; /* pill shape */
   display: flex;
   font-size: 12px;
@@ -4885,7 +4918,6 @@ select {
     bottom: 1.5rem;
     opacity: 0.48;
     position: absolute;
-    right: .1rem;
 }
 
 
@@ -4904,7 +4936,6 @@ select {
   }
   .control-button {
     margin-bottom: 0.25rem;
-    flex: 1 1 40px;
     min-width: 40px;
     max-width: 60px;
   }

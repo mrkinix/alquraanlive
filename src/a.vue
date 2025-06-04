@@ -1,4 +1,6 @@
 <template>
+  <ocr  class="z-[99999]"/>
+  <instructions @click="closeInstructions" v-if="showNavigationInstructions" />
   <div
     class="app-container"
     :class="[currentTheme === 'dark' ? 'dark-theme' : currentTheme === 'sepia' ? 'sepia-theme' : 'light-theme']"
@@ -9,7 +11,6 @@
     @touchmove="handleAppTouchMove"
     @touchend="handleAppTouchEnd"
     @touchcancel="handleAppTouchCancel"
-    @click="handleAppClick"
   >
     <!-- Mushaf Selection Overlay -->
     <div
@@ -24,23 +25,23 @@
         <h2 class="text-xl mb-4 text-center">
           {{ currentLanguage === 'ar' ? 'اختر نوع المصحف' : 'Select Mushaf Type' }}
         </h2>
-        <div class="flex flex-col gap-3">
+        <div class="flex flex-col gap-3 mt-10">
           <button
-            @click="selectMushaf('hafs')"
+            @click.stop="selectMushaf('hafs')"
             class="p-3 rounded-lg"
             :class="currentTheme === 'dark' ? 'bg-gray-700 hover:bg-gray-600' : 'bg-gray-100 hover:bg-gray-200'"
           >
             {{ currentLanguage === 'ar' ? 'حفص عن عاصم' : 'Hafs' }}
           </button>
           <button
-            @click="selectMushaf('warsh')"
+            @click.stop="selectMushaf('warsh')"
             class="p-3 rounded-lg"
             :class="currentTheme === 'dark' ? 'bg-gray-700 hover:bg-gray-600' : 'bg-gray-100 hover:bg-gray-200'"
           >
             {{ currentLanguage === 'ar' ? 'ورش عن نافع' : 'Warsh' }}
           </button>
           <button
-            @click="selectMushaf('qaloon')"
+            @click.stop="selectMushaf('qaloon')"
             class="p-3 rounded-lg"
             :class="currentTheme === 'dark' ? 'bg-gray-700 hover:bg-gray-600' : 'bg-gray-100 hover:bg-gray-200'"
           >
@@ -53,46 +54,72 @@
     <!-- Full Surah Display -->
     <div
       v-if="displayMode === 'full-surah' && currentSurahData"
-      class="full-surah-display text-center"
+      class="full-surah-display text-justify sm:px-[30%] leading-relaxed"
       :key="currentSurahData.id"
       ref="versesContainer"
     >
-      <h2 class="text-2xl font-amiri mb-4" :dir="currentLanguage === 'ar' ? 'rtl' : 'ltr'">
-        {{ currentLanguage === 'ar' ? currentSurahData.arabicName : currentSurahData.englishName }}
+      <h2 class="surah-title-header font-amiri" :dir="currentLanguage === 'ar' ? 'rtl' : 'ltr'">
+        <span class="title-text">
+          {{ currentLanguage === 'ar' ? currentSurahData.arabicName : currentSurahData.englishName }}
+        </span>
       </h2>
       <div
         v-for="verse in displayedVerses"
         :key="verse.uuid"
-        class="verse-line flex items-center justify-center py-2 cursor-pointer"
+          :data-verse-uuid="verse.uuid"
+
+        class="verse-line flex items-center justify-start py-2 cursor-pointer"
         :dir="currentLanguage === 'ar' ? 'rtl' : 'ltr'"
-        @click="openVerseNote(verse)"
       >
-        <span class="verse-text text-xl font-amiri flex-1">
-          <span
-            v-for="(word, index) in verse.text.split(' ')"
-            :key="`${verse.uuid}-${index}`"
-            class="inline-block mx-1"
-            :class="[
-              { 'highlighted': isWordHighlighted(index, verse.uuid) },
-              getHighlightClass(index, verse.uuid)
-            ]"
-            @mousedown="startWordSelection($event, index, verse.uuid)"
-            @mousemove="updateWordSelection($event, index)"
-            @mouseup="endWordSelection"
-            @touchstart="startWordSelection($event, index, verse.uuid)"
-            @touchmove="updateWordSelection($event, index)"
-            @touchend="endWordSelection"
+      
+        <span class="verse-text text-2xl font-amiri flex-1">
+<span
+  v-for="(word, index) in verse.text.split(' ')"
+  :key="`${verse.uuid}-${index}`"
+  :data-word-uuid="`${verse.uuid}-${index}`"
+  class="inline-block mx-1 py-3"
+  :class="[
+  { 'highlighted': isWordHighlighted(index, verse.uuid) },
+  getHighlightClass(index, verse.uuid)
+]"
+  @mousedown.stop="startWordSelection($event, index, verse.uuid)"
+  @mousemove.stop="updateWordSelection($event, index, verse.uuid)"
+  @mouseup.stop="endWordSelection($event)"
+  @touchstart.stop="startWordSelection($event, index, verse.uuid)"
+  @touchmove.stop="updateWordSelection($event, index, verse.uuid)"
+  @touchend.stop="endWordSelection($event)"
+  @click.stop="handleWordClick(index, verse)"
+>
+  {{ word }} 
+</span>         <!-- Verse Number Decoration -->
+          <svg
+            @click.stop.prevent="openVerseNote(verse)"
+            @touchend.stop.prevent="openVerseNote(verse)"
+            width="26"
+            height="26"
+            viewBox="0 0 26 26"
+            class="verse-number-svg ml-2 decorative-number cursor-pointer inline-block align-middle"
+            xmlns="http://www.w3.org/2000/svg"
           >
-            {{ word }}
-          </span>
+            <circle cx="13" cy="13" r="11.5" stroke="currentColor" stroke-width="1.5" fill="transparent" />
+            <text
+              x="50%"
+              y="50%"
+              dominant-baseline="middle"
+              text-anchor="middle"
+              fill="currentColor"
+              class="font-amiri"
+              style="font-size: 11px;" 
+            >
+              {{ verse.verse }}
+            </text>
+          </svg>
         </span>
-        <span class="verse-number text-sm font-amiri ml-4 decorative-number">
-          {{ verse.verse }}
-        </span>
+
       </div>
     </div>
   
-    <transition name="fade" mode="out-in" class="main-content-transition">
+    <transition v-if="displayMode !== 'full-surah'" name="fade" mode="out-in" class="main-content-transition">
       <div v-if="isLoading" class="loading-message text-xl text-center" key="loading">
         <p v-if="currentLanguage === 'ar'">بِسْمِ اللَّهِ الرَّحْمَنِ الرَّحِيمِ</p>
         <p v-else>In the name of Allah, the Most Gracious, the Most Merciful.</p>
@@ -100,36 +127,13 @@
       <div v-else-if="errorMessage" class="error-message text-xl text-center" key="error">
         <p>{{ currentLanguage === 'ar' ? 'خطأ:' : 'Error:' }}</p>
         <p>{{ errorMessage }}</p>
-        <button
-          @click="retryLoad"
-          class="p-2 bg-blue-500 text-white rounded-lg"
-          :class="currentTheme === 'dark' ? 'hover:bg-blue-600' : 'hover:bg-blue-400'"
-        >
-          {{ currentLanguage === 'ar' ? 'إعادة المحاولة' : 'Retry' }}
-        </button>
       </div>
       <div
         v-else-if="currentTextParts.length > 0 && currentVerseData"
         class="quran-verse-display text-center"
         :key="currentVerseData.uuid"
       >
-        <!-- Revision Mode Visual Feedback -->
-        <div v-if="displayMode === 'revision'" class="revision-feedback mb-4">
-          <div class="flex justify-center gap-4">
-            <div class="flex items-center">
-              <div class="w-4 h-4 rounded-full bg-green-500 mr-2"></div>
-              <span>{{ currentLanguage === 'ar' ? 'صحيح' : 'Correct' }}</span>
-            </div>
-            <div class="flex items-center">
-              <div class="w-4 h-4 rounded-full bg-red-500 mr-2"></div>
-              <span>{{ currentLanguage === 'ar' ? 'خطأ' : 'Mistake' }}</span>
-            </div>
-            <div class="flex items-center">
-              <div class="w-4 h-4 rounded-full opacity-40 mr-2"></div>
-              <span>{{ currentLanguage === 'ar' ? 'غير مقروء' : 'Unread' }}</span>
-            </div>
-          </div>
-        </div>
+       
 
         <p
           :key="currentPartIndex"
@@ -139,21 +143,20 @@
           <transition-group name="word-fade" tag="span">
             <span
               v-for="(word, index) in displayedWords"
-              :key="`${currentVerseData.uuid}-${currentPartIndex}-${index}-${currentLanguage}-${word}`"
-              class="inline-block mx-1.5 pulsing-word"
+  :key="`${currentVerseData.uuid}-${currentPartIndex}-${index}`"
+              class="inline-block flex-shrink mx-1.5 pulsing-word py-8"
               :class="[
-                currentLanguage === 'ar' ? 'mb-12' : 'mb-5',
-                { 'highlighted': isWordHighlighted(index) },
-                getHighlightClass(index),
-                { 'correct-highlight': isWordCorrect(index) },
-                { 'mistake-glow': isWordMistake(index) },
-                { 'opacity-40': isWordUnread(index) }
+    { 'highlighted': isWordHighlighted(index, currentVerseData.uuid) }, // Pass currentVerseData.uuid
+    getHighlightClass(index, currentVerseData.uuid),                   // Pass currentVerseData.uuid
+    { 'correct-highlight': isWordCorrect(index) },
+    { 'mistake-glow': isWordMistake(index) },
+    { 'opacity-40': isWordUnread(index) }
               ]"
-              @mousedown="startWordSelection($event, index)"
-              @mousemove="updateWordSelection($event, index)"
-              @mouseup="endWordSelection"
-              @touchstart="startWordSelection($event, index)"
-              @touchmove="updateWordSelection($event, index)"
+              @mousedown.stop="startWordSelection($event, index, currentVerseData.uuid)"
+              @mousemove.stop="updateWordSelection($event, index, currentVerseData.uuid)"
+              @mouseup.stop="endWordSelection"
+              @touchstart.stop="startWordSelection($event, index, currentVerseData.uuid)"
+              @touchmove.stop="updateWordSelection($event, index, currentVerseData.uuid)"
               @touchend="endWordSelection"
             >
               {{ word }}
@@ -169,8 +172,10 @@
     <!-- Bottom Information Display -->
     <div
       v-if="!isLoading && !errorMessage && currentVerseData"
-      class="bottom-info text-sm font-amiri fixed bottom-5 w-full text-center cursor-pointer"
+      class="bottom-info control-buttons-container w-auto text-sm font-amiri z-[55] fixed bottom-5 px-5 rounded-md text-center cursor-pointer"
       :dir="currentLanguage === 'ar' ? 'rtl' : 'ltr'"
+        @touchstart.stop="toggleSurahVerseMenu"
+        @touchend.stop="toggleSurahVerseMenu"
       @click.stop="toggleSurahVerseMenu"
     >
       <p>
@@ -183,16 +188,20 @@
     <!-- Search Overlay -->
     <div
       v-if="showSearchOverlay"
-      class="search-overlay fixed inset-0 flex flex-col items-center justify-start pt-8 z-50"
+      class="search-overlay bg-none fixed inset-0 flex flex-col items-center justify-start sm:p-[2rem] sm:pt-8 z-50"
       :class="currentTheme === 'dark' ? 'dark-theme' : 'light-theme'"
+      style="background-color: transparent !important;"
+            @click="closeOverlay('search')"
+
     >
       <div
         class="search-container bg-opacity-80 p-6 rounded-lg w-full !flex !flex-col h-full max-w-2xl"
-        :class="currentTheme === 'dark' ? 'bg-gray-800' : 'bg-white'"
+        :class="currentTheme === 'dark' ? 'bg-black/40' : 'bg-white'"
       >
-        <div class="flex items-center mb-4">
+        <div class="flex items-center mb-4 max-sm:flex-col">
           <input
             v-model="searchQuery"
+             @click.stop
             @keyup.enter="performSearch"
             type="text"
             :placeholder="currentLanguage === 'ar' ? 'ابحث في القرآن...' : 'Search in Quran...'"
@@ -200,21 +209,25 @@
             :class="[currentTheme === 'dark' ? 'bg-gray-700 text-white' : 'bg-white text-gray-800', currentLanguage === 'ar' ? 'text-right' : 'text-left']"
             ref="searchInput"
           />
+        <div class="flex items-center mt-4 max-sm:flex-row">
+
           <button
-            @click="performSearch"
-            class="mx-1 p-2 bg-gray-500 text-white rounded-none"
-            :class="currentTheme === 'dark' ? 'hover:bg-blue-600' : 'hover:bg-blue-400'"
+            @click.stop="performSearch"
+            class="mx-1 p-2   text-white rounded-2xl"
+        :class="currentTheme === 'dark' ? 'text-white' : 'text-black'"
           >
             <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="currentColor">
               <path d="M15.5 14h-.79l-.28-.27a6.5 6.5 0 001.48-4.23c0-3.58-2.92-6.5-6.5-6.5S3 5.92 3 9.5s2.92 6.5 6.5 6.5c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z"/>
             </svg>
           </button>
           <button
-            @click="closeOverlay('search')"
-            class="p-2 bg-gray-500 text-white rounded-r-lg"
+            @click.stop="closeOverlay('search')"
+            class="mx-1 p-2 0  text-white rounded-2xl"
+        :class="currentTheme === 'dark' ? 'text-white' : 'text-black'"
           >
             ✕
           </button>
+          </div>
         </div>
         <div v-if="isSearching" class="text-center py-4">
           {{ currentLanguage === 'ar' ? 'جاري البحث...' : 'Searching...' }}
@@ -226,7 +239,7 @@
           <div
             v-for="result in paginatedResults"
             :key="result.uuid"
-            @click="selectSearchResult(result)"
+            @click.stop="selectSearchResult(result)"
             class="search-result-item p-4 border-b cursor-pointer"
             :class="currentTheme === 'dark' ? 'border-gray-700 hover:bg-gray-700' : 'border-gray-200 hover:bg-gray-100'"
           >
@@ -240,7 +253,7 @@
           </div>
           <div v-if="searchResults.length > resultsPerPage" class="pagination">
             <button
-              @click="searchPagination(-1)"
+              @click.stop="searchPagination(-1)"
               :disabled="currentPage === 1"
               class="p-2 rounded-lg"
               :class="currentTheme === 'dark' ? 'bg-gray-700 text-white' : 'bg-gray-200 text-gray-800'"
@@ -249,7 +262,7 @@
             </button>
             <span>{{ currentPage }} / {{ Math.ceil(searchResults.length / resultsPerPage) }}</span>
             <button
-              @click="searchPagination(1)"
+              @click.stop="searchPagination(1)"
               :disabled="currentPage === Math.ceil(searchResults.length / resultsPerPage)"
               class="p-2 rounded-lg"
               :class="currentTheme === 'dark' ? 'bg-gray-700 text-white' : 'bg-gray-200 text-gray-800'"
@@ -266,10 +279,10 @@
       v-if="showVoiceSearchOverlay"
       class="voice-search-overlay fixed inset-0 flex items-center justify-center z-50"
       :class="currentTheme === 'dark' ? 'dark-theme' : 'light-theme'"
-      @click="closeOverlay('voice')"
+      @click.stop="closeOverlay('voice')"
     >
-      <div class="voice-search-container bg-opacity-80 p-6 rounded-lg" @click.stop>
-        <div class="voice-animation" @click="resetVoiceSearch">
+      <div class="voice-search-container bg-opacity-80 p-6 rounded-lg" @click.stop @touchend.stop>
+        <div class="voice-animation" @click.stop="resetVoiceSearch">
           <div class="ring pulse-1"></div>
           <div class="ring pulse-2"></div>
           <div class="ring pulse-3"></div>
@@ -309,7 +322,7 @@
       <button
         v-for="lang in ['ar', 'en', 'fr', 'bn', 'tr', 'ur']"
         :key="lang"
-        @click="selectInitialLanguage(lang)"
+        @click.stop="selectInitialLanguage(lang)"
         class="language-button text-xl"
       >
         {{ lang === 'ar' ? 'العربية' : langNames[lang] }}
@@ -319,21 +332,26 @@
     <!-- Surah and Verse Selection Overlay -->
     <div
       v-if="showSurahVerseMenu"
-      class="surah-verse-overlay fixed inset-0 flex flex-col items-center justify-start pt-8 z-50"
+      class="surah-verse-overlay  fixed inset-0 flex flex-col items-center justify-start pt-8 z-50"
       :class="currentTheme === 'dark' ? 'dark-theme' : 'light-theme'"
-      @click="handleAppClick"
+      @click.stop="handleAppClick"
+            @mousedown.stop
+  @mouseup.stop
+  @touchstart.stop
+  @touchend.stop
+  @keydown.stop
     >
       <div
-        class="surah-verse-container bg-opacity-80 p-6 rounded-lg w-full max-w-2xl"
+        class="surah-verse-container  bg-opacity-80 p-6 rounded-lg w-full max-w-2xl"
         :class="currentTheme === 'dark' ? 'bg-gray-800' : 'bg-white'"
-        @click.stop
+        @click.stop @touchend.stop
       >
         <div class="flex justify-between items-center mb-4">
           <h2 class="text-xl">
             {{ currentLanguage === 'ar' ? 'اختر السورة والآية' : 'Select Surah and Verse' }}
           </h2>
           <button
-            @click="showSurahVerseMenu = false"
+            @click.stop="showSurahVerseMenu = false"
             class="p-2 bg-gray-500 text-white rounded-lg"
             :class="currentTheme === 'dark' ? 'hover:bg-gray-600' : 'hover:bg-gray-400'"
           >
@@ -343,10 +361,9 @@
         <div class="flex flex-col gap-4">
           <select
             v-model="selectedSurah"
-            class="p-2 rounded-lg border"
+            class="p-2 rounded-lg border  surah-verse-select"
             :class="currentTheme === 'dark' ? 'bg-gray-700 text-white border-gray-600' : 'bg-white text-gray-800 border-gray-300'"
             @change="updateVerseOptions"
-            @click="handleSelectClick"
             ref="surahSelect"
             aria-label="Select Surah"
           >
@@ -356,9 +373,8 @@
           </select>
           <select
             v-model="selectedVerse"
-            class="p-2 rounded-lg border"
+            class="p-2 rounded-lg border surah-verse-select"
             :class="currentTheme === 'dark' ? 'bg-gray-700 text-white border-gray-600' : 'bg-white text-gray-800 border-gray-300'"
-            @click="handleSelectClick"
             ref="verseSelect"
           >
             <option v-for="verse in verseOptions" :key="verse" :value="verse">
@@ -366,7 +382,7 @@
             </option>
           </select>
           <button
-            @click="selectSurahVerse"
+            @click.stop="selectSurahVerse"
             class="p-2 bg-blue-500 text-white rounded-lg"
             :class="currentTheme === 'dark' ? 'hover:bg-blue-600' : 'hover:bg-blue-400'"
           >
@@ -381,19 +397,21 @@
       v-if="showNotesOverlay"
       class="notes-overlay fixed inset-0 flex items-center justify-center z-50"
       :class="currentTheme === 'dark' ? 'dark-theme' : 'light-theme'"
-      @click="closeNotesOverlay"
+      @click.stop="closeNotesOverlay"
+      
     >
       <div
         class="notes-container bg-opacity-80 p-6 rounded-lg w-full max-w-2xl"
         :class="currentTheme === 'dark' ? 'bg-gray-800' : 'bg-white'"
         @click.stop
+        @touchend.stop
       >
         <div class="flex justify-between items-center mb-4">
           <h2 class="text-xl">
             {{ currentLanguage === 'ar' ? 'ملاحظات الآية' : 'Verse Notes' }}
           </h2>
           <button
-            @click="closeNotesOverlay"
+            @click.stop="closeNotesOverlay"
             class="p-2 bg-red-500 text-white rounded-lg"
             :class="currentTheme === 'dark' ? 'hover:bg-red-600' : 'hover:bg-red-400'"
           >
@@ -401,7 +419,11 @@
           </button>
         </div>
         <textarea
-          v-model="currentNote"
+  v-model="currentNote"
+  ref="notesTextarea"
+  @touchend="focusTextarea"
+  @focus="notesTextareaFocused = true"
+  @blur="notesTextareaFocused = false"
           class="w-full h-64 p-2 rounded-lg border"
           :class="currentTheme === 'dark' ? 'bg-gray-700 text-white border-gray-600' : 'bg-white text-gray-800 border-gray-300'"
           :placeholder="currentLanguage === 'ar' ? 'اكتب ملاحظاتك هنا...' : 'Write your notes here...'"
@@ -418,7 +440,7 @@
       <div
         class="loops-container bg-opacity-80 p-6 rounded-lg"
         :class="currentTheme === 'dark' ? 'bg-gray-800' : 'bg-white'"
-        @click="showLoopsMenu = false"
+        @click.stop="showLoopsMenu = false"
         @touchstart="startLoopSwipe"
         @touchmove="handleLoopSwipe"
         @touchend="endLoopSwipe"
@@ -442,20 +464,32 @@
       class="highlight-menu fixed z-50"
       :style="{ top: highlightMenuPosition.top + 'px', left: highlightMenuPosition.left + 'px' }"
       :class="currentTheme === 'dark' ? 'dark-theme' : 'light-theme'"
+      @mousedown.stop
+  @mouseup.stop
+  @touchstart.stop
+  @touchend.stop
+  @click.stop
+  @keydown.stop
     >
       <div
         class="highlight-container bg-opacity-80 p-4 rounded-lg flex gap-2"
         :class="currentTheme === 'dark' ? 'bg-gray-800' : 'bg-white'"
+        @mousedown.stop
+  @mouseup.stop
+  @touchstart.stop
+  @touchend.stop
+  @click.stop
+  @keydown.stop
       >
         <button
           v-for="color in highlightColors"
           :key="color"
-          @click="applyHighlight(color)"
+          @click.stop="applyHighlight(color)"
           class="w-8 h-8 rounded-full"
           :style="{ backgroundColor: color }"
         ></button>
         <button
-          @click="removeHighlight"
+          @click.stop="removeHighlight"
           class="p-2 bg-red-500 text-white rounded-lg"
           :class="currentTheme === 'dark' ? 'hover:bg-red-600' : 'hover:bg-red-400'"
         >
@@ -463,25 +497,61 @@
         </button>
       </div>
     </div>
-
+<!-- Highlight Context Menu -->
+<div
+  v-if="showHighlightContextMenu"
+  class="highlight-context-menu fixed z-60 p-3 rounded-lg"
+  :style="{ top: highlightContextMenuPosition.top + 'px', left: highlightContextMenuPosition.left + 'px' }"
+  :class="currentTheme === 'dark' ? 'bg-gray-800 text-white' : 'bg-white text-gray-800'"
+  style="display: flex; flex-direction: row; align-items: center; justify-content: center; gap: 10px;"
+  @mousedown.stop
+  @mouseup.stop
+  @touchstart.stop
+  @touchend.stop
+  @click.stop
+  @keydown.stop
+>
+  <!-- Delete Icon -->
+  <button @click.stop="removeSingleHighlight" class="h-full">
+    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24"><path fill="currentColor" d="M7.378 5.531a2.75 2.75 0 0 1 1.92-.781h10.297c.598 0 1.294.166 1.863.519c.579.358 1.11.974 1.11 1.856v9.75c0 .882-.531 1.497-1.11 1.856a3.65 3.65 0 0 1-1.863.519H9.298a2.75 2.75 0 0 1-1.92-.781l-5.35-5.216a1.75 1.75 0 0 1 0-2.506zM14.03 9.47a.75.75 0 1 0-1.06 1.06L14.44 12l-1.47 1.47a.75.75 0 1 0 1.06 1.06l1.47-1.47l1.47 1.47a.75.75 0 1 0 1.06-1.06L16.56 12l1.47-1.47a.75.75 0 1 0-1.06-1.06l-1.47 1.47z"/></svg>
+  </button>
+  <!-- Change Color Icon -->
+  <button @click.stop="showHighlightMenuForWord">
+    <span :style="{ backgroundColor: highlightContextMenu.color, width: '24px', height: '24px', borderRadius: '50%', display: 'inline-block', border: '2px solid #888' }"></span>
+  </button>
+  <!-- Notes Icon -->
+  <button @click.stop="openVerseNoteByContext">
+    <!-- Use your existing note icon SVG here -->
+    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 32 32"><path fill="currentColor" d="M11 2a1 1 0 0 0-1 1v1H8.25A3.25 3.25 0 0 0 5 7.25v18.5A3.25 3.25 0 0 0 8.25 29h9.25v-5.75A3.25 3.25 0 0 1 20.75 20H27V7.25A3.25 3.25 0 0 0 23.75 4H22V3a1 1 0 1 0-2 0v1h-3V3a1 1 0 1 0-2 0v1h-3V3a1 1 0 0 0-1-1m15.414 20H20.75c-.69 0-1.25.56-1.25 1.25v5.616a1 1 0 0 0 .207-.159zM10 11a1 1 0 0 1 1-1h10a1 1 0 1 1 0 2H11a1 1 0 0 1-1-1m1 4h10a1 1 0 1 1 0 2H11a1 1 0 1 1 0-2m-1 6a1 1 0 0 1 1-1h4a1 1 0 1 1 0 2h-4a1 1 0 0 1-1-1"/></svg>     
+  </button>
+</div>
     <!-- Control Buttons Container -->
-    <div class="control-buttons-container bg-black/30 rounded-xl p-2 max-sm:scale-90 fixed max-sm:bottom-12 bottom-5 sm:right-5 flex space-x-2 z-50">
+    <div   v-show="controlMenuVisible || !isMobile"    :class="['control-buttons-container', { 'fade-out': controlMenuFading }, `${controlMenuVisible ? '' :'max-sm:hidden'}`]"
+  @mousedown.stop="showControlMenu"
+  @touchstart.stop="showControlMenu"
+class="control-buttons-container   bg-black/30 rounded-xl p-2 max-sm:scale-90 fixed max-sm:bottom-12 bottom-5 sm:right-5 flex space-x-2 z-50">
       <!-- Revision Mode Button -->
       <button
         v-if="displayMode !== 'revision' && currentLanguage === 'ar'"
-        @click="toggleRevisionMode"
+         @click.stop="openOcr" 
         class="control-button opacity-65 hover:opacity-100"
         :title="currentLanguage === 'ar' ? 'وضع المراجعة' : 'Revision Mode'"
       >
-        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="currentColor">
-          <path d="M12 3a9 9 0 100 18 9 9 0 000-18zm0 16a7 7 0 110-14 7 7 0 01014zm1-11h-2v3H8v2h3v3h2v-3h3v-2h-3V8z"  ref="versesContainer"/>
-        </svg>
+<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24"><path fill="currentColor" d="M13.925 2.504a2.25 2.25 0 0 1 1.94 1.11l.814 1.387h2.071A3.25 3.25 0 0 1 22 8.25v9.5A3.25 3.25 0 0 1 18.75 21H5.25A3.25 3.25 0 0 1 2 17.75v-9.5A3.25 3.25 0 0 1 5.25 5h2.08l.875-1.424a2.25 2.25 0 0 1 1.917-1.073zM12 8a4.5 4.5 0 1 0 0 9a4.5 4.5 0 0 0 0-9m0 1.5a3 3 0 1 1 0 6a3 3 0 0 1 0-6"/></svg>      </button>
+      <!-- Revision Mode Button -->
+      <button
+        v-if="displayMode !== 'revision' && currentLanguage === 'ar'"
+        @click.stop="toggleRevisionMode"
+        class="control-button opacity-65 hover:opacity-100"
+        :title="currentLanguage === 'ar' ? 'وضع المراجعة' : 'Revision Mode'"
+      >
+        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 384 512"><path fill="currentColor" d="M192 0c-53 0-96 43-96 96v160c0 53 43 96 96 96s96-43 96-96V96c0-53-43-96-96-96M64 216c0-13.3-10.7-24-24-24s-24 10.7-24 24v40c0 89.1 66.2 162.7 152 174.4V464h-48c-13.3 0-24 10.7-24 24s10.7 24 24 24h144c13.3 0 24-10.7 24-24s-10.7-24-24-24h-48v-33.6c85.8-11.7 152-85.3 152-174.4v-40c0-13.3-10.7-24-24-24s-24 10.7-24 24v40c0 70.7-57.3 128-128 128S64 326.7 64 256z"/></svg>
       </button>
 
       <!-- Hifz Mode Exit Button -->
       <button
         v-if="displayMode === 'hifz'"
-        @click="exitHifzMode"
+        @click.stop="exitHifzMode"
         class="control-button opacity-65 hover:opacity-100"
         :title="currentLanguage === 'ar' ? 'الخروج من وضع الحفظ' : 'Exit Hifz Mode'"
       >
@@ -491,19 +561,16 @@
       <!-- Notes Button (Hifz Mode) -->
       <button
         v-if="displayMode === 'hifz'"
-        @click="toggleNotesOverlay"
+        @click.stop="toggleNotesOverlay"
         class="control-button opacity-65 hover:opacity-100"
         :title="currentLanguage === 'ar' ? 'ملاحظات' : 'Notes'"
       >
-        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="currentColor">
-          <path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-5 14h-3v-3h-2v3H6v-2h3v-3h2v3h3v2z"/>
-        </svg>
-      </button>
+<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 32 32"><path fill="currentColor" d="M11 2a1 1 0 0 0-1 1v1H8.25A3.25 3.25 0 0 0 5 7.25v18.5A3.25 3.25 0 0 0 8.25 29h9.25v-5.75A3.25 3.25 0 0 1 20.75 20H27V7.25A3.25 3.25 0 0 0 23.75 4H22V3a1 1 0 1 0-2 0v1h-3V3a1 1 0 1 0-2 0v1h-3V3a1 1 0 0 0-1-1m15.414 20H20.75c-.69 0-1.25.56-1.25 1.25v5.616a1 1 0 0 0 .207-.159zM10 11a1 1 0 0 1 1-1h10a1 1 0 1 1 0 2H11a1 1 0 0 1-1-1m1 4h10a1 1 0 1 1 0 2H11a1 1 0 1 1 0-2m-1 6a1 1 0 0 1 1-1h4a1 1 0 1 1 0 2h-4a1 1 0 0 1-1-1"/></svg>      </button>
       
       <!-- Complete Button (Hifz Mode) -->
       <button
         v-if="displayMode === 'hifz'"
-        @click="toggleComplete"
+        @click.stop="toggleComplete"
         @mousedown="startCompleteHold"
         @mouseup="stopCompleteHold"
         @mouseleave="stopCompleteHold"
@@ -520,6 +587,7 @@
       <button
         v-if="displayMode === 'hifz'"
         @click.stop="toggleLoopsMenu"
+        
         class="control-button opacity-65 hover:opacity-100"
         :title="currentLanguage === 'ar' ? 'عدد التكرارات' : 'Number of Loops'"
       >
@@ -528,7 +596,7 @@
 
       <!-- Audio Button -->
       <button
-        @click="toggleAudio"
+        @click.stop="toggleAudio"
         @mousedown="startAudioHold"
         @mouseup="stopAudioHold"
         @touchstart="startAudioHold"
@@ -548,18 +616,18 @@
       <!-- Search Button (Desktop Only) -->
       <button
         v-if="!isMobile"
-        @click="openSearchOverlay"
+        @click.stop="openSearchOverlay"
         class="control-button opacity-65 hover:opacity-100"
         :title="currentLanguage === 'ar' ? 'بحث' : 'Search'"
       >
         <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24">
-          <path fill="currentColor" d="M9.5 16q-2.725 0-4.612-1.888T3 9.5t1.888-4.612T9.5 3t4.613 1.888T16 9.5q0 1.1-.35 2.075T14.7 13.3l5.6 5.6q.275.275.275.7t-.275.7t-.7.275t-.7-.275l-5.6-5.6q-.75.6-1.725.95T9.5 16m0-2q1.875 0 3.188-1.312T14 9.5t-1.312-3.187T9.5 5T6.313 6.313T5 9.5t1.313 3.188T9.5 14z"/>
+          <path fill="currentColor" d="M9.5 16q-2.725 0-4.612-1.888T3 9.5t1.888-4.612T9.5 3t4.613 1.888T16 9.5q0 1.1-.35 2.075T14.7 13.3l5.6 5.6q.275.275.275.7t-.275.7t-.7.275t-.7-.275l-5.6-5.6q-.75.6-1.725.95T9.5 16m0-2q1.875 0 3.188-1.312T14 9.5t-1.312-3.187T9.5 5T6.313 6.313T5 9.5t1.313 3.188T9.5 14"/>
         </svg>
       </button>
       
       <!-- Display Mode Menu -->
       <div class="relative">
-        <button @click="toggleDisplayModeMenu" class="control-button opacity-65 hover:opacity-100" :aria-label="currentLanguage === 'ar' ? 'تغيير وضع العرض' : 'Change display mode'">
+        <button @click.stop="toggleDisplayModeMenu" class="control-button opacity-65 hover:opacity-100" :aria-label="currentLanguage === 'ar' ? 'تغيير وضع العرض' : 'Change display mode'">
           <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24">
             <path fill="currentColor" d="M4 18h16v-2H4zm0-5h16v-2H4zm0-5h16V6H4z"/>
           </svg>
@@ -571,28 +639,28 @@
           >
             <button
               v-if="currentLanguage !== 'ar'"
-              @click="setDisplayMode('verse')"
+              @click.stop="setDisplayMode('verse')"
               class="control-button w-12 h-12 flex items-center justify-center text-lg font-bold opacity-65 hover:opacity-100"
               :aria-label="currentLanguage === 'ar' ? 'عرض الآية' : 'Verse view'"
             >
               {{ currentLanguage === 'ar' ? 'آية' : 'Verse' }}
             </button>
             <button
-              @click="setDisplayMode('full-surah')"
+              @click.stop="setDisplayMode('full-surah')"
               class="control-button w-12 h-12 flex items-center justify-center text-lg font-bold opacity-65 hover:opacity-100"
               :aria-label="currentLanguage === 'ar' ? 'عرض السورة كاملة' : 'Full Surah view'"
             >
               {{ currentLanguage === 'ar' ? 'سورة' : 'Surah' }}
             </button>
             <button
-              @click="setDisplayMode('tafseer')"
+              @click.stop="setDisplayMode('tafseer')"
               class="control-button w-12 h-12 flex items-center justify-center text-lg font-bold opacity-65 hover:opacity-100"
               :aria-label="currentLanguage === 'ar' ? 'عرض التفسير' : 'Tafseer view'"
             >
               {{ currentLanguage === 'ar' ? 'تفسير' : 'Tafseer' }}
             </button>
             <button
-              @click="setDisplayMode('hifz')"
+              @click.stop="setDisplayMode('hifz')"
               class="control-button w-12 h-12 flex items-center justify-center text-lg font-bold opacity-65 hover:opacity-100"
               :aria-label="currentLanguage === 'ar' ? 'وضع الحفظ' : 'Hifz Mode'"
             >
@@ -604,7 +672,7 @@
       
       <!-- Language Menu -->
       <div class="relative">
-        <button @click="toggleLanguageMenu" class="control-button opacity-65 hover:opacity-100" :aria-label="languageToggleAriaLabel">
+        <button @click.stop="toggleLanguageMenu" class="control-button opacity-65 hover:opacity-100" :aria-label="languageToggleAriaLabel">
           {{ currentLanguage === 'ar' ? 'ع' : (currentLanguage === 'en' ? 'EN' : (currentLanguage === 'fr' ? 'FR' : (currentLanguage === 'bn' ? 'BN' : (currentLanguage === 'tr' ? 'TR' : 'UR')))) }}
         </button>
         <transition name="fade">
@@ -615,7 +683,7 @@
             <button
               v-for="lang in otherLanguages"
               :key="lang"
-              @click="setLanguage(lang)"
+              @click.stop="setLanguage(lang)"
               class="control-button w-12 h-12 flex items-center justify-center text-lg font-bold opacity-65 hover:opacity-100"
               :aria-label="'Switch to ' + langNames[lang]"
             >
@@ -627,7 +695,7 @@
       
       <!-- Shuffle Button -->
       <button
-        @click="toggleShuffleMode"
+        @click.stop="toggleShuffleMode"
         class="control-button opacity-65 hover:opacity-100"
         :title="isShuffleMode ? (currentLanguage === 'ar' ? 'الوضع العشوائي' : 'Shuffle Mode') : (currentLanguage === 'ar' ? 'الوضع المتسلسل' : 'Continuous Mode')"
       >
@@ -643,7 +711,7 @@
       <!-- Pause Button -->
       <button
         v-if="displayMode !== 'hifz'"
-        @click="togglePause"
+        @click.stop="togglePause"
         class="control-button opacity-65 hover:opacity-100"
         :aria-label="isPausedByPause ? 'Resume' : 'Pause'"
       >
@@ -657,7 +725,7 @@
       </button>
       
       <!-- Theme Toggle Button -->
-      <button @click="toggleTheme" class="control-button theme-toggle-button opacity-65 hover:opacity-100" :aria-label="currentTheme === 'dark' ? 'Switch to Light Theme' : 'Switch to Dark Theme'">
+      <button @click.stop="toggleTheme" class="control-button theme-toggle-button opacity-65 hover:opacity-100" :aria-label="currentTheme === 'dark' ? 'Switch to Light Theme' : 'Switch to Dark Theme'">
         <svg v-if="currentTheme !== 'dark'" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" class="w-5 h-5">
           <path d="M12 2.25a.75.75 0 01.75.75v2.25a.75.75 0 01-1.5 0V3a.75.75 0 01.75-.75zM7.5 12a4.5 4.5 0 119 0 4.5 4.5 0 01-9 0zM18.894 6.166a.75.75 0 00-1.06-1.06l-1.591 1.59a.75.75 0 101.06 1.061l1.591-1.59zM21.75 12a.75.75 0 01-.75.75h-2.25a.75.75 0 010-1.5H21a.75.75 0 01.75.75zM17.834 18.894a.75.75 0 001.06-1.06l-1.59-1.591a.75.75 0 10-1.061 1.06l1.59 1.591zM12 18a.75.75 0 01.75.75V21a.75.75 0 01-1.5 0v-2.25A.75.75 0 0112 18zM7.758 17.303a.75.75 0 00-1.061-1.06l-1.591 1.59a.75.75 0 001.06 1.061l1.591-1.59zM6 12a.75.75 0 01-.75.75H3a.75.75 0 010-1.5h2.25A.75.75 0 016 12zM6.166 7.758a.75.75 0 001.06-1.06L5.634 5.106a.75.75 0 00-1.06 1.06l1.59 1.591z"/>
         </svg>
@@ -666,11 +734,28 @@
         </svg>
       </button>
     </div>
+    <div   
+class="hamburg   !bg-none rounded-xl p-2 max-sm:scale-90 fixed max-sm:bottom-12 bottom-5 sm:right-5 flex space-x-2 z-50">
+    <button
+  v-if="hamburgerMenuVisible && isMobile"
+  class="fixed bottom-5 left-1/2 z-50 transform -translate-x-1/2 sepia-hamburger"
+  style="width:56px;height:56px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:2rem;box-shadow:0 2px 8px rgba(0,0,0,0.2);"
+  @click="handleHamburgerClick"
+>
+  <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
+    <rect y="4" width="24" height="3" rx="1.5" fill="currentColor"/>
+    <rect y="10.5" width="24" height="3" rx="1.5" fill="currentColor"/>
+    <rect y="17" width="24" height="3" rx="1.5" fill="currentColor"/>
+  </svg>
+</button>
+  </div>
   </div>
 </template>
 
 <script>
 import { openDB } from 'idb';
+import {ratio} from 'fuzzball';
+import ocr from './components/ocr.vue';
 
 
 const SURAH_DATA = [
@@ -800,14 +885,22 @@ const EDITIONS = {
 };
 
 const AUDIO_EDITION = 'ar.alafasy';
+import instructions from './components/instructions.vue';
 
 export default {
+  components: {
+    instructions,
+    ocr
+  },
   data() {
     return {
       // Mushaf selection
       showMushafSelection: false,
       mushafType: 'hafs', // 'hafs', 'warsh', 'qaloon'
-      
+         controlMenuVisible: true,
+    hamburgerMenuVisible: false,
+    controlMenuTimeoutId: null,
+    controlMenuFading: false,
       // Revision mode
       isRevisionMode: false,
       speechRecognition: null,
@@ -815,13 +908,27 @@ export default {
       correctWords: [],
       mistakeWords: [],
       unreadVerses: [],
+    showNavigationInstructions: false,
+      ocrInstructions: false,
+         showHighlightContextMenu: false,
+    highlightContextMenuPosition: { top: 0, left: 0 },
+    highlightContextMenu: {
+      verseUuid: null,
+      wordIndex: null,
+      color: null,
+    },
+wasScrolling: false,
 
-      hifzVerseQueue: [],
+          hifzVerseQueue: [],
       hifzCurrentVerseIndex: 0,
       hifzLoopCount: 10,
       currentLoopIteration: 0, // Track current loop iteration
-      completedVerses: {}, // Track completed verses
-      
+            activeVerseUuidForHighlighting: null,
+controlMenuVisible: true,
+hamburgerMenuVisible: false,
+controlMenuTimeoutId: null,
+      completedVerses: {}, // Track comple
+      SURAH_DATA,
       // Other existing data properties
       showLanguageSelection: true,
       showLanguageMenu: false,
@@ -829,8 +936,11 @@ export default {
       currentAudio: null,
       isContinuousAudio: false,
       completions: {},
+      hifzVerseQueue: [],
+      hifzCurrentVerseIndex: 0,
       showSurahVerseMenu: false,
       selectedSurah: 1,
+      
       selectedVerse: 1,
       verseOptions: [],
       showDisplayModeMenu: false,
@@ -838,6 +948,7 @@ export default {
       showNotesOverlay: false,
       currentNote: '',
       isVerseCompleted: false,
+      hifzLoopCount: 10,
       showLoopsMenu: false,
       loopSwipeStartY: null,
       showHighlightMenu: false,
@@ -848,10 +959,11 @@ export default {
       highlights: {},
       notes: {},
       completeHoldTimeout: null,
-      currentSurahData: null, // Added for full-surah mode
-      displayedVerses: [], // Added for full-surah mode lazy loading
+            currentSurahData: null, // Added for full-surah mode
+  displayedVerses: [], // Added for full-surah mode lazy loading
+      verseOptions: [], // Added for surah/verse selection
       currentLoop: 1,
-      currentPage: 1,
+ Page: 1,
       resultsPerPage: 10,
       showCopyNotification: false,
       detectedWords: [],
@@ -895,6 +1007,10 @@ export default {
       errorMessage: null,
       currentLanguage: 'ar',
       currentTheme: 'dark',
+      // Constants
+        showNotesOverlay: false, // Added notes overlay state
+      highlightColors: ['#ffcccb', '#d4edda', '#cce5ff', '#fff3cd', '#e2d1f9'], // Added highlight colors
+      isSelectingWords: false, 
       WORDS_PER_PART: 25,
       PART_DISPLAY_DURATION: 20000,
       WORD_ANIMATION_INTERVAL: 150,
@@ -904,7 +1020,8 @@ export default {
   
   computed: {
     paginatedResults() {
-      if (!this.searchResults) return [];
+            if (!this.searchResults) return [];
+
       const start = (this.currentPage - 1) * this.resultsPerPage;
       const end = start + this.resultsPerPage;
       return this.searchResults.slice(start, end);
@@ -949,11 +1066,60 @@ export default {
   },
 
   methods: {
+    openOcr() {
+      const hasSeen = localStorage.getItem('ocrInstructions');
+      this.ocrInstructions = true
+
+    },
+    closeOcrUi() {
+      this.ocrInstructions = false;
+      localStorage.setItem('ocrInstructions', 'true');
+    },
+    focusTextarea() {
+  this.$nextTick(() => {
+    if (this.$refs.notesTextarea) {
+      this.$refs.notesTextarea.focus();
+    }
+  });
+},
+    showControlMenu() {
+  this.controlMenuVisible = true;
+  this.hamburgerMenuVisible = false;
+  this.controlMenuFading = false;
+  if (this.controlMenuTimeoutId) clearTimeout(this.controlMenuTimeoutId);
+  
+},
+hideControlMenu() {
+  this.controlMenuVisible = false;
+  this.hamburgerMenuVisible = true;
+  this.controlMenuFading = false;
+  if (this.controlMenuTimeoutId) clearTimeout(this.controlMenuTimeoutId);
+},
+handleHamburgerClick() {
+  this.showControlMenu();
+},
+showHamburgerMenu() {
+  this.controlMenuVisible = false;
+  this.hamburgerMenuVisible = true;
+},
+
+    closeInstructions() {
+      console.log('Closing navigation instructions');
+      this.showNavigationInstructions = false;
+      localStorage.setItem('hasSeenInstructions', 'true');
+    },
+      focusTextarea() {
+    this.$refs.notesTextarea.focus();
+  },
     // Mushaf Selection
     selectMushaf(type) {
       this.mushafType = type;
       localStorage.setItem('mushafType', type);
-      this.showMushafSelection = false; // Hide selection after choosing
+            this.showMushafSelection = false; // Hide selection after choosing
+if (!localStorage.getItem('hasSeenInstructions')) {
+      console.log('Showing navigation instructions on first visit');
+      this.showNavigationInstructions = true;
+    }
       this.loadInitialData();
     },
     
@@ -999,6 +1165,10 @@ export default {
     },
     
     initSpeechRecognition() {
+            this.correctWords = [];
+      this.mistakeWords = [];
+      this.unreadVerses = [];
+      this.$forceUpdate()
       const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
       if (!SpeechRecognition) {
         this.errorMessage = this.getLocalizedErrorMessage('voiceSearchNotSupported');
@@ -1035,115 +1205,406 @@ export default {
       this.mistakeWords = [];
       this.unreadVerses = [];
     },
-    
-    matchRecitedText(transcript) {
-      if (!this.currentVerseData) return;
-      
-      const verseText = this.removeTashkeel(this.currentVerseData.text).toLowerCase();
-      const recitedText = this.removeTashkeel(transcript).toLowerCase();
-      const verseWords = verseText.split(' ');
-      const recitedWords = recitedText.split(' ');
-      
-      this.correctWords = [];
-      this.mistakeWords = [];
-      this.unreadVerses = [];
 
-      for (let i = 0; i < verseWords.length; i++) {
-        if (i < recitedWords.length) {
-          if (verseWords[i] === recitedWords[i]) {
-            this.correctWords.push(i);
-          } else {
-            this.mistakeWords.push(i);
-            if (navigator.vibrate) navigator.vibrate([200]);
-          }
+
+// Adjusted to take a single string and return a single cleaned string
+removeCharacters(inputTextString) { // Renamed parameter for clarity
+  if (typeof inputTextString !== 'string') {
+    console.error("removeCharacters expects a string input.");
+    return ""; // Or handle the error as appropriate
+  }
+
+ const upperCharactersToRemove = [
+    // Common Waqf (Pause) Marks:
+    "\u06D6", // ۖ  (SALLI / AL-WASL AWLA) - Prefer to continue
+    "\u06D7", // ۗ  (QALLI / AL-WAQF AWLA) - Prefer to stop
+    "\u06D8", // ۘ  (WAQF LAZIM) - Mandatory stop (often a Meem-like symbol, also used for QIF)
+    "\u06D9", // ۙ  (LA) - Prohibited stop symbol
+    "\u06DA", // ۚ  (JA'IZ) - Permissible stop (often a Jeem-like symbol)
+    "\u06DB", // ۛ  (MU'ANAQAH) - Embracing stop (three dots, stop at one of the pair)
+    "\u06DC", // ۜ  (SAKTAH) - Brief pause without breath (often a Seen-like symbol)
+
+    // Other common Quranic symbols you might want to remove:
+    "\u06DD", // ۝  (ARABIC END OF AYAH) - Marks the end of a verse
+    "\u06DE", // ۞  (ARABIC START OF RUB EL HIZB) - Marks a section/ حزب
+    "\u06E9", // ۩  (ARABIC PLACE OF SAJDAH) - Indicates a prostration point
+
+    // Less common as symbols but sometimes appear as small high characters for stops:
+    "\u0615", //  ARABIC SMALL HIGH TAH - Can signify Waqf Mutlaq (Absolute Stop)
+
+    // You can add more characters to this list if needed
+  ];
+
+  let currentString = inputTextString; // Work directly with the input string
+
+  for (let j = 0; j < upperCharactersToRemove.length; j++) {
+    const charToRemove = upperCharactersToRemove[j];
+    // Modern environments (ES2021+) can use:
+    // currentString = currentString.replaceAll(charToRemove, "");
+    // For broader compatibility, the while loop is fine:
+    while (currentString.includes(charToRemove)) {
+      currentString = currentString.replace(charToRemove, "");
+    }
+  }
+  return currentString; // Return the single cleaned string
+},
+
+async matchRecitedText(transcript) {
+    if (!this.currentVerseData || typeof this.currentVerseData.text !== 'string') {
+      console.error("Current verse data or text is missing or not a string.");
+      return;
+    }
+    // Prevent processing if a verse transition is pending
+    if (this.isTransitioning) return;
+
+    // Clear state for highlighting
+    this.currentPartIndex = 0;
+    this.correctWords = [0];
+    this.mistakeWords = [0];
+    this.unreadVerses = [0];
+
+    this.$forceUpdate()
+
+    const verseText = this.removeCharacters(this.currentVerseData.text);
+    const verseWords = verseText.split(' ').filter(word => word.trim());
+    const recitedWords = transcript.split(' ').filter(word => word.trim());
+
+    let currentRunCorrectWords = [];
+    let currentRunMistakeWords = [];
+    let currentRunUnreadWords = [];
+
+    for (let i = 0; i < verseWords.length; i++) {
+      if (i < recitedWords.length) {
+        const verseWord = this.removeTashkeel(verseWords[i]).toLowerCase();
+        const recitedWord = this.removeTashkeel(recitedWords[i]).toLowerCase();
+        // Use fuzzball.js for fuzzy matching
+        const similarity = ratio(verseWord, recitedWord, { ignoreCase: true });
+        if (similarity >= 70) { // 80% similarity threshold
+          currentRunCorrectWords.push(i);
         } else {
-          this.unreadVerses.push(i);
+          currentRunMistakeWords.push(i);
+          if (navigator.vibrate) navigator.vibrate([200]);
         }
+      } else {
+        currentRunUnreadWords.push(i);
       }
+    }
 
-      if (this.correctWords.length === verseWords.length && this.mistakeWords.length === 0) {
-        setTimeout(() => {
-          this.selectVerse(true);
-        }, 1000);
+    // Update UI state
+    this.correctWords = currentRunCorrectWords;
+    this.mistakeWords = currentRunMistakeWords;
+    this.unreadVerses = currentRunUnreadWords;
+
+    let advanceToNextVerse = false;
+    const totalVerseWords = verseWords.length;
+
+    if (totalVerseWords === 0) return;
+
+// Advance if the last word was read (correct or mistake)
+const lastIndex = totalVerseWords - 1;
+if (
+  this.correctWords.includes(lastIndex) ||
+  this.mistakeWords.includes(lastIndex)
+) {
+    this.$forceUpdate()
+    await new Promise(resolve => setTimeout(resolve, 100));
+
+  advanceToNextVerse = true;
+}
+
+// Go back if user recites last 3 words of previous verse in order
+// if (this.currentVerseData && this.allVerses && this.allVerses.length > 1) {
+//   const currentIndex = this.allVerses.findIndex(
+//     v => v.uuid === this.currentVerseData.uuid
+//   );
+//   if (currentIndex > 0) {
+//     const prevVerse = this.allVerses[currentIndex - 1];
+//     const prevVerseText = this.removeCharacters(prevVerse.text);
+//     const prevVerseWords = prevVerseText.split(' ').filter(word => word.trim());
+//     const last3Prev = prevVerseWords.slice(-3).map(w => this.removeTashkeel(w).toLowerCase());
+//     const recitedLast3 = recitedWords.slice(-3).map(w => this.removeTashkeel(w).toLowerCase());
+//     if (
+//       last3Prev.length === 3 &&
+//       recitedLast3.length === 3 &&
+//       last3Prev.join(' ') === recitedLast3.join(' ')
+//     ) {
+//       // Go back to previous verse
+//       this.isTransitioning = true;
+//       setTimeout(() => {
+//         this.selectVerse(false);
+//         this.isTransitioning = false;
+//       }, 1000);
+//       return;
+//     }
+//   }
+// }
+
+if (advanceToNextVerse && !this.isTransitioning) {
+  this.isTransitioning = true;
+  setTimeout(() => {
+    this.selectVerse(true);
+    this.isTransitioning = false;
+  }, 1000);
+}
+
+  },
+handleWordClick(index, verse) {
+  this.showDisplayModeMenu = false;
+  this.showHighlightMenu = false;
+  const color = this.getWordHighlightColor(index, verse.uuid);
+  if (color) {
+    this.highlightContextMenu = {
+      verseUuid: verse.uuid,
+      wordIndex: index,
+      color,
+    };
+    this.$nextTick(() => {
+      const wordEl = document.querySelector(`[data-word-uuid="${verse.uuid}-${index}"]`);
+      if (wordEl) {
+        const rect = wordEl.getBoundingClientRect();
+        this.highlightContextMenuPosition = {
+          top: rect.top + window.scrollY - 60,
+          left: rect.left + window.scrollX + rect.width / 2 - 80,
+        };
       }
-    },
+      this.showHighlightContextMenu = true;
+    });
+  } else {
+    this.openVerseNote(verse);
+  }
+},
+getWordHighlightColor(index, verseUuid) {
+  if (
+    this.highlights &&
+    this.highlights[verseUuid] &&
+    this.highlights[verseUuid][index]
+  ) {
+    return this.highlights[verseUuid][index];
+  }
+  return null;
+},  removeSingleHighlight() {
+    const { verseUuid, wordIndex } = this.highlightContextMenu;
+    if (this.highlights[verseUuid]) {
+      delete this.highlights[verseUuid][wordIndex];
+      if (Object.keys(this.highlights[verseUuid]).length === 0) {
+        delete this.highlights[verseUuid];
+      }
+      this.saveVerseHighlights(verseUuid);
+    }
+    this.showHighlightContextMenu = false;
+  },
+  showHighlightMenuForWord() {
+    // Open the highlight color menu for this word
+    this.activeVerseUuidForHighlighting = this.highlightContextMenu.verseUuid;
+    this.selectedWordIndices = [this.highlightContextMenu.wordIndex];
+    this.highlightMenuPosition = { ...this.highlightContextMenuPosition };
+    this.showHighlightMenu = true;
+    this.showHighlightContextMenu = false;
+  },
+  openVerseNoteByContext() {
+    // Open note for the verse
+    const verse = this.allVerses.find(v => v.uuid === this.highlightContextMenu.verseUuid);
+    if (verse) {
+      this.openVerseNote(verse);
+    }
+    this.showHighlightContextMenu = false;
+  },
+  async selectVerse(next = true) { // Make async
+    if (this.displayMode === 'hifz') {
+      this.selectNextHifzVerse();
+      return;
+    }
+    if (this.isRevisionMode) {
+      this.toggleRevisionMode();
+      this.toggleRevisionMode();
+      this.displayMode = "revision"
+
+    }
+    this.clearAnimationTimers();
+    // Fully reset display state
+    this.displayedWords = [];
+    this.currentTextParts = [];
+    this.currentPartWords = [];
+    this.currentPartIndex = 0;
+    this.correctWords = [];
+    this.mistakeWords = [];
+
+    if (!this.allVerses || this.allVerses.length === 0) {
+      this.currentVerseData = null;
+      this.currentTextParts = [];
+      this.unreadVerses = [];
+      if (!this.isLoading && !this.errorMessage) {
+        this.errorMessage = this.getLocalizedErrorMessage('noVersesAvailable');
+      }
+      return;
+    }
+    let newIndex;
+    const previousVerseUuid = this.currentVerseData ? this.currentVerseData.uuid : null;
+
+
+    if (this.isShuffleMode) {
+      newIndex = Math.floor(Math.random() * this.allVerses.length);
+    } else if (next && this.currentVerseData) {
+      const currentSurah = this.currentVerseData.surah;
+      const currentVerseNum = this.currentVerseData.verse;
+      const surahInfo = SURAH_DATA.find(s => s.id === currentSurah);
+      if (currentVerseNum < surahInfo.verses) {
+        newIndex = this.allVerses.findIndex(verse => verse.surah === currentSurah && verse.verse === currentVerseNum + 1);
+      } else if (currentSurah < 114) {
+        newIndex = this.allVerses.findIndex(verse => verse.surah === currentSurah + 1 && verse.verse === 1);
+      } else {
+        newIndex = this.allVerses.findIndex(verse => verse.surah === 1 && verse.verse === 1);
+      }
+    } else {
+      newIndex = this.allVerses.findIndex(verse => verse.surah === 1 && verse.verse === 1);
+    }
+    if (newIndex === -1) {
+      console.error('Next verse not found, falling back to random');
+      newIndex = 1;
+    }
+    this.currentVerseData = { ...this.allVerses[newIndex] };
+    
+    // Only reset revision highlights if the verse actually changed
+    if (!previousVerseUuid || this.currentVerseData.uuid !== previousVerseUuid) {
+      this.unreadVerses = []; // Reset for the new verse
+    }
+
+    this.currentTextParts = this.segmentText(this.currentVerseData.text);
+    this.currentPartIndex = 0;
+    this.displayedWords = []; // Clear words for the new verse before displayCurrentPart
+    this.clearAnimationTimers(); // Clear timers for the old verse
+    this.errorMessage = null;
+
+    // Load associated data for the new currentVerseData
+    if (this.currentVerseData && this.currentVerseData.uuid) {
+       await this.loadVerseNote(this.currentVerseData.uuid);
+        await this.loadVerseCompletion(this.currentVerseData.uuid);
+        await this.loadVerseHighlights(this.currentVerseData.uuid);
+    }
+
+    // Now that data is loaded, display the current part
+    this.displayCurrentPart();
+    this.saveLastViewed()
+  },
+
+  displayCurrentPart() {
+    this.clearAnimationTimers();
+        this.currentPartIndex = 0
+      // Reset revision highlights for the new part/verse
+  this.correctWords = [];
+  this.mistakeWords = [];
+  this.unreadVerses = [];
+    this.displayedWords = [];
+    this.currentPartWords = [];
+    this.$forceUpdate();
+    this.$nextTick(() => {
+      if (!this.currentVerseData || this.currentPartIndex >= this.currentTextParts.length) {
+        console.log('No more parts, moving to next verse');
+        // Prevent auto-advancing in revision mode
+        if (this.displayMode !== 'revision') {
+          this.partTimeoutId = setTimeout(() => this.selectVerse(true), this.NEXT_VERSE_DELAY);
+        }
+        return;
+      }
+      const partText = this.currentTextParts[this.currentPartIndex];
+      if (!partText || partText.trim() === '') {
+        console.warn('Empty part text, skipping to next part');
+        this.displayNextPart();
+        return;
+      }
+      this.currentPartWords = partText.split(' ').filter(word => word.trim() !== '');
+      console.log('Displaying part:', this.currentPartIndex, 'Words:', this.currentPartWords);
+      this.animateWords();
+      let currentPartDuration = this.currentAudio && this.currentAudio.duration 
+        ? this.currentAudio.duration * 1000 
+        : this.PART_DISPLAY_DURATION;
+      if (this.currentPartWords.length < (this.WORDS_PER_PART * 0.8) && this.WORDS_PER_PART > 0 && !this.currentAudio) {
+        const proportion = this.currentPartWords.length / this.WORDS_PER_PART;
+        currentPartDuration = Math.max(
+          proportion * this.PART_DISPLAY_DURATION,
+          (this.currentPartWords.length * this.WORD_ANIMATION_INTERVAL) + 1000
+        );
+      }
+      const minDurationForAnimation = (this.currentPartWords.length * this.WORD_ANIMATION_INTERVAL) + 1000;
+      currentPartDuration = Math.max(currentPartDuration, minDurationForAnimation);
+      this.currentActivePartDuration = currentPartDuration;
+      this.partTimeoutStartTime = Date.now();
+      console.log('Part duration:', currentPartDuration);
+        if (this.displayMode !== 'revision') {
+          this.partTimeoutId = setTimeout(() => this.displayNextPart(), currentPartDuration);
+        }
+    });
+  },
+
+  displayNextPart() {
+     // If there are more parts, go to the next part
+  if (this.currentPartIndex < this.currentTextParts.length - 1) {
+    this.currentPartIndex++;
+    this.displayCurrentPart();
+  } else {
+    // If at the last part, auto-advance to the next verse after a short delay
+        if (this.displayMode !== 'revision'){
+    setTimeout(() => {
+      this.selectVerse(true);
+    }, 800); // 800ms pause before next verse, adjust as needed
+    }
+  }
+  },
     
     // Existing methods
-    async loadSurahVerses(surahId) {
-      this.isLoading = true;
-      try {
-        const cached = await this.getCachedSurah(surahId);
-        if (cached) {
-          this.currentSurahData = cached;
-          this.lazyLoadVerses();
-          return;
-        }
-
-        const response = await fetch(`https://api.alquran.cloud/v1/surah/${surahId}`);
-        const data = await response.json();
-        if (data.code === 200) {
-          this.currentSurahData = {
-            id: surahId,
-            arabicName: data.data.name,
-            englishName: data.data.englishName,
-            verses: data.data.ayahs.map(ayah => ({
-              uuid: `${surahId}:${ayah.numberInSurah}`,
-              surah: surahId,
-              verse: ayah.numberInSurah,
-              text: ayah.text,
-              surahArabicName: data.data.name,
-              surahEnglishName: data.data.englishName,
-            })),
-          };
-          await this.cacheSurah(this.currentSurahData);
-          this.lazyLoadVerses();
-        } else {
-          this.errorMessage = this.getLocalizedErrorMessage('loadSurahError');
-        }
-      } catch (error) {
-        console.error('Error loading Surah:', error);
-        this.errorMessage = this.getLocalizedErrorMessage('loadSurahError', error.message);
-      } finally {
-        this.isLoading = false;
-      }
-    },
+  async loadSurahVerses(surahId) {
+  this.isLoading = true;
+  try {
+    const surahVerses = this.allVerses.filter(v => v.surah === surahId);
+    this.currentSurahData = this.SURAH_DATA.find(s => s.id === surahId);
+    this.displayedVerses = surahVerses;
+    // Set currentVerseData to the first verse of the surah for bottom info bar
+    if (surahVerses.length > 0) {
+      this.currentVerseData = { ...surahVerses[0] };
+    }
+    // Load highlights for all verses in this surah
+    for (const verse of surahVerses) {
+      await this.loadVerseHighlights(verse.uuid);
+    }
+    this.isLoading = false;
+  } catch (error) {
+    this.errorMessage = this.getLocalizedErrorMessage('loadSurahError');
+    this.isLoading = false;
+  }
+  this.saveLastViewed();
+},
     
-    // Fix for Hifz Mode Loop Completion
-    completeCurrentLoop() {
-      if (!this.currentVerseData || this.hifzVerseQueue.length === 0) return;
-      this.currentLoopIteration++;
-      if (this.currentLoopIteration >= this.hifzLoopCount) {
-        const lastVerse = this.hifzVerseQueue[this.hifzVerseQueue.length - 1];
-        const nextVerse = this.getNextVerse(lastVerse);
-        if (nextVerse) {
-          this.currentVerseData = nextVerse;
-          this.updateHifzVerseQueue(); // Rebuild queue starting from next verse
-          this.currentLoopIteration = 0;
-          this.isVerseCompleted = false;
-        } else {
-          this.hifzVerseQueue = [];
-          this.displayMode = 'verse';
-          this.errorMessage = this.getLocalizedErrorMessage('hifzComplete');
-        }
-      }
-      this.selectNextHifzVerse();
-      this.saveVerseCompletion();
-    },
+    // ... (all other existing methods)
     
+    // Add new methods for the fixes:
     // Fix for Surah/Verse Selection
-    handleSelectClick(event) {
-      event.stopPropagation();
-      event.target.focus();
-      if (event.target.size === 0) {
-        event.target.size = 5;
-        setTimeout(() => {
-          event.target.size = 0;
-        }, 1000);
-      }
-    },
+
     
     // Fix for Tafsir Mode Navigation
     handleAppClick(event) {
+       // If in full-surah mode, don't do any verse/part navigation from global clicks
+      if (this.displayMode === 'full-surah') {
+        // Still handle overlay closing if click is outside content
+        if (
+            !event.target.closest('.notes-overlay .notes-container') &&
+            !event.target.closest('.loops-overlay .loops-container') &&
+            !event.target.closest('.surah-verse-overlay .surah-verse-container') &&
+            !event.target.closest('.search-overlay .search-container') &&
+            !event.target.closest('.voice-search-overlay .voice-search-container') &&
+            !event.target.closest('.highlight-menu .highlight-container') &&
+            !event.target.closest('.control-buttons-container')
+        ) {
+            // Logic to close overlays if the click was on the backdrop
+            if (event.target.classList.contains('notes-overlay')) this.showNotesOverlay = false;
+            if (event.target.classList.contains('loops-overlay')) this.showLoopsMenu = false;
+            if (event.target.classList.contains('surah-verse-overlay')) this.showSurahVerseMenu = false;
+            if (event.target.classList.contains('search-overlay')) this.closeOverlay('search');
+            if (event.target.classList.contains('voice-search-overlay')) this.closeOverlay('voice');
+            if (event.target.classList.contains('highlight-menu')) this.showHighlightMenu = false; // Assuming highlight-menu is the overlay itself
+        }
+        return;
+      }
+      // Skip if clicking inside any overlay or control buttons
       if (
         event.target.closest('.notes-overlay') ||
         event.target.closest('.loops-overlay') ||
@@ -1153,19 +1614,34 @@ export default {
         event.target.closest('.search-overlay') ||
         event.target.closest('.voice-search-overlay') ||
         event.target.closest('.highlight-menu') ||
-        event.target.closest('.control-buttons-container')
+        event.target.closest('.control-buttons-container') // Keep this to prevent controls from closing overlays
       ) {
+         // Check if the click is on the overlay backdrop itself, not the content
+        const isBackdropClick = (
+          (this.showNotesOverlay && event.target.classList.contains('notes-overlay')) ||
+          (this.showLoopsMenu && event.target.classList.contains('loops-overlay')) ||
+          (this.showLanguageMenu && event.target.classList.contains('language-selection-overlay')) ||
+          (this.showDisplayModeMenu && event.target.classList.contains('display-mode-menu-overlay')) ||
+          (this.showSurahVerseMenu && event.target.classList.contains('surah-verse-overlay')) ||
+          (this.showSearchOverlay && event.target.classList.contains('search-overlay')) ||
+          (this.showVoiceSearchOverlay && event.target.classList.contains('voice-search-overlay')) ||
+          (this.showHighlightMenu && event.target.classList.contains('highlight-menu'))
+        );
+        if (!isBackdropClick) {
+          // Click is inside content of an overlay (not backdrop)
+          return;
+        }
+      }
+
+      // If the click is on a select element or its options, don't close overlays.
+      if (event.target.tagName === 'SELECT' || event.target.tagName === 'OPTION' || event.target.closest('select')) {
+    
         return;
       }
       
-      if (event.target.tagName === 'SELECT' || event.target.closest('.select-container')) {
-        return;
-      }
+
       
-      if (this.showSurahVerseMenu) {
-        this.showSurahVerseMenu = false;
-      }
-      
+      // Close all overlays
       this.showNotesOverlay = false;
       this.showLoopsMenu = false;
       this.showLanguageMenu = false;
@@ -1175,15 +1651,16 @@ export default {
       this.showVoiceSearchOverlay = false;
       this.showHighlightMenu = false;
       
+      // Handle Tafsir mode navigation
       if (this.displayMode === 'tafseer' && this.currentTextParts.length > 1) {
         const clickX = event.clientX || (event.touches && event.touches[0].clientX);
         const screenWidth = window.innerWidth;
         const isArabic = this.currentLanguage === 'ar';
         
-        if ((clickX > screenWidth / 2 && !isArabic) || (clickX <= screenWidth / 2 && isArabic)) {
-          this.displayNextPart();
-        } else {
+        if ((clickX > screenWidth )) {
           this.displayPreviousPart();
+        } else {
+          this.displayNextPart();
         }
         return;
       }
@@ -1199,8 +1676,11 @@ export default {
           const data = await response.json();
           audioUrl = data.data.audio;
         } else {
-          this.errorMessage = this.getLocalizedErrorMessage('audioNotAvailable');
-          return;
+          // Fallback to Hafs audio for Warsh/Qaloon ADD QALOON WARSH @@@@@@@@@@@@@@@@@
+          console.warn('Audio not available for selected mushaf, falling back to Hafs');
+          const response = await fetch(`https://api.alquran.cloud/v1/ayah/${this.currentVerseData.surah}:${this.currentVerseData.verse}/ar.alafasy`);
+          const data = await response.json();
+          audioUrl = data.data.audio;
         }
         
         if (audioUrl) {
@@ -1215,7 +1695,9 @@ export default {
             });
           
           this.currentAudio.onended = () => {
-            this.isAudioPlaying = false;
+              this.isAudioPlaying = true;
+              this.selectVerse(true);
+              this.initAudioPlayback()
             if (this.isContinuousAudio) {
               this.selectVerse(true);
             }
@@ -1229,6 +1711,7 @@ export default {
     
     handleAudioError() {
       this.isAudioPlaying = false;
+      // Try next verse if current fails
       setTimeout(() => {
         this.selectVerse(true);
       }, 1000);
@@ -1236,86 +1719,46 @@ export default {
     
     // Add Full Surah Mode to UI
     setDisplayMode(mode) {
-      this.displayMode = mode;
-      this.showDisplayModeMenu = false;
-      this.clearAnimationTimers();
-      
-      if (mode === 'hifz') {
-        this.enterHifzMode();
-      } else if (mode === 'tafseer') {
-        this.loadTafseer();
-      } else if (mode === 'full-surah') {
-        this.loadSurahVerses(this.currentVerseData.surah);
-      } else {
-        if (this.originalSurah) {
-          const verse = this.allVerses.find(v => v.surah === this.originalSurah && v.verse === 1);
-          if (verse) {
-            this.currentVerseData = { ...verse };
-            this.currentTextParts = this.segmentText(verse.text);
-            this.currentPartIndex = 0;
-            this.displayedWords = [];
-            this.displayCurrentPart();
-          }
-          this.originalSurah = null;
-        } else {
-          this.selectVerse();
-        }
-        
-        if (this.currentTextParts.length > 0) {
-          this.currentPartIndex = Math.min(this.currentPartIndex + 1, this.currentTextParts.length - 1);
-          this.displayCurrentPart();
-        }
-        
-        if (this.isAudioPlaying) {
-          this.$nextTick(() => {
-            this.playCurrentVerse();
-          });
-        }
-      }
-    },
-    
-    // Lazy Loading for verses
-    lazyLoadVerses() {
-      if (!this.currentSurahData || !this.$refs.versesContainer) return;
-      const versesContainer = this.$refs.versesContainer;
-      const verses = this.currentSurahData.verses;
-      const chunkSize = 10;
-      let loadedIndex = 0;
+  this.displayMode = mode;
+  this.clearAnimationTimers();
+  this.showDisplayModeMenu = false;
 
-      const loadMoreVerses = (entries) => {
-        entries.forEach(entry => {
-          if (entry.isIntersecting && loadedIndex < verses.length) {
-            const nextChunk = verses.slice(loadedIndex, loadedIndex + chunkSize);
-            this.displayedVerses = [...this.displayedVerses, ...nextChunk];
-            loadedIndex += chunkSize;
-          }
-        });
-      };
-
-      this.verseObserver = new IntersectionObserver(loadMoreVerses, {
-        root: versesContainer,
-        threshold: 0.1,
+  if (mode === 'hifz') {
+    this.enterHifzMode();
+  } else if (mode === 'tafseer') {
+    this.loadTafseer();
+  } else if (mode === 'full-surah') {
+    if (this.currentVerseData && this.currentVerseData.surah) {
+      this.loadSurahVerses(this.currentVerseData.surah);
+    } else if (this.allVerses.length > 0) {
+      this.loadSurahVerses(this.allVerses[0].surah);
+    } else {
+      this.errorMessage = this.getLocalizedErrorMessage('noVersesAvailable');
+    }
+  } else {
+    // For 'verse' mode or other modes that show single verse
+    this.correctWords = [];
+    this.mistakeWords = [];
+    this.unreadVerses = [];
+    // If coming from full-surah mode, use the currentVerseData (which is now set to the first verse of the surah)
+    if (!this.currentVerseData && this.allVerses.length > 0) {
+      this.currentVerseData = { ...this.allVerses[0] };
+    }
+    if (this.currentVerseData) {
+      this.currentTextParts = this.segmentText(this.currentVerseData.text);
+      this.currentPartIndex = 0;
+      this.displayedWords = [];
+      this.displayCurrentPart();
+    }
+    if (this.isAudioPlaying) {
+      this.$nextTick(() => {
+        this.playCurrentVerse();
       });
-
-      this.sentinel = document.createElement('div');
-      versesContainer.appendChild(this.sentinel);
-      this.verseObserver.observe(this.sentinel);
-
-      this.displayedVerses = verses.slice(0, chunkSize);
-      loadedIndex = chunkSize;
+    }
+  }
+  this.saveLastViewed();
     },
-
-    // Hifz Select Fix
-    handleSelectClick(event) {
-      event.stopPropagation();
-      event.target.focus();
-      if (event.target.size === 0) {
-        event.target.size = 5;
-        setTimeout(() => {
-          event.target.size = 0;
-        }, 1000);
-      }
-    },
+ 
     
     // UI Styling
     toggleTheme() {
@@ -1355,277 +1798,250 @@ export default {
     
     // ... (all other existing methods)
 
-    toggleDisplayModeMenu() {
-      this.showDisplayModeMenu = !this.showDisplayModeMenu;
-      console.log('Display mode menu toggled:', this.showDisplayModeMenu);
-    },
+        toggleDisplayModeMenu() {
+    this.showDisplayModeMenu = !this.showDisplayModeMenu;
+    console.log('Display mode menu toggled:', this.showDisplayModeMenu);
+  },
 
-    toggleSurahVerseMenu() {
-      this.showSurahVerseMenu = !this.showSurahVerseMenu;
-      if (this.showSurahVerseMenu) {
-        this.selectedSurah = this.currentVerseData ? this.currentVerseData.surah : 1;
-        this.updateVerseOptions();
-        this.$nextTick(() => {
-          if (this.$refs.surahSelect) {
-            this.$refs.surahSelect.focus();
-          }
-        });
+toggleSurahVerseMenu() {
+  this.showSurahVerseMenu = !this.showSurahVerseMenu;
+  if (this.showSurahVerseMenu) {
+    this.selectedSurah = this.currentVerseData ? this.currentVerseData.surah : 1;
+    this.updateVerseOptions();
+    this.$nextTick(() => {
+      if (this.$refs.surahSelect) {
+        this.$refs.surahSelect.focus();
       }
-    },
+    });
+  }
+},
 
-    updateVerseOptions() {
-      const surah = SURAH_DATA.find(s => s.id === this.selectedSurah);
-      this.verseOptions = Array.from({ length: surah.verses }, (_, i) => i + 1);
-      this.selectedVerse = 1;
-    },
-    selectSurahVerse() {
-      const verse = this.allVerses.find(v => v.surah === this.selectedSurah && v.verse === this.selectedVerse);
-      if (verse) {
-        this.currentVerseData = { ...verse };
-        this.currentTextParts = this.segmentText(verse.text);
-        this.currentPartIndex = 0;
-        this.displayedWords = [];
-        this.clearAnimationTimers();
-        this.displayCurrentPart();
-        this.showSurahVerseMenu = false;
-      }
-    },
+updateVerseOptions() {
+  const surah = this.SURAH_DATA.find(s => s.id === this.selectedSurah);
+  this.verseOptions = surah ? Array.from({ length: surah.verses }, (_, i) => i + 1) : [];
+  this.selectedVerse = 1;
+},
+selectSurahVerse() {
+  this.clearAnimationTimers();
+  this.correctWords = [];
+  this.mistakeWords = [];
+  this.unreadVerses = [];
+    this.displayedWords = [];
+    this.currentPartWords = [];
+    this.$forceUpdate();
+  const verse = this.allVerses.find(v => v.surah === this.selectedSurah && v.verse === this.selectedVerse);
+  
+  if (verse) {
+    this.currentVerseData = { ...verse };
+    this.currentTextParts = this.segmentText(verse.text);
+    this.currentPartIndex = 0;
+    this.displayedWords = [];
+    this.clearAnimationTimers();
+    
+    this.displayCurrentPart();
+    this.showSurahVerseMenu = false;
 
-    async loadTafseer() {
-      if (!this.currentVerseData || this.currentLanguage !== 'ar') {
-        this.errorMessage = this.getLocalizedErrorMessage('tafseerNotAvailable');
-        return;
-      }
-      this.originalSurah = this.currentVerseData.surah;
-      this.isLoading = true;
-      try {
-        const verseKey = this.currentVerseData.verseKey;
-        const response = await fetch(`https://api.alquran.cloud/v1/ayah/${verseKey}/ar.waseet`);
-        const data = await response.json();
-        if (data.code === 200 && data.data && data.data.text) {
-          this.currentVerseData.text = data.data.text;
-          this.currentTextParts = this.segmentText(data.data.text);
-          this.currentPartIndex = 0;
-          this.displayedWords = [];
-          this.clearAnimationTimers();
-          this.displayCurrentPart();
-        } else {
-          throw new Error('Invalid tafseer response');
-        }
-      } catch (error) {
-        console.error('Error loading tafseer:', error);
-        this.errorMessage = this.getLocalizedErrorMessage('loadError');
-      } finally {
-        this.isLoading = false;
-      }
-    },
-    getLocalizedErrorMessage(key, detail = '') {
-      const messages = {
-        loadNoteError: {
-          ar: `خطأ في تحميل الملاحظة: ${detail}`,
-          en: `Error loading note: ${detail}`,
-          fr: `Erreur lors du chargement de la note : ${detail}`,
-          bn: `নোট লোডিংয়ে ত্রুটি: ${detail}`,
-          tr: `Not yükleme hatası: ${detail}`,
-          ur: `نوٹ لوڈ کرنے میں خرابی: ${detail}`,
-        },
-        saveCompletionError: {
-          ar: `خطأ في حفظ الإكمال: ${detail}`,
-          en: `Error saving completion: ${detail}`,
-          fr: `Erreur lors de l'enregistrement de l'achèvement : ${detail}`,
-          bn: `সমাপ্তি সংরক্ষণে ত্রুটি: ${detail}`,
-          tr: `Tamamlama kaydetme hatası: ${detail}`,
-          ur: `مکمل کرنے میں خرابی: ${detail}`,
-        },
-        loadHighlightError: {
-          ar: `خطأ في تحميل التمييز: ${detail}`,
-          en: `Error loading highlight: ${detail}`,
-          fr: `Erreur lors du chargement du surlignage : ${detail}`,
-          bn: `হাইলাইট লোডিংয়ে ত্রুটি: ${detail}`,
-          tr: `Vurgu yükleme hatası: ${detail}`,
-          ur: `ہائی لائٹ لوڈ کرنے میں خرابی: ${detail}`,
-        },
-        loadCompletionError: {
-          ar: `خطأ في تحميل الإكمال: ${detail}`,
-          en: `Error loading completion: ${detail}`,
-          fr: `Erreur lors du chargement de l'achèvement : ${detail}`,
-          bn: `সমাপ্তি লোডিংয়ে ত্রুটি: ${detail}`,
-          tr: `Tamamlama yükleme hatası: ${detail}`,
-          ur: `مکمل لوڈ کرنے میں خرابی: ${detail}`,
-        },
-        dbError: {
-          ar: `خطأ في قاعدة البيانات: ${detail}`,
-          en: `Database error: ${detail}`,
-          fr: `Erreur de base de données : ${detail}`,
-          bn: `ডাটাবেস ত্রুটি: ${detail}`,
-          tr: `Veritabanı hatası: ${detail}`,
-          ur: `ڈیٹا بیس میں خرابی: ${detail}`,
-        },
-        noDataAfterLoad: {
-          ar: 'لم يتم العثور على بيانات الآيات بعد تحميل جميع الملفات.',
-          en: 'No Quran verse data found after loading all files.',
-          fr: 'Aucune donnée de verset du Coran trouvée après le chargement de tous les fichiers.',
-          bn: 'সমস্ত ফাইল লোড করার পরে কোনো কুরআনের আয়াতের ডেটা পাওয়া যায়নি।',
-          tr: 'Tüm dosyalar yüklendikten sonra Kuran ayeti verisi bulunamadı.',
-          ur: 'تمام فائلوں کو لوڈ کرنے کے بعد قرآن کے آیات کا کوئی ڈیٹا نہیں ملا۔',
-        },
-        shareError: {
-          ar: 'فشل في المشاركة أو النسخ إلى الحافظة',
-          en: 'Failed to share or copy to clipboard',
-          fr: 'Échec du partage ou de la copie dans le presse-papiers',
-          bn: 'শেয়ার বা ক্লিপবোর্ডে কপি করতে ব্যর্থ হয়েছে',
-          tr: 'Paylaşma veya panoya kopyalama başarısız oldu',
-          ur: 'شئیر یا کلپ بورڈ میں کاپی کرنے میں ناکامی ہوئی',
-        },
-        voiceSearchNotSupported: {
-          ar: 'البحث الصوتي غير مدعوم.',
-          en: 'Voice search not supported.',
-          fr: 'Recherche vocale non prise en charge.',
-          bn: 'ভয়েস অনুসন্ধান সমর্থিত নয়।',
-          tr: 'Sesli arama desteklenmiyor.',
-          ur: 'صوتی تلاش تعاون یافتہ نہیں ہے۔',
-        },
-        voiceSearchError: {
-          ar: `خطأ في البحث الصوتي: ${detail}`,
-          en: `Voice search error: ${detail}`,
-          fr: `Erreur de recherche vocale: ${detail}`,
-          bn: `ভয়েস অনুসন্ধানে ত্রুটি: ${detail}`,
-          tr: `Sesli arama hatası: ${detail}`,
-          ur: `صوتی تلاش میں خرابی: ${detail}`,
-        },
-        tafseerNotAvailable: {
-          ar: 'التفسير متاح فقط باللغة العربية',
-          en: 'Tafseer is only available in Arabic',
-          fr: 'Le tafsir est uniquement disponible en arabe',
-          bn: 'তাফসীর শুধুমাত্র আরবিতে উপলব্ধ',
-          tr: 'Tefsir sadece Arapça olarak mevcuttur',
-          ur: 'تفسیر صرف عربی میں دستیاب ہے',
-        },
-        saveNoteError: {
-          ar: `خطأ في حفظ الملاحظة: ${detail}`,
-          en: `Error saving note: ${detail}`,
-          fr: `Erreur lors de l'enregistrement de la note : ${detail}`,
-          bn: `নোট সংরক্ষণে ত্রুটি: ${detail}`,
-          tr: `Not kaydetme hatası: ${detail}`,
-          ur: `نوٹ محفوظ کرنے میں خرابی: ${detail}`,
-        },
-        hifzComplete: {
-          ar: 'تم إكمال الحفظ! ابدأ من جديد؟',
-          en: 'Hifz completed! Start over?',
-          fr: 'Hifz terminé ! Recommencer ?',
-          bn: 'হিফজ সম্পন্ন! আবার শুরু করবেন?',
-          tr: 'Hifz tamamlandı! Yeniden başla?',
-          ur: 'حفظ مکمل ہو گیا! دوبارہ شروع کریں؟',
-        },
-        audioNotAvailable: {
-          ar: 'الصوت غير متاح لهذا المصحف',
-          en: 'Audio not available for this mushaf',
-          fr: 'Audio non disponible pour ce mushaf',
-          bn: 'এই মুশাফের জন্য অডিও উপলব্ধ নয়',
-          tr: 'Bu mushaf için ses mevcut değil',
-          ur: 'اس مصحف کے لیے آڈیو دستیاب نہیں ہے',
-        },
-      };
-      return messages[key][this.currentLanguage] || messages[key].en;
-    },
-    loadPage() {
-      console.log('Page mode not implemented');
-      this.selectVerse();
-    },
-    loadChapter() {
-      console.log('Chapter mode not implemented');
-      this.selectVerse();
-    },
-    toggleShuffleMode() {
-      this.isShuffleMode = !this.isShuffleMode;
-      console.log('Shuffle mode:', this.isShuffleMode);
-    },
-    selectVerse(next = true) {
-      if (this.displayMode === 'hifz') {
-        this.selectNextHifzVerse();
-        return;
-      }
-      this.clearAnimationTimers();
-      this.displayedWords = [];
-      if (!this.allVerses || this.allVerses.length === 0) {
-        this.currentVerseData = null;
-        this.currentTextParts = [];
-        if (!this.isLoading && !this.errorMessage) {
-          this.errorMessage = this.getLocalizedErrorMessage('noVersesAvailable');
-        }
-        return;
-      }
-      let newIndex;
-      if (this.isShuffleMode) {
-        newIndex = Math.floor(Math.random() * this.allVerses.length);
-      } else if (next && this.currentVerseData) {
-        const currentSurah = this.currentVerseData.surah;
-        const currentVerseNum = this.currentVerseData.verse;
-        const surahInfo = SURAH_DATA.find(s => s.id === currentSurah);
-        if (currentVerseNum < surahInfo.verses) {
-          newIndex = this.allVerses.findIndex(verse => verse.surah === currentSurah && verse.verse === currentVerseNum + 1);
-        } else if (currentSurah < 114) {
-          newIndex = this.allVerses.findIndex(verse => verse.surah === currentSurah + 1 && verse.verse === 1);
-        } else {
-          newIndex = this.allVerses.findIndex(verse => verse.surah === 1 && verse.verse === 1);
-        }
-      } else {
-        newIndex = this.allVerses.findIndex(verse => verse.surah === 1 && verse.verse === 1);
-      }
-      if (newIndex === -1) {
-        console.error('Next verse not found, falling back to random');
-        newIndex = 1;
-      }
-      this.currentVerseData = { ...this.allVerses[newIndex] };
-      this.currentTextParts = this.segmentText(this.currentVerseData.text);
+    // FIX: If in full-surah mode, reload the surah verses
+    if (this.displayMode === 'full-surah') {
+      this.loadSurahVerses(this.selectedSurah);
+      // Optionally, scroll to the selected verse
+      this.$nextTick(() => {
+        const verseEl = document.querySelector(`[data-verse-uuid="${verse.uuid}"]`);
+        if (verseEl) verseEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      });
+    }
+  }
+},
+
+async loadTafseer() {
+  if (!this.currentVerseData || this.currentLanguage !== 'ar') {
+    this.errorMessage = this.getLocalizedErrorMessage('tafseerNotAvailable');
+    return;
+  }
+  this.originalSurah = this.currentVerseData.surah;
+  this.isLoading = true;
+  try {
+    const verseKey = this.currentVerseData.verseKey;
+    const response = await fetch(`https://api.alquran.cloud/v1/ayah/${verseKey}/ar.waseet`);
+    const data = await response.json();
+    if (data.code === 200 && data.data && data.data.text) {
+      this.currentVerseData.text = data.data.text;
+      this.currentTextParts = this.segmentText(data.data.text);
       this.currentPartIndex = 0;
-      this.errorMessage = null;
+      this.displayedWords = [];
+      this.clearAnimationTimers();
       this.displayCurrentPart();
+    } else {
+      throw new Error('Invalid tafseer response');
+    }
+  } catch (error) {
+    console.error('Error loading tafseer:', error);
+    this.errorMessage = this.getLocalizedErrorMessage('loadError');
+  } finally {
+    this.isLoading = false;
+  }
+},
+getLocalizedErrorMessage(key, detail = '') {
+  const messages = {
+    loadNoteError: {
+      ar: `خطأ في تحميل الملاحظة: ${detail}`,
+      en: `Error loading note: ${detail}`,
+      fr: `Erreur lors du chargement de la note : ${detail}`,
+      bn: `নোট লোডিংয়ে ত্রুটি: ${detail}`,
+      tr: `Not yükleme hatası: ${detail}`,
+      ur: `نوٹ لوڈ کرنے میں خرابی: ${detail}`,
     },
+    hifzComplete: {
+      ar: 'تم إكمال الحفظ! ابدأ من جديد؟',
+      en: 'Hifz completed! Start over?',
+      fr: `Erreur lors du chargement de la note : ${detail}`,
+      bn: `নোট লোডিংয়ে ত্রুটি: ${detail}`,
+      tr: `Not yükleme hatası: ${detail}`,
+      ur: `نوٹ لوڈ کرنے میں خرابی: ${detail}`,    },
+    saveCompletionError: {
+      ar: `خطأ في حفظ الإكمال: ${detail}`,
+      en: `Error saving completion: ${detail}`,
+      fr: `Erreur lors de l'enregistrement de l'achèvement : ${detail}`,
+      bn: `সমাপ্তি সংরক্ষণে ত্রুটি: ${detail}`,
+      tr: `Tamamlama kaydetme hatası: ${detail}`,
+      ur: `مکمل کرنے میں خرابی: ${detail}`,
+    },
+    loadHighlightError: {
+      ar: `خطأ في تحميل التمييز: ${detail}`,
+      en: `Error loading highlight: ${detail}`,
+      fr: `Erreur lors du chargement du surlignage : ${detail}`,
+      bn: `হাইলাইট লোডিংয়ে ত্রুটি: ${detail}`,
+      tr: `Vurgu yükleme hatası: ${detail}`,
+      ur: `ہائی لائٹ لوڈ کرنے میں خرابی: ${detail}`,
+    },
+    loadCompletionError: {
+      ar: `خطأ في تحميل الإكمال: ${detail}`,
+      en: `Error loading completion: ${detail}`,
+      fr: `Erreur lors du chargement de l'achèvement : ${detail}`,
+      bn: `সমাপ্তি লোডিংয়ে ত্রুটি: ${detail}`,
+      tr: `Tamamlama yükleme hatası: ${detail}`,
+      ur: `مکمل لوڈ کرنے میں خرابی: ${detail}`,
+    },
+    dbError: {
+      ar: `خطأ في قاعدة البيانات: ${detail}`,
+      en: `Database error: ${detail}`,
+      fr: `Erreur de base de données : ${detail}`,
+      bn: `ডাটাবেস ত্রুটি: ${detail}`,
+      tr: `Veritabanı hatası: ${detail}`,
+      ur: `ڈیٹا بیس میں خرابی: ${detail}`,
+    },
+       noDataAfterLoad: {
+      ar: 'لم يتم العثور على بيانات الآيات بعد تحميل جميع الملفات.',
+      en: 'No Quran verse data found after loading all files.',
+      fr: 'Aucune donnée de verset du Coran trouvée après le chargement de tous les fichiers.',
+      bn: 'সমস্ত ফাইল লোড করার পরে কোনো কুরআনের আয়াতের ডেটা পাওয়া যায়নি।',
+      tr: 'Tüm dosyalar yüklendikten sonra Kuran ayeti verisi bulunamadı.',
+      ur: 'تمام فائلوں کو لوڈ کرنے کے بعد قرآن کے آیات کا کوئی ڈیٹا نہیں ملا۔',
+    },
+    shareError: {
+      ar: 'فشل في المشاركة أو النسخ إلى الحافظة',
+      en: 'Failed to share or copy to clipboard',
+      fr: 'Échec du partage ou de la copie dans le presse-papiers',
+      bn: 'শেয়ার বা ক্লিপবোর্ডে কপি করতে ব্যর্থ হয়েছে',
+      tr: 'Paylaşma veya panoya kopyalama başarısız oldu',
+      ur: 'شئیر یا کلپ بورڈ میں کاپی کرنے میں ناکامی ہوئی',
+    },
+    voiceSearchNotSupported: {
+      ar: 'البحث الصوتي غير مدعوم.',
+      en: 'Voice search not supported.',
+      fr: 'Recherche vocale non prise en charge.',
+      bn: 'ভয়েস অনুসন্ধান সমর্থিত নয়।',
+      tr: 'Sesli arama desteklenmiyor.',
+      ur: 'صوتی تلاش تعاون یافتہ نہیں ہے۔',
+    },
+    voiceSearchError: {
+      ar: `خطأ في البحث الصوتي: ${detail}`,
+      en: `Voice search error: ${detail}`,
+      fr: `Erreur de recherche vocale: ${detail}`,
+      bn: `ভয়েস অনুসন্ধানে ত্রুটি: ${detail}`,
+      tr: `Sesli arama hatası: ${detail}`,
+      ur: `صوتی تلاش میں خرابی: ${detail}`,
+    },
+    tafseerNotAvailable: {
+      ar: 'التفسير متاح فقط باللغة العربية',
+      en: 'Tafseer is only available in Arabic',
+      fr: 'Le tafsir est uniquement disponible en arabe',
+      bn: 'তাফসীর শুধুমাত্র আরবিতে উপলব্ধ',
+      tr: 'Tefsir sadece Arapça olarak mevcuttur',
+      ur: 'تفسیر صرف عربی میں دستیاب ہے',
+    },
+    saveNoteError: {
+      ar: `خطأ في حفظ الملاحظة: ${detail}`,
+      en: `Error saving note: ${detail}`,
+      fr: `Erreur lors de l'enregistrement de la note : ${detail}`,
+      bn: `নোট সংরক্ষণে ত্রুটি: ${detail}`,
+      tr: `Not kaydetme hatası: ${detail}`,
+      ur: `نوٹ محفوظ کرنے میں خرابی: ${detail}`,
+    },
+  };
+  return messages[key][this.currentLanguage] || messages[key].en;
+},
+  loadPage() {
+    // Placeholder: Implement page-based display (e.g., verses on the same page)
+    console.log('Page mode not implemented');
+    this.selectVerse(); // Fallback to verse mode
+  },
+  loadChapter() {
+    // Placeholder: Implement chapter-based display (e.g., entire surah)
+    console.log('Chapter mode not implemented');
+    this.selectVerse(); // Fallback to verse mode
+  },
+    toggleShuffleMode() {
+    this.isShuffleMode = !this.isShuffleMode;
+    console.log('Shuffle mode:', this.isShuffleMode);
+  },
+
     searchPagination(direction) {
-      this.currentPage += direction;
-      if (this.currentPage < 1) this.currentPage = 1;
-      if (this.currentPage > Math.ceil(this.searchResults.length / this.resultsPerPage)) {
-        this.currentPage = Math.ceil(this.searchResults.length / this.resultsPerPage);
-      }
-    },
-    handleResultClick(result) {
-      const text = `${result.text}\n${this.currentLanguage === 'ar' ? result.surahArabicName : result.surahEnglishName} ${result.verse}`;
-      navigator.clipboard.write(text)
-        .then(() => {
-          this.showCopyNotification = true;
-          setTimeout(() => {
-            this.showCopyNotification = false;
-          }, 2000);
-        })
-        .catch(err => console.error('Clipboard copy failed:', err));
-    },
-    closeOverlay(type) {
-      if (type === 'search') {
-        this.showSearchOverlay = false;
-        this.searchQuery = '';
-        this.searchResults = [];
-      } else if (type === 'voice') {
-        this.showVoiceSearchOverlay = false;
-        this.detectedText = '';
-        this.detectedWords = [];
-        if (this.recognition) {
-          this.recognition.stop();
-          this.recognition = null;
-        }
-      }
-    },
-    openVoiceOverlay() {
+    this.currentPage += direction;
+    if (this.currentPage < 1) this.currentPage = 1;
+    if (this.currentPage > Math.ceil(this.searchResults.length / this.resultsPerPage)) {
+      this.currentPage = Math.ceil(this.searchResults.length / this.resultsPerPage);
+    }
+  },
+  handleResultClick(result) {
+    const text = `${result.text}\n${this.currentLanguage === 'ar' ? result.surahArabicName : result.surahEnglishName} ${result.verse}`;
+    navigator.clipboard.write(text)
+      .then(() => {
+        this.showCopyNotification = true;
+        setTimeout(() => {
+          this.showCopyNotification = false;
+        }, 2000);
+      })
+      .catch(err => console.error('Clipboard copy failed:', err));
+  },
+  closeOverlay(type) {
+    if (type === 'search') {
       this.showSearchOverlay = false;
-      this.showVoiceSearchOverlay = true;
-      this.startVoiceSearch();
-    },
+      this.searchQuery = '';
+      this.searchResults = [];
+    } else if (type === 'voice') {
+      this.showVoiceSearchOverlay = false;
+      this.detectedText = '';
+      this.detectedWords = [];
+      if (this.recognition) {
+        this.recognition.stop();
+        this.recognition = null;
+      }
+    }
+  },
+  openVoiceOverlay() {
+    this.showSearchOverlay = false;
+    this.showVoiceSearchOverlay = true;
+    this.startVoiceSearch();
+  },
     processSurahData(data) {
-      if (!data || !data.data || !data.data.ayahs) return [];
-      
+   if (!data || !data.data || !data.data.ayahs) return [];
       const surah = data.data;
       const surahInfo = SURAH_DATA.find(s => s.id === surah.number);
-      
+      if (!surahInfo) {
+        console.error(`Surah info not found for surah number: ${surah.number}`);
+        return [];
+      }
       return surah.ayahs.map(ayah => ({
         uuid: `${surah.number}:${ayah.numberInSurah}-${this.currentLanguage}`,
         surah: surah.number,
@@ -1634,77 +2050,215 @@ export default {
         text: ayah.text,
         surahArabicName: surahInfo.arabicName,
         surahEnglishName: surahInfo.englishName,
-        audio: ayah.audio || null,
+        audio: ayah.audio || null, // Ensure audio property exists
         language: this.currentLanguage,
       }));
     },
 
-    selectInitialLanguage(lang) {
-      this.currentLanguage = lang;
-      localStorage.setItem('language', lang);
-      this.showLanguageSelection = false;
-      this.loadInitialData().then(() => {
-        if (this.allVerses.length > 0 && !this.errorMessage) {
+startWordSelection(event, index, verseUuidParam = null) {
+  const targetVerseUuid = verseUuidParam || (this.currentVerseData ? this.currentVerseData.uuid : null);
+
+  if (!targetVerseUuid) {
+    console.warn("startWordSelection: No targetVerseUuid available.");
+    return;
+  }
+
+  // Define which modes allow word selection for highlighting
+  const highlightEnabledModes = ['hifz', 'full-surah']; // Add 'verse', 'tafseer' if needed
+  if (!highlightEnabledModes.includes(this.displayMode)) {
+    return;
+  }
+
+  event.preventDefault();
+  this.isSelectingWords = true;
+  this.selectedWordIndices = [index]; // Store the index (relative to the verse)
+  this.activeVerseUuidForHighlighting = targetVerseUuid; // Set the active UUID
+  this.showHighlightMenu = false;
+  this.showHighlightContextMenu = false; // Close context menu if it was open
+},
+
+updateWordSelection(event, index, verseUuidParam = null) {
+  const targetVerseUuid = verseUuidParam || (this.currentVerseData ? this.currentVerseData.uuid : null);
+
+  if (!this.isSelectingWords || this.activeVerseUuidForHighlighting !== targetVerseUuid) {
+    return;
+  }
+
+  const highlightEnabledModes = ['hifz', 'full-surah']; // Add 'verse', 'tafseer' if needed
+  if (!highlightEnabledModes.includes(this.displayMode)) {
+    return;
+  }
+
+  event.preventDefault();
+  if (!this.selectedWordIndices.includes(index)) {
+    const minIndex = Math.min(...this.selectedWordIndices, index);
+    const maxIndex = Math.max(...this.selectedWordIndices, index);
+    this.selectedWordIndices = Array.from(
+      { length: maxIndex - minIndex + 1 },
+      (_, i) => minIndex + i
+    );
+  }
+},
+
+endWordSelection(event) {
+ const highlightEnabledModes = ['hifz', 'full-surah'];
+  if (!highlightEnabledModes.includes(this.displayMode) || !this.isSelectingWords) {
+    this.isSelectingWords = false;
+    return;
+  }
+  this.isSelectingWords = false;
+  if (this.wasScrolling) {
+    this.wasScrolling = false;
+    return; // Don't show highlight menu if user was scrolling
+  }
+  if (this.selectedWordIndices.length > 0) {
+    let target = event.target;
+    while (target && !target.classList.contains('inline-block')) {
+      target = target.parentElement;
+    }
+    if (target) {
+      const rect = target.getBoundingClientRect();
+      const menuWidth = 180; // Approximate width of your highlight menu
+      let left = rect.left + window.scrollX + (rect.width / 2) - menuWidth / 2;
+      // On mobile, center in viewport if menu would overflow
+      if (window.innerWidth < 600) {
+        left = Math.max(8, Math.min(left, window.innerWidth - menuWidth - 8));
+      }
+      this.highlightMenuPosition = {
+        top: rect.top + window.scrollY - 60,
+        left,
+      };
+      this.showHighlightMenu = true;
+    }
+  }
+},
+
+
+selectInitialLanguage(lang) {
+  this.currentLanguage = lang;
+  localStorage.setItem('language', lang);
+  this.showLanguageSelection = false;
+  if (lang == "ar")   this.showMushafSelection = true;
+    else if (!localStorage.getItem('hasSeenInstructions')) {
+      console.log('Showing navigation instructions on first visit');
+      this.showNavigationInstructions = true;
+    }
+  this.loadInitialData().then(() => {
+    if (this.allVerses.length > 0 && !this.errorMessage) {
+      this.selectVerse();
+    } else if (!this.errorMessage) {
+      this.errorMessage = this.getLocalizedErrorMessage('noDataAfterLoad');
+      this.isLoading = false;
+    }
+  });
+
+},
+
+toggleLanguageMenu() {
+  this.showLanguageMenu = !this.showLanguageMenu;
+},
+ async loadLocalMushafJson(type) {
+    let url = '';
+    if (type === 'warsh') url = '/warsh.json';
+    else if (type === 'qaloon') url = '/qaloon.json';
+    else return [];
+    try {
+      const response = await fetch(url);
+      if (!response.ok) throw new Error('Failed to load ' + url);
+      const data = await response.json();
+      // Normalize structure if needed
+      return data.map(aya => ({
+        uuid: `${aya.sura_no}:${aya.aya_no}-ar-${type}`,
+        surah: aya.sura_no,
+        verse: aya.aya_no,
+        verseKey: `${aya.sura_no}:${aya.aya_no}`,
+        text: aya.aya_text.replace(/[\uFBC0-\uFC63]/g, ''),
+        surahArabicName: aya.sura_name_ar?.trim() || '',
+        surahEnglishName: aya.sura_name_en || '',
+        audio: null,
+        language: 'ar',
+      }));
+    } catch (e) {
+      this.errorMessage = this.getLocalizedErrorMessage('loadError', e.message);
+      return [];
+    }
+  },
+setLanguage(lang) {
+  this.currentLanguage = lang;
+  localStorage.setItem('language', lang);
+  this.showLanguageMenu = false;
+  if (lang === 'ar') {
+    this.showMushafSelection = true;
+        // Do not automatically load data if mushaf selection is shown
+
+  } else {
+    this.showMushafSelection = false;
+     // For non-Arabic, set mushafType to hafs by default if not already set
+    if (this.mushafType !== 'hafs') {
+        this.mushafType = 'hafs';
+        localStorage.setItem('mushafType', 'hafs');
+    }
+    this.loadInitialData().then(() => {
+       if (this.allVerses.length > 0 && !this.errorMessage) {
           this.selectVerse();
         } else if (!this.errorMessage) {
           this.errorMessage = this.getLocalizedErrorMessage('noDataAfterLoad');
-          this.isLoading = false;
         }
-      });
-    },
-
-    toggleLanguageMenu() {
-      this.showLanguageMenu = !this.showLanguageMenu;
-    },
-
-    setLanguage(lang) {
-      this.currentLanguage = lang;
-      localStorage.setItem('language', lang);
-      this.showLanguageMenu = false;
-      this.showMushafSelection = lang === 'ar';
-      if (!this.showMushafSelection) {
-        this.loadInitialData().then(() => {
-          if (this.allVerses.length > 0 && !this.errorMessage) {
-            this.selectVerse();
-          } else if (!this.errorMessage) {
-            this.errorMessage = this.getLocalizedErrorMessage('noDataAfterLoad');
-            this.isLoading = false;
-          }
-        });
-      }
-    },
-    async loadInitialData() {
-      this.isLoading = true;
-      this.cacheStatus = 'checking';
-      try {
-        if ('serviceWorker' in navigator && 'caches' in window) {
-          const cached = await this.checkServiceWorkerCache();
-          if (cached) {
-            this.cacheStatus = 'cached';
-            this.allVerses = cached;
-            console.log('Loaded from SW cache:', this.allVerses);
-            this.selectVerse();
-            return;
-          }
-        }
-        const indexedDBCache = await this.getIndexedDBCache();
-        if (indexedDBCache && indexedDBCache.length > 0) {
-          this.cacheStatus = 'cached';
-          this.allVerses = indexedDBCache;
-          console.log('Loaded from IndexedDB:', this.allVerses);
-          this.selectVerse();
-          this.checkCacheFreshness();
-          return;
-        }
-        this.cacheStatus = 'uncached';
-        await this.loadFromAPI();
-      } catch (error) {
-        console.error('Initial load error:', error);
-        this.errorMessage = this.getLocalizedErrorMessage('loadError');
-      } finally {
         this.isLoading = false;
+      });
+  }
+},
+async loadInitialData() {
+  this.isLoading = true;
+  this.cacheStatus = 'checking';
+  try {
+       if (this.mushafType === 'warsh' || this.mushafType === 'qaloon') {
+      this.allVerses = await this.loadLocalMushafJson(this.mushafType);
+      if (this.allVerses.length > 0) {
+                this.allVerses.sort((a,b) => a.surah === b.surah ? a.verse - b.verse : a.surah - b.surah);
+
+        this.selectVerse();
+      } else {
+        this.errorMessage = this.getLocalizedErrorMessage('noDataAfterLoad');
       }
-    },
+      this.isLoading = false;
+      return;
+       } else if (this.currentLanguage !== 'ar' && this.mushafType !== 'hafs') {
+        this.mushafType = 'hafs'; // Default to hafs for non-Arabic if something else was set
+  
+    }
+    if ('serviceWorker' in navigator && 'caches' in window) {
+      const cached = await this.checkServiceWorkerCache();
+      if (cached) {
+        this.cacheStatus = 'cached';
+        this.allVerses = cached;
+        console.log('Loaded from SW cache:', this.allVerses);
+                this.allVerses.sort((a,b) => a.surah === b.surah ? a.verse - b.verse : a.surah - b.surah);
+
+        this.selectVerse();
+        return;
+      }
+    }
+    const indexedDBCache = await this.getIndexedDBCache();
+    if (indexedDBCache && indexedDBCache.length > 0) {
+      this.cacheStatus = 'cached';
+      this.allVerses = indexedDBCache;
+      console.log('Loaded from IndexedDB:', this.allVerses);
+            this.allVerses.sort((a,b) => a.surah === b.surah ? a.verse - b.verse : a.surah - b.surah);
+
+      this.selectVerse();
+      this.checkCacheFreshness();
+      return;
+    }
+    this.cacheStatus = 'uncached';
+    await this.loadFromAPI();
+  } catch (error) {
+    console.error('Initial load error:', error);
+    this.errorMessage = this.getLocalizedErrorMessage('loadError');
+  } finally {
+    this.isLoading = false;
+  }
+},
 
     async checkServiceWorkerCache() {
       try {
@@ -1734,11 +2288,16 @@ export default {
 
     async loadFromAPI() {
       try {
+        // Load first surah immediately
         const firstSurah = await this.fetchSurah(1);
         if (firstSurah) {
           this.allVerses = firstSurah;
           this.selectVerse();
+          
+          // Cache the initial data
           await this.cacheVerses(firstSurah);
+          
+          // Start background loading of remaining surahs
           this.backgroundLoadQuran();
         }
       } catch (error) {
@@ -1750,15 +2309,21 @@ export default {
       try {
         const edition = EDITIONS[this.currentLanguage] || EDITIONS.ar;
         const apiUrl = `https://api.alquran.cloud/v1/surah/${surahNumber}/${edition}`;
+        
+        // Try to fetch from network first
         const response = await fetch(apiUrl);
         if (!response.ok) throw new Error('Network response was not ok');
+        
         const data = await response.json();
         const processed = this.processSurahData(data);
+        
+        // Cache the API response in Service Worker
         if ('caches' in window) {
           const cacheKey = `/api/surah/${surahNumber}/${this.currentLanguage}`;
           const cache = await caches.open('quran-data');
           await cache.put(cacheKey, new Response(JSON.stringify(processed)));
         }
+        
         return processed;
       } catch (error) {
         console.error(`Error loading surah ${surahNumber}:`, error);
@@ -1769,6 +2334,7 @@ export default {
     async backgroundLoadQuran() {
       if (this.isBackgroundLoading) return;
       this.isBackgroundLoading = true;
+      
       try {
         for (let surah = 2; surah <= 114; surah++) {
           const surahData = await this.fetchSurah(surah);
@@ -1776,8 +2342,12 @@ export default {
             this.allVerses = [...this.allVerses, ...surahData];
             await this.cacheVerses(surahData);
           }
+          
+          // Throttle requests
           if (surah % 5 === 0) await new Promise(r => setTimeout(r, 500));
         }
+        
+        // Mark cache as complete
         await this.markCacheComplete();
       } catch (error) {
         console.error('Background loading error:', error);
@@ -1788,14 +2358,17 @@ export default {
 
     async cacheVerses(verses) {
       try {
+        // Cache in IndexedDB
         const db = await this.$indexedDB;
         const tx = db.transaction('verses', 'readwrite');
         const store = tx.objectStore('verses');
+        
         const promises = verses.map(verse => {
           verse.cachedAt = new Date().toISOString();
           verse.language = this.currentLanguage;
           return store.put(verse);
         });
+        
         await Promise.all(promises);
       } catch (error) {
         console.error('IndexedDB cache error:', error);
@@ -1823,6 +2396,8 @@ export default {
         const tx = db.transaction('cacheStatus', 'readonly');
         const store = tx.objectStore('cacheStatus');
         const status = await store.get(this.currentLanguage);
+        
+        // If cache is older than 7 days, refresh in background
         if (status && new Date(status.updatedAt) < new Date(Date.now() - 7 * 24 * 60 * 60 * 1000)) {
           this.backgroundLoadQuran();
         }
@@ -1831,1034 +2406,1704 @@ export default {
       }
     },
 
+
+
     segmentText(text) {
       if (!text) return [];
       const words = text.split(' ').filter(word => word.trim());
       const parts = [];
+      
       for (let i = 0; i < words.length; i += this.WORDS_PER_PART) {
         parts.push(words.slice(i, i + this.WORDS_PER_PART).join(' '));
       }
+      
       return parts.length ? parts : [text];
     },
 
-    removeTashkeel(text) {
-      if (!text) return '';
-      return text
-        .replace(/[\u0610-\u061A\u064B-\u065F\u0670-\u06DC\u06DF-\u06E8\u06EA-\u06ED]/g, '')
-        .replace(/[أإآ]/g, 'ا')
-        .replace(/ى/g, 'ي')
-        .replace(/ؤ/g, 'و')
-        .replace(/ة/g, 'ه')
-        .replace(/\s+/g, ' ')
-        .normalize('NFC')
-        .trim();
-    },
+removeTashkeel(text) {
+  if (!text) return '';
+  return text
+    .replace(/[\u0610-\u061A\u064B-\u065F\u0670-\u06DC\u06DF-\u06E8\u06EA-\u06ED]/g, '') // All diacritics
+    .replace(/[أإآ]/g, 'ا') // Normalize alif
+    .replace(/ى/g, 'ي') // Normalize ya
+    .replace(/ؤ/g, 'و') // Normalize waw
+    .replace(/ة/g, 'ه') // Normalize ta marbuta
+    .replace(/\s+/g, ' ') // Normalize whitespace
+    .normalize('NFC')
+    .trim();
+},
 
-    handleAppTouchMove(event) {
-      if (!this.isHoldingGlobal || this.hasSwiped || this.showSearchOverlay || this.showVoiceSearchOverlay) return;
-      if (event.changedTouches.length > 0) {
-        const touchX = event.changedTouches[0].clientX;
-        const touchY = event.changedTouches[0].clientY;
-        const deltaY = this.touchStartY - touchY;
-        const deltaX = Math.abs(this.touchStartX - touchX);
-        const timeElapsed = Date.now() - this.touchStartTime;
-        if (Math.abs(deltaY) > this.SWIPE_THRESHOLD && deltaX < this.SWIPE_HORIZONTAL_THRESHOLD && timeElapsed < this.SWIPE_TIME_THRESHOLD) {
-          this.hasSwiped = true;
-          clearTimeout(this.holdStartTimeoutId);
-          this.isHoldingGlobal = false;
-          if (deltaY > 0) {
-            this.showSearchOverlay = false;
-            this.showVoiceSearchOverlay = true;
-            this.resetVoiceSearch();
-          } else if (deltaY < 0) {
-            this.showVoiceSearchOverlay = false;
-            this.showSearchOverlay = true;
-            this.focusSearchInput();
-          }
-          this.touchStartX = null;
-          this.touchStartY = null;
-          this.touchStartTime = null;
-        }
+handleAppTouchMove(event) {
+if (this.displayMode === 'full-surah') {
+    // Only trigger swipe down if at top of scroll
+    const container = this.$refs.versesContainer;
+    if (container && container.scrollTop === 0) {
+      const touchY = event.changedTouches[0].clientY;
+      const deltaY = touchY - this.touchStartY;
+      if (deltaY > this.SWIPE_THRESHOLD) {
+        this.showSearchOverlay = true;
+        this.focusSearchInput();
+        this.hasSwiped = true;
+        return;
       }
-    },
+    }
+    this.wasScrolling = true;
+    return;
+  }
+  if (!this.isHoldingGlobal || this.hasSwiped || this.showSearchOverlay || this.showVoiceSearchOverlay ) return;
 
-    openSearchOverlay() {
-      this.showSearchOverlay = true;
-      this.showVoiceSearchOverlay = false;
+  if (event.changedTouches.length > 0) {
+    const touchX = event.changedTouches[0].clientX;
+    const touchY = event.changedTouches[0].clientY;
+    const deltaY = this.touchStartY - touchY;
+    const deltaX = Math.abs(this.touchStartX - touchX);
+    const timeElapsed = Date.now() - this.touchStartTime;
+    console.log('Touch move - x:', touchX, 'y:', touchY, 'deltaY:', deltaY, 'deltaX:', deltaX, 'time:', timeElapsed);
+    if (Math.abs(deltaY) > this.SWIPE_THRESHOLD && deltaX < this.SWIPE_HORIZONTAL_THRESHOLD && timeElapsed < this.SWIPE_TIME_THRESHOLD) {
+      this.hasSwiped = true;
+      clearTimeout(this.holdStartTimeoutId);
+      this.isHoldingGlobal = false;
+      if (deltaY > 0) {
+        console.log('Swipe up - Opening voice search');
+        this.showSearchOverlay = false;
+        this.showVoiceSearchOverlay = true;
+        this.resetVoiceSearch();
+      } else if (deltaY < 0) {
+        console.log('Swipe down - Opening text search');
+        this.showVoiceSearchOverlay = false;
+        this.showSearchOverlay = true;
+        this.focusSearchInput();
+      }
+      this.touchStartX = null;
+      this.touchStartY = null;
+      this.touchStartTime = null;
+    }
+  }
+},
+
+openSearchOverlay() {
+
+  this.showSearchOverlay = true;
+  this.showVoiceSearchOverlay = false;
+  this.searchQuery = '';
+  this.searchResults = [];
+  this.currentPage = 1;
+  this.errorMessage = null;
+  this.focusSearchInput();
+},
+
+performSearch() {
+    if (!this.searchQuery.trim()) {
+      this.searchResults = [];
+      this.isSearching = false;
+      this.errorMessage = this.getLocalizedErrorMessage('emptySearch');
+      return;
+    }
+    this.isSearching = true;
+    this.searchResults = [];
+    this.errorMessage = null;
+    this.currentPage = 1;
+    setTimeout(() => {
+      this.searchResults = this.allVerses
+        .filter(verse => {
+          if (!verse.text) return false;
+          const searchText = this.currentLanguage === 'ar'
+            ? this.removeTashkeel(verse.text).toLowerCase()
+            : verse.text.toLowerCase().trim();
+          const searchQueryNormalized = this.currentLanguage === 'ar'
+            ? this.removeTashkeel(this.searchQuery).toLowerCase()
+            : this.searchQuery.toLowerCase().trim();
+          return searchText.includes(searchQueryNormalized);
+        })
+        .map(verse => ({
+          uuid: verse.uuid,
+          text: verse.text,
+          surah: verse.surah,
+          verse: verse.verse,
+          surahArabicName: verse.surahArabicName,
+          surahEnglishName: verse.surahEnglishName,
+        }));
+      this.isSearching = false;
+      if (this.searchResults.length === 0) {
+        this.errorMessage = this.getLocalizedErrorMessage('noResults');
+      }
+      // Scroll to top of results
+      this.$nextTick(() => {
+        const resultsContainer = document.querySelector('.search-results');
+        if (resultsContainer) resultsContainer.scrollTop = 0;
+      });
+    }, 300);
+  },
+  selectSearchResult(result) {
+    
+    const verse = this.allVerses.find(v => v.uuid === result.uuid);
+     if (this.displayMode === 'full-surah' && this.currentSurahData && result.surah === this.currentSurahData.id) {
+    // Same surah, just scroll to verse
+    this.showSearchOverlay = false;
+    this.$nextTick(() => {
+      const verseEl = document.querySelector(`[data-verse-uuid="${result.uuid}"]`);
+      if (verseEl) verseEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    });
+  } else {
+    // Switch to surah mode and scroll
+    this.setDisplayMode('full-surah');
+    this.selectedSurah = result.surah;
+    this.loadSurahVerses(result.surah).then(() => {
+      this.showSearchOverlay = false;
+      this.$nextTick(() => {
+        const verseEl = document.querySelector(`[data-verse-uuid="${result.uuid}"]`);
+        if (verseEl) verseEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      });
+    });
+  }
+    if (verse) {
+      this.currentVerseData = { ...verse };
+      this.currentTextParts = this.segmentText(verse.text);
+      this.currentPartIndex = 0;
+      this.displayedWords = [];
+      this.clearAnimationTimers();
+      this.displayCurrentPart();
+      this.showSearchOverlay = false;
       this.searchQuery = '';
       this.searchResults = [];
-      this.currentPage = 1;
-      this.errorMessage = null;
-      this.focusSearchInput();
-    },
+    }
+  },
 
-    performSearch() {
-      if (!this.searchQuery.trim()) {
-        this.searchResults = [];
-        this.isSearching = false;
-        this.errorMessage = this.getLocalizedErrorMessage('emptySearch');
-        return;
-      }
-      this.isSearching = true;
-      this.searchResults = [];
-      this.errorMessage = null;
-      this.currentPage = 1;
-      setTimeout(() => {
-        this.searchResults = this.allVerses
-          .filter(verse => {
-            if (!verse.text) return false;
-            const searchText = this.currentLanguage === 'ar'
-              ? this.removeTashkeel(verse.text).toLowerCase()
-              : verse.text.toLowerCase().trim();
-            const searchQueryNormalized = this.currentLanguage === 'ar'
-              ? this.removeTashkeel(this.searchQuery).toLowerCase()
-              : this.searchQuery.toLowerCase().trim();
-            return searchText.includes(searchQueryNormalized);
-          })
-          .map(verse => ({
-            uuid: verse.uuid,
-            text: verse.text,
-            surah: verse.surah,
-            verse: verse.verse,
-            surahArabicName: verse.surahArabicName,
-            surahEnglishName: verse.surahEnglishName,
-          }));
-        this.isSearching = false;
-        if (this.searchResults.length === 0) {
-          this.errorMessage = this.getLocalizedErrorMessage('noResults');
-        }
-        this.$nextTick(() => {
-          const resultsContainer = document.querySelector('.search-results');
-          if (resultsContainer) resultsContainer.scrollTop = 0;
-        });
-      }, 300);
-    },
-    selectSearchResult(result) {
-      const verse = this.allVerses.find(v => v.uuid === result.uuid);
-      if (verse) {
-        this.currentVerseData = { ...verse };
-        this.currentTextParts = this.segmentText(verse.text);
-        this.currentPartIndex = 0;
-        this.displayedWords = [];
-        this.clearAnimationTimers();
-        this.displayCurrentPart();
-        this.showSearchOverlay = false;
-        this.searchQuery = '';
-        this.searchResults = [];
-      }
-    },
 
-    startVoiceSearch() {
-      console.log('Starting voice search, lang:', this.currentLanguage);
-      const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-      if (!SpeechRecognition) {
-        this.detectedText = this.getLocalizedErrorMessage('voiceSearchNotSupported');
-        this.detectedWords = [];
-        console.log('Voice search not supported by browser');
-        return;
-      }
-      this.recognition = new SpeechRecognition();
-      this.recognition.lang = { ar: 'ar-SA', en: 'en-US', fr: 'fr-FR', bn: 'bn-BD', tr: 'tr-TR', ur: 'ur-PK' }[this.currentLanguage];
-      this.recognition.continuous = true;
-      this.recognition.interimResults = true;
-      this.recognition.onresult = (event) => {
-        const transcript = Array.from(event.results)
-          .map(result => result[0].transcript)
-          .join('');
-        this.detectedText = transcript;
-        this.detectedWords = transcript.split(' ').filter(word => word.trim());
-        console.log('Voice search result:', transcript);
-        if (this.silenceTimeoutId) {
-          clearTimeout(this.silenceTimeoutId);
-        }
-        this.silenceTimeoutId = setTimeout(() => {
-          console.log('Silence detected, performing search');
-          if (this.detectedText) {
-            this.searchQuery = this.detectedText;
-            this.performSearch(this.detectedText);
-          } else {
-            console.warn('No detected text to search');
-          }
-          this.showVoiceSearchOverlay = false;
-          this.showSearchOverlay = true;
-          this.recognition.stop();
-        }, 1000);
-      };
-      this.recognition.onerror = (event) => {
-        if (event.error === 'aborted') {
-          console.log('Voice recognition aborted');
-          return;
-        }
-        this.detectedText = this.getLocalizedErrorMessage('voiceSearchError', event.error);
-        this.detectedWords = [];
-        console.log('Voice search error:', event.error);
-        this.recognition.stop();
-        this.recognition = null;
-      };
-      this.recognition.onend = () => {
-        console.log('Voice recognition ended');
-        if (this.recognition && this.showVoiceSearchOverlay && !this.detectedText.includes('error')) {
-          console.log('Restarting voice recognition');
-          this.recognition.start();
-        }
-      };
-      this.recognition.start();
-    },
-
-    resetVoiceSearch() {
-      console.log('Resetting voice search');
-      if (this.recognition) {
-        this.recognition.stop();
-        this.recognition.onend = null;
-        this.recognition = null;
-      }
-      this.startVoiceSearch();
-      this.detectedText = '';
-    },
-
-    handleVoiceSearchTouchMove(event) {
-      if (!this.showVoiceSearchOverlay || !this.isHoldingGlobal) return;
-      if (event.changedTouches.length > 0) {
-        const touchX = event.changedTouches[0].clientX;
-        const deltaX = this.touchStartX - touchX;
-        const timeElapsed = Date.now() - this.touchStartTime;
-        console.log('Voice search touch move at x:', touchX, 'deltaX:', deltaX, 'time:', timeElapsed);
-        if (Math.abs(deltaX) > this.SWIPE_HORIZONTAL_THRESHOLD && timeElapsed < this.SWIPE_TIME_THRESHOLD) {
-          this.hasSwiped = true;
-          const isArabic = this.currentLanguage === 'ar';
-          const shouldRemoveWord = (isArabic && deltaX > 0) || (!isArabic && deltaX < 0);
-          if (shouldRemoveWord) {
-            console.log('Horizontal swipe detected - Removing last word');
-            const words = this.detectedText.split(' ');
-            if (words.length > 0) {
-              words.pop();
-              this.detectedText = words.join(' ');
-            }
-          }
-          this.touchStartX = null;
-        }
-      }
-    },
-
-    startWordSelection(event, index) {
-      if (this.displayMode !== 'hifz') return;
-      event.preventDefault();
-      this.isSelectingWords = true;
-      this.selectedWordIndices = [index];
-      this.showHighlightMenu = false;
-    },
-    updateWordSelection(event, index) {
-      if (this.displayMode !== 'hifz' || !this.isSelectingWords) return;
-      event.preventDefault();
-      if (!this.selectedWordIndices.includes(index)) {
-        const minIndex = Math.min(...this.selectedWordIndices, index);
-        const maxIndex = Math.max(...this.selectedWordIndices, index);
-        this.selectedWordIndices = Array.from(
-          { length: maxIndex - minIndex + 1 },
-          (_, i) => minIndex + i
-        );
-      }
-    },
-    endWordSelection() {
-      if (this.displayMode !== 'hifz' || !this.isSelectingWords) return;
-      this.isSelectingWords = false;
-      if (this.selectedWordIndices.length > 0) {
-        const rect = document.querySelector(`.pulsing-word:nth-child(${this.selectedWordIndices[0] + 1})`).getBoundingClientRect();
-        this.highlightMenuPosition = {
-          top: rect.top - 60,
-          left: rect.left + rect.width / 2 - 80,
-        };
-        this.showHighlightMenu = true;
-      }
-    },
-    applyHighlight(color) {
-      if (!this.currentVerseData) return;
-      const verseUuid = this.currentVerseData.uuid;
-      if (!this.highlights[verseUuid]) this.highlights[verseUuid] = {};
-      this.selectedWordIndices.forEach(index => {
-        this.highlights[verseUuid][index] = color;
-      });
-      this.saveVerseHighlights();
-      this.showHighlightMenu = false;
-      this.selectedWordIndices = [];
-    },
-    removeHighlight() {
-      if (!this.currentVerseData) return;
-      const verseUuid = this.currentVerseData.uuid;
-      this.selectedWordIndices.forEach(index => {
-        delete this.highlights[verseUuid][index];
-      });
-      this.saveVerseHighlights();
-      this.showHighlightMenu = false;
-      this.selectedWordIndices = [];
-    },
-    async saveVerseHighlights() {
-      if (!this.currentVerseData) return;
-      const db = await this.$indexedDB;
-      const tx = db.transaction('highlights', 'readwrite');
-      const store = tx.objectStore('highlights');
-      await store.put({
-        uuid: this.currentVerseData.uuid,
-        highlights: this.highlights[this.currentVerseData.uuid] || {},
-      });
-    },
-    async loadVerseHighlights() {
-      if (!this.currentVerseData) return;
-      try {
-        const db = await this.$indexedDB;
-        if (!db) return;
-        const tx = db.transaction('highlights', 'readonly');
-        const store = tx.objectStore('highlights');
-        const highlight = await store.get(this.currentVerseData.uuid);
-        this.highlightedParts = highlight ? highlight.indices : [];
-      } catch (error) {
-        console.error('Error loading highlights:', error);
-        this.errorMessage = this.getLocalizedErrorMessage('loadHighlightError', error.message);
-      }
-    },
-    isWordHighlighted(index) {
-      if (!this.currentVerseData) return false;
-      const verseUuid = this.currentVerseData.uuid;
-      return this.highlights[verseUuid] && this.highlights[verseUuid][index];
-    },
-    getHighlightClass(index) {
-      if (!this.currentVerseData) return '';
-      const verseUuid = this.currentVerseData.uuid;
-      const color = this.highlights[verseUuid] && this.highlights[verseUuid][index];
-      return color ? `highlight-${color.replace('#', '')}` : '';
-    },
-
-    toggleAudio() {
-      if (!this.currentVerseData) return;
-      if (this.isAudioPlaying) {
-        this.currentAudio.pause();
-        this.isAudioPlaying = false;
+startVoiceSearch() {
+  console.log('Starting voice search, lang:', this.currentLanguage);
+  const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+  if (!SpeechRecognition) {
+    this.detectedText = this.getLocalizedErrorMessage('voiceSearchNotSupported');
+    this.detectedWords = [];
+    console.log('Voice search not supported by browser');
+    return;
+  }
+  this.recognition = new SpeechRecognition();
+  this.recognition.lang = { ar: 'ar-SA', en: 'en-US', fr: 'fr-FR', bn: 'bn-BD', tr: 'tr-TR', ur: 'ur-PK' }[this.currentLanguage];
+  this.recognition.continuous = true;
+  this.recognition.interimResults = true;
+  this.recognition.onresult = (event) => {
+    const transcript = Array.from(event.results)
+      .map(result => result[0].transcript)
+      .join('');
+    this.detectedText = transcript;
+    this.detectedWords = transcript.split(' ').filter(word => word.trim());
+    console.log('Voice search result:', transcript);
+    if (this.silenceTimeoutId) {
+      clearTimeout(this.silenceTimeoutId);
+    }
+    this.silenceTimeoutId = setTimeout(() => {
+      console.log('Silence detected, performing search');
+      if (this.detectedText) {
+        this.searchQuery = this.detectedText;
+        this.performSearch(this.detectedText);
       } else {
-        this.initAudioPlayback();
+        console.warn('No detected text to search');
       }
-    },
-    readNextVerseAudio() {
-      if (this.isAudioPlaying && this.displayMode !== 'hifz') {
-        const nextVerse = this.getNextVerse(this.currentVerseData);
-        if (nextVerse) {
-          this.currentVerseData = nextVerse;
-          this.initAudioPlayback();
-        } else {
-          this.isAudioPlaying = false;
+      this.showVoiceSearchOverlay = false;
+      this.showSearchOverlay = true;
+      this.recognition.stop();
+    }, 1000);
+  };
+  this.recognition.onerror = (event) => {
+    if (event.error === 'aborted') {
+      console.log('Voice recognition aborted');
+      return;
+    }
+    this.detectedText = this.getLocalizedErrorMessage('voiceSearchError', event.error);
+    this.detectedWords = [];
+    console.log('Voice search error:', event.error);
+    this.recognition.stop();
+    this.recognition = null;
+  };
+  this.recognition.onend = () => {
+    console.log('Voice recognition ended');
+    if (this.recognition && this.showVoiceSearchOverlay && !this.detectedText.includes('error')) {
+      console.log('Restarting voice recognition');
+      this.recognition.start();
+    }
+  };
+  this.recognition.start();
+},
+
+resetVoiceSearch() {
+  console.log('Resetting voice search');
+  if (this.recognition) {
+    this.recognition.stop();
+    this.recognition.onend = null;
+    this.recognition = null;
+  }
+  this.startVoiceSearch();
+  this.detectedText = '';
+},
+
+handleVoiceSearchTouchMove(event) {
+  if (!this.showVoiceSearchOverlay || !this.isHoldingGlobal) return;
+  if (event.changedTouches.length > 0) {
+    const touchX = event.changedTouches[0].clientX;
+    const deltaX = this.touchStartX - touchX;
+    const timeElapsed = Date.now() - this.touchStartTime;
+    console.log('Voice search touch move at x:', touchX, 'deltaX:', deltaX, 'time:', timeElapsed);
+    if (Math.abs(deltaX) > this.SWIPE_HORIZONTAL_THRESHOLD && timeElapsed < this.SWIPE_TIME_THRESHOLD) {
+      this.hasSwiped = true;
+      const isArabic = this.currentLanguage === 'ar';
+      const shouldRemoveWord = (isArabic && deltaX > 0) || (!isArabic && deltaX < 0);
+      if (shouldRemoveWord) {
+        console.log('Horizontal swipe detected - Removing last word');
+        const words = this.detectedText.split(' ');
+        if (words.length > 0) {
+          words.pop();
+          this.detectedText = words.join(' ');
         }
       }
-    },
-    async readCurrentVerse() {
-      if (!this.currentVerseData || this.currentLanguage !== 'ar') return;
-      this.stopAudioPlayback();
-      try {
-        const audioUrl = this.currentVerseData.audio || `https://api.alquran.cloud/v1/ayah/${this.currentVerseData.verseKey}/${AUDIO_EDITION}`;
-        const response = await fetch(audioUrl);
-        if (!response.ok) throw new Error('Audio fetch failed');
-        const audioData = await response.json();
-        const audioUrlToPlay = audioData.data.audio || audioUrl;
-        this.initAudioPlayback(audioUrlToPlay);
-        this.isAudioPlaying = true;
-      } catch (error) {
-        console.error('Audio playback error:', error);
-        this.errorMessage = this.getLocalizedErrorMessage('audioError', error.message);
-      }
-    },
+      this.touchStartX = null;
+    }
+  }
+},
 
-    startAudioHold(event) {
-      this.audioHoldTimeout = setTimeout(() => {
-        this.isContinuousAudio = true;
-        console.log('Continuous audio enabled');
-      }, 2000);
-    },
 
-    stopAudioHold() {
-      clearTimeout(this.audioHoldTimeout);
-    },
-    stopAudioPlayback() {
-      if (this.currentAudio) {
-        this.currentAudio.pause();
-        this.currentAudio = null;
-      }
+applyHighlight(color) {
+  if (!this.activeVerseUuidForHighlighting) return;
+  const verseUuid = this.activeVerseUuidForHighlighting;
+  if (!this.highlights[verseUuid]) this.highlights[verseUuid] = {};
+
+  this.selectedWordIndices.forEach(index => {
+    this.highlights[verseUuid][index] = color;
+  });
+  this.saveVerseHighlights(verseUuid);
+  this.showHighlightMenu = false;
+  this.selectedWordIndices = [];
+},
+removeHighlight() {
+  if (!this.activeVerseUuidForHighlighting) return;
+  const verseUuid = this.activeVerseUuidForHighlighting;
+  if (this.highlights[verseUuid]) {
+    this.selectedWordIndices.forEach(index => {
+      delete this.highlights[verseUuid][index];
+    });
+    // If no highlights remain, reset to an empty object
+    if (Object.keys(this.highlights[verseUuid]).length === 0) {
+      delete this.highlights[verseUuid]; // More semantically correct: remove the key if empty
+    }
+  }
+  this.saveVerseHighlights(verseUuid);
+  this.showHighlightMenu = false;
+  this.selectedWordIndices = [];
+  this.activeVerseUuidForHighlighting = null;
+  // this.$forceUpdate(); // Usually not needed if reactivity is working correctly
+},
+ async saveVerseHighlights(verseUuid) {
+    if (!verseUuid) return;    const db = await this.$indexedDB;
+    const tx = db.transaction('highlights', 'readwrite');
+    if (!tx) return; // Guard against null transaction
+    const store = tx.objectStore('highlights');
+    await store.put({
+  uuid: verseUuid,
+      highlights: { ...(this.highlights[verseUuid] || {}) }, // Spread to unwrap proxy
+      });
+  },
+async loadVerseHighlights(verseUuid) {
+  if (!verseUuid) return;
+  try {
+    const db = await this.$indexedDB;
+    if (!db) {
+      // Ensure reactivity by setting an empty object if db is not available
+      // Vue 3's reactivity should handle adding new keys to a reactive object.
+      this.highlights[verseUuid] = {};
+      return;
+    }
+    const tx = db.transaction('highlights', 'readonly');
+    const store = tx.objectStore('highlights');
+    const highlightData = await store.get(verseUuid);
+    // Check if highlightData itself and its 'highlights' property exist
+    if (highlightData && typeof highlightData.highlights === 'object') {
+      this.highlights[verseUuid] = highlightData.highlights || {};
+    } else {
+      this.highlights[verseUuid] = {};
+    }
+  } catch (error) {
+    console.error('Error loading highlights:', error);
+    this.errorMessage = this.getLocalizedErrorMessage('loadHighlightError', error.message);
+    // Ensure reactivity on error by setting an empty object
+    this.highlights[verseUuid] = {};
+  }
+},
+isWordHighlighted(index, verseUuidParam = null) {
+    // Only show highlights in hifz or full-surah mode
+  if (this.displayMode !== 'hifz' && this.displayMode !== 'full-surah') {
+    return false;
+  }
+  const uuidToUse = verseUuidParam || this.activeVerseUuidForHighlighting || (this.currentVerseData ? this.currentVerseData.uuid : null);
+  if (!uuidToUse) return false;
+  return !!(this.highlights[uuidToUse] && this.highlights[uuidToUse][index]);
+},
+getHighlightClass(index, verseUuidParam = null) {
+    // Only apply highlight classes in hifz or full-surah mode
+  if (this.displayMode !== 'hifz' && this.displayMode !== 'full-surah') {
+    return '';
+  }
+  const uuidToUse = verseUuidParam || this.activeVerseUuidForHighlighting || (this.currentVerseData ? this.currentVerseData.uuid : null);
+  if (!uuidToUse) return '';
+  const color = this.highlights[uuidToUse] && this.highlights[uuidToUse][index];
+  return color ? `highlight-${color.replace('#', '')}` : '';
+},
+toggleAudio() {
+  if (!this.currentVerseData) return;
+
+  if (this.isAudioPlaying) {
+    this.currentAudio.pause();
+    this.isAudioPlaying = false;
+  } else {
+    if (this.currentAudio) this.currentAudio.pause();
+    this.initAudioPlayback();
+  }
+},
+readNextVerseAudio() {
+  if (this.isAudioPlaying && this.displayMode !== 'hifz') {
+    const nextVerse = this.getNextVerse(this.currentVerseData);
+    if (nextVerse) {
+      this.currentVerseData = nextVerse;
+      this.initAudioPlayback();
+    } else {
       this.isAudioPlaying = false;
-    },
+    }
+  }
+},
+async readCurrentVerse() {
+  if (!this.currentVerseData || this.currentLanguage !== 'ar') return;
+  this.stopAudioPlayback();
+  try {
+    const audioUrl = this.currentVerseData.audio || `https://api.alquran.cloud/v1/ayah/${this.currentVerseData.verseKey}/${AUDIO_EDITION}`;
+    const response = await fetch(audioUrl);
+    if (!response.ok) throw new Error('Audio fetch failed');
+    const audioData = await response.json();
+    const audioUrlToPlay = audioData.data.audio || audioUrl;
+    this.initAudioPlayback(audioUrlToPlay);
+    this.isAudioPlaying = true;
+  } catch (error) {
+    console.error('Audio playback error:', error);
+    this.errorMessage = this.getLocalizedErrorMessage('audioError', error.message);
+  }
+},
+
+  startAudioHold(event) {
+  this.audioHoldTimeout = setTimeout(() => {
+    this.isContinuousAudio = true;
+    console.log('Continuous audio enabled');
+  }, 2000); // 2 seconds hold
+},
+
+stopAudioHold() {
+  clearTimeout(this.audioHoldTimeout);
+},
+  stopAudioPlayback() {
+    if (this.currentAudio) {
+      this.currentAudio.pause();
+      this.currentAudio = null;
+    }
+    this.isAudioPlaying = false;
+  },
 
     focusSearchInput() {
-      this.$nextTick(() => {
-        if (this.$refs.searchInput) {
-          this.$refs.searchInput.focus();
-        }
-      });
-    },
+  this.$nextTick(() => {
+    if (this.$refs.searchInput) {
+      this.$refs.searchInput.focus();
+    }
+  });
+},
+
 
     startWordHighlighting(text) {
       const words = text.split(' ');
       const durationPerWord = this.currentAudio.duration * 1000 / words.length;
       let currentIndex = 0;
+      
       this.highlightInterval = setInterval(() => {
         if (currentIndex >= words.length) {
           clearInterval(this.highlightInterval);
           return;
         }
+        
         this.currentWordIndex = currentIndex++;
       }, durationPerWord);
     },
 
-    displayCurrentPart() {
-      this.clearAnimationTimers();
-      this.displayedWords = [];
-      this.$forceUpdate();
-      this.$nextTick(() => {
-        if (!this.currentVerseData || this.currentPartIndex >= this.currentTextParts.length) {
-          this.partTimeoutId = setTimeout(() => this.selectVerse(true), this.NEXT_VERSE_DELAY);
-          return;
-        }
-        const partText = this.currentTextParts[this.currentPartIndex];
-        this.currentPartWords = partText.split(' ').filter(word => word.trim() !== '');
-        this.animateWords();
-        let currentPartDuration = this.PART_DISPLAY_DURATION;
-        if (this.currentPartWords.length < (this.WORDS_PER_PART * 0.8) && this.WORDS_PER_PART > 0) {
-          const proportion = this.currentPartWords.length / this.WORDS_PER_PART;
-          currentPartDuration = Math.max(
-            proportion * this.PART_DISPLAY_DURATION,
-            (this.currentPartWords.length * this.WORD_ANIMATION_INTERVAL) + 1000
-          );
-        }
-        const minDurationForAnimation = (this.currentPartWords.length * this.WORD_ANIMATION_INTERVAL) + 1000;
-        currentPartDuration = Math.max(currentPartDuration, minDurationForAnimation);
-        this.currentActivePartDuration = currentPartDuration;
-        this.partTimeoutStartTime = Date.now();
-        this.partTimeoutId = setTimeout(() => this.displayNextPart(), currentPartDuration);
-      });
-    },
+displayCurrentPart() {
+  // Clear any ongoing animations and timers
+  this.clearAnimationTimers();
+  
+    this.correctWords = [];
+  this.mistakeWords = [];
+  this.unreadVerses = [];
+    this.displayedWords = [];
+    this.currentPartWords = [];
 
-    displayNextPart() {
-      if (this.currentPartIndex < this.currentTextParts.length - 1) {
-        this.currentPartIndex++;
-        this.displayCurrentPart();
-      }
-    },
+  // Clear previous words immediately
+  this.displayedWords = [];
 
-    animateWords() {
-      let wordIndex = 0;
-      this.displayedWords = [];
-      this.wordIntervalId = setInterval(() => {
-        if (wordIndex < this.currentPartWords.length) {
-          this.displayedWords = [...this.displayedWords, this.currentPartWords[wordIndex]];
-          wordIndex++;
-        } else {
-          clearInterval(this.wordIntervalId);
-          this.wordIntervalId = null;
-        }
-      }, this.WORD_ANIMATION_INTERVAL);
-    },
+  // Force DOM update to ensure screen is cleared
+  this.$forceUpdate();
+  this.$nextTick(() => {
+    // Check if there's valid data to display
+    if ((!this.currentVerseData ||  this.currentPartIndex >= this.currentTextParts.length)
+  && (this.displayMode !== 'revision') ) {
+      console.log('No more parts, moving to next verse');
+      this.partTimeoutId = setTimeout(() => this.selectVerse(true), this.NEXT_VERSE_DELAY);
+      return;
+    }
 
-    clearAnimationTimers() {
-      if (this.wordIntervalId) {
-        clearInterval(this.wordIntervalId);
-        this.wordIntervalId = null;
-      }
-      if (this.partTimeoutId) {
-        clearTimeout(this.partTimeoutId);
-        this.partTimeoutId = null;
-      }
-    },
+    const partText = this.currentTextParts[this.currentPartIndex];
+    this.currentPartWords = partText.split(' ').filter(word => word.trim() !== '');
+    console.log('Displaying part:', this.currentPartIndex, 'Words:', this.currentPartWords);
+
+    // Start animating words
+    this.animateWords();
+
+    // Calculate duration for this part
+    let currentPartDuration = this.PART_DISPLAY_DURATION;
+    if (this.currentPartWords.length < (this.WORDS_PER_PART * 0.8) && this.WORDS_PER_PART > 0) {
+      const proportion = this.currentPartWords.length / this.WORDS_PER_PART;
+      currentPartDuration = Math.max(
+        proportion * this.PART_DISPLAY_DURATION,
+        (this.currentPartWords.length * this.WORD_ANIMATION_INTERVAL) + 1000
+      );
+    }
+    const minDurationForAnimation = (this.currentPartWords.length * this.WORD_ANIMATION_INTERVAL) + 1000;
+    currentPartDuration = Math.max(currentPartDuration, minDurationForAnimation);
+
+    this.currentActivePartDuration = currentPartDuration;
+    this.partTimeoutStartTime = Date.now();
+    console.log('Part duration:', currentPartDuration);
+
+    // Schedule the next part
+    if (this.displayMode !== 'revision')  {  
+      this.partTimeoutId = setTimeout(() => this.displayNextPart(), currentPartDuration);
+    }
+  });
+},
+
+
+
+animateWords() {
+  let wordIndex = 0; // Start fresh for the new part
+  this.displayedWords = []; // Ensure cleared again before animation
+  console.log('Starting word animation for part:', this.currentPartIndex);
+  this.wordIntervalId = setInterval(() => {
+    if (wordIndex < this.currentPartWords.length) {
+      this.displayedWords = [...this.displayedWords, this.currentPartWords[wordIndex]];
+      wordIndex++;
+      console.log('Added word:', this.currentPartWords[wordIndex - 1], 'Total words:', this.displayedWords.length);
+    } else {
+      clearInterval(this.wordIntervalId);
+      this.wordIntervalId = null;
+      console.log('Word animation completed');
+    }
+  }, this.WORD_ANIMATION_INTERVAL);
+},
+
+clearAnimationTimers() {
+  if (this.wordIntervalId) {
+    clearInterval(this.wordIntervalId);
+    this.wordIntervalId = null;
+  }
+  if (this.partTimeoutId) {
+    clearTimeout(this.partTimeoutId);
+    this.partTimeoutId = null;
+  }
+  console.log('Cleared animation timers');
+},
 
     toggleLanguage() {
       this.currentLanguage = this.currentLanguage === 'ar' ? 'en' : 'ar';
+      // Update error messages if they are displayed
       if (this.errorMessage) {
-        if (this.errorMessage.includes("No Quran verse data") || this.errorMessage.includes("لم يتم العثور على بيانات الآيات")) {
-          this.errorMessage = this.getLocalizedErrorMessage('noDataAfterLoad');
-        } else if (this.errorMessage.includes("No Verses loaded") || this.errorMessage.includes("لم يتم تحميل أي آيات")) {
-          this.errorMessage = this.currentLanguage === 'ar' ? "لم يتم تحميل أي آيات. يرجى التحقق من ملفات JSON." : "No Verses loaded. Please check the JSON files.";
-        } else if (this.errorMessage.includes("No Verses available") || this.errorMessage.includes("لا توجد آيات متاحة")) {
-          this.errorMessage = this.currentLanguage === 'ar' ? "لا توجد آيات متاحة للعرض." : "No Verses available to display.";
-        }
+          if (this.errorMessage.includes("No Quran verse data") || this.errorMessage.includes("لم يتم العثور على بيانات الآيات")) {
+              this.errorMessage = this.currentLanguage === 'ar' ? "لم يتم العثور على بيانات الآيات بعد تحميل جميع الملفات." : "No Quran verse data found after loading all files.";
+          } else if (this.errorMessage.includes("No Verses loaded") || this.errorMessage.includes("لم يتم تحميل أي آيات")) {
+              this.errorMessage = this.currentLanguage === 'ar' ? "لم يتم تحميل أي آيات. يرجى التحقق من ملفات JSON." : "No Verses loaded. Please check the JSON files.";
+          } else if (this.errorMessage.includes("No Verses available") || this.errorMessage.includes("لا توجد آيات متاحة")) {
+              this.errorMessage = this.currentLanguage === 'ar' ? "لا توجد آيات متاحة للعرض." : "No Verses available to display.";
+          }
       }
 
       if (this.currentVerseData) {
         const textToDisplay = this.currentLanguage === 'ar' ? this.currentVerseData.arabic_text : this.currentVerseData.english_text;
         if (!textToDisplay || textToDisplay.trim() === "") {
-          this.selectVerse();
-          return;
+            this.selectVerse(); // Find a new Verse if current one lacks text in new lang
+            return;
         }
-        this.clearAnimationTimers();
+       // Clear current display and animations before preparing the new language text
+       this.clearAnimationTimers();
         this.displayedWords = [];
+
+        // Wait for the DOM to update (reflecting the cleared words)
         this.$nextTick(() => {
           this.currentTextParts = this.segmentText(textToDisplay);
           this.currentPartIndex = 0;
-          this.displayCurrentPart();
+          // Now display the current verse part with the new language.
+          // displayCurrentPart will re-initialize displayedWords (though it's already empty here)
+          // and start animating words for the new language.
+          this.displayCurrentPart(); 
         });
-      } else if (!this.isLoading) {
+      } else if (!this.isLoading) { 
         this.selectVerse();
       }
     },
 
-    togglePause() {
-      if (this.isPausedByPause) {
-        this.resumeVerseDisplayFromPause();
-        if (this.currentAudio) this.currentAudio.play();
-      } else {
-        this.pauseVerseDisplayByPause();
-        if (this.currentAudio) this.currentAudio.pause();
-      }
-      this.isPausedByPause = !this.isPausedByPause;
-    },
 
-    pauseVerseDisplayByPause() {
-      if (this.isLoading || this.errorMessage || !this.currentVerseData || this.isPausedByPause) {
-        return;
-      }
-      this.isPausedByPause = true;
-      if (this.wordIntervalId) {
+getLocalizedErrorMessage(key, detail = '') {
+  const messages = {
+    emptySearch: {
+        ar: 'يرجى إدخال نص للبحث',
+        en: 'Please enter text to search',
+        fr: 'Veuillez entrer du texte pour rechercher',
+        bn: 'অনুসন্ধানের জন্য টেক্সট প্রবেশ করুন',
+        tr: 'Arama yapmak için metin girin',
+        ur: 'تلاش کے لیے متن درج کریں',
+      },
+      noResults: {
+        ar: 'لم يتم العثور على نتائج',
+        en: 'No results found',
+        fr: 'Aucun résultat trouvé',
+        bn: 'কোন ফলাফল পাওয়া যায়নি',
+        tr: 'Sonuç bulunamadı',
+        ur: 'کوئی نتائج نہیں ملے',
+      },
+    noDataAfterLoad: {
+      ar: 'لم يتم العثور على بيانات الآيات بعد تحميل جميع الملفات.',
+      en: 'No Quran verse data found after loading all files.',
+      fr: 'Aucune donnée de verset du Coran trouvée après le chargement de tous les fichiers.',
+      bn: 'সমস্ত ফাইল লোড করার পরে কোনো কুরআনের আয়াতের ডেটা পাওয়া যায়নি।',
+      tr: 'Tüm dosyalar yüklendikten sonra Kuran ayeti verisi bulunamadı.',
+      ur: 'تمام فائلوں کو لوڈ کرنے کے بعد قرآن کے آیات کا کوئی ڈیٹا نہیں ملا۔',
+    },
+    shareError: {
+      ar: 'فشل في المشاركة أو النسخ إلى الحافظة',
+      en: 'Failed to share or copy to clipboard',
+      fr: 'Échec du partage ou de la copie dans le presse-papiers',
+      bn: 'শেয়ার বা ক্লিপবোর্ডে কপি করতে ব্যর্থ হয়েছে',
+      tr: 'Paylaşma veya panoya kopyalama başarısız oldu',
+      ur: 'شئیر یا کلپ بورڈ میں کاپی کرنے میں ناکامی ہوئی',
+    },
+    audioError: {
+      ar: `خطأ في تشغيل الصوت: ${detail}`,
+      en: `Audio playback error: ${detail}`,
+      fr: `Erreur de lecture audio : ${detail}`,
+      bn: `অডিও প্লেব্যাক ত্রুটি: ${detail}`,
+      tr: `Ses oynatma hatası: ${detail}`,
+      ur: `آڈیو پلے بیک میں خرابی: ${detail}`,
+    },
+    voiceSearchNotSupported: {
+      ar: 'البحث الصوتي غير مدعوم.',
+      en: 'Voice search not supported.',
+      fr: 'Recherche vocale non prise en charge.',
+      bn: 'ভয়েস অনুসন্ধান সমর্থিত নয়।',
+      tr: 'Sesli arama desteklenmiyor.',
+      ur: 'صوتی تلاش تعاون یافتہ نہیں ہے۔',
+    },
+    voiceSearchError: {
+      ar: `خطأ في البحث الصوتي: ${detail}`,
+      en: `Voice search error: ${detail}`,
+      fr: `Erreur de recherche vocale: ${detail}`,
+      bn: `ভয়েস অনুসন্ধানে ত্রুটি: ${detail}`,
+      tr: `Sesli arama hatası: ${detail}`,
+      ur: `صوتی تلاش میں خرابی: ${detail}`,
+    },
+  };
+  return messages[key][this.currentLanguage] || messages[key].en;
+},
+togglePause() {
+  if (this.isPausedByPause) {
+    this.resumeVerseDisplayFromPause();
+    if (this.currentAudio && this.currentAudio.paused) {
+      this.currentAudio.play();
+    }
+  } else {
+    this.pauseVerseDisplayByPause();
+    if (this.currentAudio && !this.currentAudio.paused) {
+      this.currentAudio.pause();
+    }
+  }
+},
+
+pauseVerseDisplayByPause() {
+  if (this.isLoading || this.errorMessage || !this.currentVerseData || this.isPausedByPause) {
+    return;
+  }
+  this.isPausedByPause = true;
+  console.log('Paused by pause button');
+  if (this.wordIntervalId) {
+    clearInterval(this.wordIntervalId);
+    this.wordIntervalId = null;
+  }
+  if (this.partTimeoutId) {
+    const elapsedTime = Date.now() - this.partTimeoutStartTime;
+    this.pausedPartRemainingTime = this.currentActivePartDuration - elapsedTime;
+    if (this.pausedPartRemainingTime < 0) this.pausedPartRemainingTime = 0;
+    clearTimeout(this.partTimeoutId);
+    this.partTimeoutId = null;
+    console.log('Part timeout paused. Remaining:', this.pausedPartRemainingTime);
+  } else {
+    this.pausedPartRemainingTime = 0;
+  }
+},
+
+resumeVerseDisplayFromPause() {
+  if (!this.isPausedByPause) return;
+  console.log('Resuming from pause button');
+  this.isPausedByPause = false;
+
+  // Resume animating remaining words if any
+  if (this.currentPartWords && this.currentPartWords.length > this.displayedWords.length) {
+    let wordIndex = this.displayedWords.length;
+    this.wordIntervalId = setInterval(() => {
+      if (wordIndex < this.currentPartWords.length) {
+        this.displayedWords.push(this.currentPartWords[wordIndex]);
+        wordIndex++;
+      } else {
         clearInterval(this.wordIntervalId);
         this.wordIntervalId = null;
       }
-      if (this.partTimeoutId) {
-        const elapsedTime = Date.now() - this.partTimeoutStartTime;
-        this.pausedPartRemainingTime = this.currentActivePartDuration - elapsedTime;
-        if (this.pausedPartRemainingTime < 0) this.pausedPartRemainingTime = 0;
-        clearTimeout(this.partTimeoutId);
-        this.partTimeoutId = null;
-      } else {
-        this.pausedPartRemainingTime = 0;
-      }
-    },
+    }, this.WORD_ANIMATION_INTERVAL);
+  }
 
-    resumeVerseDisplayFromPause() {
-      if (!this.isPausedByPause) return;
-      this.isPausedByPause = false;
-      if (this.currentPartWords && this.currentPartWords.length > this.displayedWords.length) {
-        let wordIndex = this.displayedWords.length;
-        this.wordIntervalId = setInterval(() => {
-          if (wordIndex < this.currentPartWords.length) {
-            this.displayedWords.push(this.currentPartWords[wordIndex]);
-            wordIndex++;
-          } else {
-            clearInterval(this.wordIntervalId);
-            this.wordIntervalId = null;
-          }
-        }, this.WORD_ANIMATION_INTERVAL);
-      }
-      if (this.pausedPartRemainingTime > 0) {
-        const resumeCallback = (this.currentVerseData && this.currentTextParts.length > 0 && this.currentPartIndex < this.currentTextParts.length)
-          ? this.displayNextPart
-          : this.selectVerse;
-        this.partTimeoutId = setTimeout(resumeCallback, this.pausedPartRemainingTime);
-        this.partTimeoutStartTime = Date.now();
-      }
-    },
+  // Resume part timeout if remaining time exists
+  if (this.pausedPartRemainingTime > 0) {
+    const resumeCallback = (this.currentVerseData && this.currentTextParts.length > 0 && this.currentPartIndex < this.currentTextParts.length)
+      ? this.displayNextPart
+      : this.selectVerse;
+    this.partTimeoutId = setTimeout(resumeCallback, this.pausedPartRemainingTime);
+    this.partTimeoutStartTime = Date.now();
+  }
+},
 
-    pauseVerseDisplayByHold() {
-      if (this.isLoading || this.errorMessage || !this.currentVerseData || this.isPausedByHold) {
-        return;
-      }
-      this.isPausedByHold = true;
-      if (this.wordIntervalId) {
-        clearInterval(this.wordIntervalId);
-        this.wordIntervalId = null;
-      }
-      if (this.partTimeoutId) {
-        const elapsedTime = Date.now() - this.partTimeoutStartTime;
-        this.pausedPartRemainingTime = this.currentActivePartDuration - elapsedTime;
-        if (this.pausedPartRemainingTime < 0) this.pausedPartRemainingTime = 0;
-        clearTimeout(this.partTimeoutId);
-        this.partTimeoutId = null;
-      } else {
-        this.pausedPartRemainingTime = 0;
-      }
-    },
+resumeVerseDisplayFromPause() {
+  if (!this.isPausedByPause) return;
+  console.log('Resuming from pause button');
+  if (this.currentPartWords && this.currentPartWords.length > 0 && this.displayedWords.length < this.currentPartWords.length) {
+    this.animateWords();
+  }
+  if (this.pausedPartRemainingTime > 0) {
+    const resumeCallback = (this.currentVerseData && this.currentTextParts.length > 0 && this.currentPartIndex < this.currentTextParts.length)
+      ? this.displayNextPart
+      : this.selectVerse;
+    this.partTimeoutId = setTimeout(resumeCallback, this.pausedPartRemainingTime);
+    this.partTimeoutStartTime = Date.now();
+  }
+  this.isPausedByPause = false;
+},
 
-    resumeVerseDisplayFromHold() {
-      if (!this.isPausedByHold) return;
-      this.isPausedByHold = false;
-      if (this.currentPartWords && this.currentPartWords.length > 0 && this.displayedWords.length < this.currentPartWords.length) {
-        this.animateWords();
-      }
-      if (this.pausedPartRemainingTime > 0) {
-        const resumeCallback = (this.currentVerseData && this.currentTextParts.length > 0 && this.currentPartIndex < this.currentTextParts.length)
-          ? this.displayNextPart
-          : this.selectVerse;
-        this.partTimeoutId = setTimeout(resumeCallback, this.pausedPartRemainingTime);
-        this.partTimeoutStartTime = Date.now();
-      }
-    },
+pauseVerseDisplayByHold() {
+  if (this.isLoading || this.errorMessage || !this.currentVerseData || this.isPausedByHold) {
+    return;
+  }
+  this.isPausedByHold = true;
+  console.log('Paused by hold');
+  if (this.wordIntervalId) {
+    clearInterval(this.wordIntervalId);
+    this.wordIntervalId = null;
+  }
+  if (this.partTimeoutId) {
+    const elapsedTime = Date.now() - this.partTimeoutStartTime;
+    this.pausedPartRemainingTime = this.currentActivePartDuration - elapsedTime;
+    if (this.pausedPartRemainingTime < 0) this.pausedPartRemainingTime = 0;
+    clearTimeout(this.partTimeoutId);
+    this.partTimeoutId = null;
+    console.log('Part timeout paused by hold. Remaining:', this.pausedPartRemainingTime);
+  } else {
+    this.pausedPartRemainingTime = 0;
+  }
+},
 
-    handleAppMouseDown(event) {
-      if (
-        event.target.closest('input') ||
-        event.target.closest('button') ||
-        event.target.closest('.control-buttons-container') ||
-        event.target.closest('.search-overlay') ||
-        event.target.closest('.voice-search-overlay')
-      ) {
-        return;
-      }
-      event.preventDefault();
-      this.isHoldingGlobal = true;
-      clearTimeout(this.holdStartTimeoutId);
-      if (!this.isPausedByHold) {
-        this.holdStartTimeoutId = setTimeout(() => {
-          if (this.isHoldingGlobal && !this.hasSwiped) {
-            this.pauseVerseDisplayByHold();
-          }
-        }, this.HOLD_THRESHOLD);
-      }
-    },
+resumeVerseDisplayFromHold() {
+  if (!this.isPausedByHold) return;
+  console.log('Resuming from hold');
+  if (this.currentPartWords && this.currentPartWords.length > 0 && this.displayedWords.length < this.currentPartWords.length) {
+    this.animateWords();
+  }
+  if (this.pausedPartRemainingTime > 0) {
+    const resumeCallback = (this.currentVerseData && this.currentTextParts.length > 0 && this.currentPartIndex < this.currentTextParts.length)
+      ? this.displayNextPart
+      : this.selectVerse;
+    this.partTimeoutId = setTimeout(resumeCallback, this.pausedPartRemainingTime);
+    this.partTimeoutStartTime = Date.now();
+  }
+  this.isPausedByHold = false;
+},
 
-    handleAppTouchStart(event) {
-      if (
-        event.target.closest('input') ||
-        event.target.closest('button') ||
-        event.target.closest('.control-buttons-container') ||
-        event.target.closest('.search-overlay') ||
-        event.target.closest('.voice-search-overlay')
-      ) {
-        return;
-      }
-      event.preventDefault();
-      this.isHoldingGlobal = true;
-      this.hasSwiped = false;
-      clearTimeout(this.holdStartTimeoutId);
-      if (event.changedTouches.length > 0) {
-        this.touchStartX = event.changedTouches[0].clientX;
-        this.touchStartY = event.changedTouches[0].clientY;
-        this.touchStartTime = Date.now();
-      }
-      if (!this.isPausedByHold) {
-        this.holdStartTimeoutId = setTimeout(() => {
-          if (this.isHoldingGlobal && !this.hasSwiped) {
-            this.pauseVerseDisplayByHold();
-          }
-        }, this.HOLD_THRESHOLD);
-      }
-    },
-    handleAppMouseUp(event) {
-      const isControlButtonClick = event.target.closest('.control-buttons-container') ||
-                                  event.target.closest('.search-overlay') ||
-                                  event.target.closest('.voice-search-overlay');
-      clearTimeout(this.holdStartTimeoutId);
-      if (this.isPausedByHold && !this.hasSwiped) {
-        if (!isControlButtonClick) {
-          this.resumeVerseDisplayFromHold();
-        }
-        this.isHoldingGlobal = false;
-        return;
-      }
-      if (this.isHoldingGlobal && !isControlButtonClick) {
-        if (this.isPausedByPause) {
-          this.resumeVerseDisplayFromPause();
-        }
-        const clickX = event.clientX;
-        const screenWidth = window.innerWidth;
-        const isArabic = this.currentLanguage === 'ar';
-        if ((clickX > screenWidth / 2 && !isArabic) || (clickX <= screenWidth / 2 && isArabic)) {
-          this.selectVerse(true);
-        } else {
-          this.displayPreviousVerse();
-        }
-      }
-      this.isHoldingGlobal = false;
-    },
+displayCurrentPart() {
+  this.clearAnimationTimers();
+  this.correctWords = [];
+  this.mistakeWords = [];
+  this.unreadVerses = [];
+    this.displayedWords = [];
+    this.currentPartWords = [];
+    this.$forceUpdate();
 
-    handleAppTouchEnd(event) {
-      const isControlButtonTouch =
-        event.target.closest('.control-buttons-container') ||
-        event.target.closest('.notes-overlay') ||
-        event.target.closest('.loops-overlay') ||
-        event.target.closest('.highlight-menu') ||
-        event.target.closest('.search-overlay') ||
-        event.target.closest('.voice-search-overlay');
-      clearTimeout(this.holdStartTimeoutId);
-      if (this.isPausedByHold && !this.hasSwiped) {
-        if (!isControlButtonTouch) {
-          this.resumeVerseDisplayFromHold();
-        }
-        this.isHoldingGlobal = false;
-        this.touchStartX = null;
-        this.touchStartY = null;
-        this.touchStartTime = null;
-        this.hasSwiped = false;
-        return;
-      }
-      if (this.isHoldingGlobal && !isControlButtonTouch && this.touchStartY !== null && !this.hasSwiped) {
-        if (this.isPausedByPause) {
-          this.resumeVerseDisplayFromPause();
-        }
-        if (event.changedTouches.length > 0) {
-          const touchX = event.changedTouches[0].clientX;
-          const screenWidth = window.innerWidth;
-          const isArabic = this.currentLanguage === 'ar';
-          const currentTime = Date.now();
-          const isDoubleTap = currentTime - this.lastTapTime < this.DOUBLE_TAP_THRESHOLD;
+  if (!this.currentVerseData || this.currentPartIndex >= this.currentTextParts.length) {
+    this.displayedWords = [];
+    this.partTimeoutId = setTimeout(this.selectVerse, this.NEXT_VERSE_DELAY);
+    return;
+  }
 
-          if (this.displayMode === 'tafseer') {
-            if (isDoubleTap) {
-              if ((touchX > screenWidth / 2 && !isArabic) || (touchX <= screenWidth / 2 && isArabic)) {
-                this.selectVerse(true);
-                this.loadTafseer();
-              } else {
-                this.displayPreviousVerse();
-                this.loadTafseer();
-              }
-            } else {
-              if ((touchX > screenWidth / 2 && !isArabic) || (touchX <= screenWidth / 2 && isArabic)) {
-                this.displayNextPart();
-              } else {
-                this.displayPreviousPart();
-              }
-            }
-          } else if (this.displayMode === 'hifz') {
-            if (!this.isSelectingWords) {
-              if ((touchX > screenWidth / 2 && !isArabic) || (touchX <= screenWidth / 2 && isArabic)) {
-                this.selectNextHifzVerse();
-              } else {
-                this.displayPreviousVerse();
-              }
-            }
-          } else {
-            if ((touchX > screenWidth / 2 && !isArabic) || (touchX <= screenWidth / 2 && isArabic)) {
-              this.selectVerse(true);
-            } else {
-              this.displayPreviousVerse();
-            }
-          }
+  const partText = this.currentTextParts[this.currentPartIndex];
+  this.currentPartWords = partText.split(' ').filter(word => word.trim() !== '');
+  this.displayedWords = [];
+  this.animateWords();
 
-          this.lastTapTime = currentTime;
-        }
+  let currentPartDuration = this.PART_DISPLAY_DURATION;
+  if (this.currentPartWords.length < (this.WORDS_PER_PART * 0.8) && this.WORDS_PER_PART > 0) {
+    const proportion = this.currentPartWords.length / this.WORDS_PER_PART;
+    currentPartDuration = Math.max(proportion * this.PART_DISPLAY_DURATION, (this.currentPartWords.length * this.WORD_ANIMATION_INTERVAL) + 1000);
+  }
+  const minDurationForAnimation = (this.currentPartWords.length * this.WORD_ANIMATION_INTERVAL) + 1000;
+  currentPartDuration = Math.max(currentPartDuration, minDurationForAnimation);
+
+  this.currentActivePartDuration = currentPartDuration;
+  this.partTimeoutStartTime = Date.now();
+  this.partTimeoutId = setTimeout(this.displayNextPart, currentPartDuration);
+},
+
+handleAppTouchStart(event) {
+  // Skip if touching inputs, buttons, or overlays
+  if (
+    event.target.closest('input') ||
+    event.target.closest('button') ||
+    event.target.closest('.control-buttons-container') ||
+    event.target.closest('.search-overlay') ||
+    event.target.closest('.voice-search-overlay')
+  ) {
+    return;
+  }
+
+  // Only preventDefault if NOT in full-surah mode
+  if (this.displayMode !== 'full-surah') {
+    event.preventDefault();
+  }
+  this.wasScrolling = false;
+  this.isHoldingGlobal = true;
+  this.hasSwiped = false;
+  clearTimeout(this.holdStartTimeoutId);
+  if (event.changedTouches.length > 0) {
+    this.touchStartX = event.changedTouches[0].clientX;
+    this.touchStartY = event.changedTouches[0].clientY;
+    this.touchStartTime = Date.now();
+  }
+  if (!this.isPausedByHold) {
+    this.holdStartTimeoutId = setTimeout(() => {
+      if (this.isHoldingGlobal && !this.hasSwiped) {
+        this.pauseVerseDisplayByHold();
       }
+    }, this.HOLD_THRESHOLD);
+  }
+  console.log('Touch start at x:', this.touchStartX, 'y:', this.touchStartY, 'time:', this.touchStartTime);
+},
+
+handleAppMouseDown(event) {
+  // Skip if clicking on inputs, buttons, or overlays
+  if (
+    event.target.closest('input') ||
+    event.target.closest('button') ||
+    event.target.closest('.control-buttons-container') ||
+    event.target.closest('.search-overlay') ||
+    event.target.closest('.voice-search-overlay')
+  ) {
+    return;
+  }
+
+  // Only preventDefault if NOT in full-surah mode
+  if (this.displayMode !== 'full-surah') {
+    event.preventDefault();
+  }
+
+  this.isHoldingGlobal = true;
+  clearTimeout(this.holdStartTimeoutId);
+  if (!this.isPausedByHold) {
+    this.holdStartTimeoutId = setTimeout(() => {
+      if (this.isHoldingGlobal && !this.hasSwiped) {
+        this.pauseVerseDisplayByHold();
+      }
+    }, this.HOLD_THRESHOLD);
+  }
+  console.log('Mouse down at x:', event.clientX);
+},
+handleAppMouseUp(event) {
+  if (this.showNotesOverlay) {
+  return;
+}
+    const isControlButtonClick =
+    event.target.closest('button') ||
+    event.target.closest('.control-buttons-container') ||
+    event.target.closest('.notes-overlay') ||
+    event.target.closest('.loops-overlay') ||
+    event.target.closest('.highlight-menu') ||
+    event.target.closest('.highlight-context-menu') ||
+    event.target.closest('.search-overlay') ||
+    event.target.closest('.voice-search-overlay') ||
+    event.target.closest('.surah-verse-overlay');
+
+  clearTimeout(this.holdStartTimeoutId);
+
+  // Prevent navigation if clicking on any button or overlay
+  if (isControlButtonClick) {
+    this.isHoldingGlobal = false;
+    return;
+  }
+
+  if (this.displayMode === 'full-surah') {
+    const clickX = event.clientX;
+    const screenWidth = window.innerWidth;
+    if (clickX > screenWidth / 2) {
+      // Right side: next surah
+      if (this.currentSurahData && this.currentSurahData.id < 114) {
+        this.selectedSurah = this.currentSurahData.id + 1;
+        this.loadSurahVerses(this.selectedSurah);
+      }
+    } else {
+      // Left side: previous surah
+      if (this.currentSurahData && this.currentSurahData.id > 1) {
+        this.selectedSurah = this.currentSurahData.id - 1;
+        this.loadSurahVerses(this.selectedSurah);
+      }
+    }
+    this.isHoldingGlobal = false;
+    return;
+  }
+    // If in full-surah mode, don't do any verse/part navigation from global clicks
+if (this.displayMode === 'full-surah') {
+  const clickX = event.clientX;
+  const screenWidth = window.innerWidth;
+  if (clickX > screenWidth / 2) {
+    // Right side: next surah
+    if (this.currentSurahData && this.currentSurahData.id < 114) {
+      this.selectedSurah = this.currentSurahData.id + 1;
+      this.loadSurahVerses(this.selectedSurah);
+    }
+  } else {
+    // Left side: previous surah
+    if (this.currentSurahData && this.currentSurahData.id > 1) {
+      this.selectedSurah = this.currentSurahData.id - 1;
+      this.loadSurahVerses(this.selectedSurah);
+    }
+  }
+  this.isHoldingGlobal = false;
+  return;
+}
+
+
+if (this.displayMode === 'verse') {
+  const x = event.clientX || (event.changedTouches && event.changedTouches[0].clientX);
+  const screenWidth = window.innerWidth;
+  const isArabic = this.currentLanguage === 'ar';
+
+  // For Arabic: right side = previous, left side = next
+  // For non-Arabic: right side = next, left side = previous
+  if (( x > screenWidth / 2)) {
+    // Next part/verse
+    if (this.currentPartIndex < this.currentTextParts.length - 1) {
+      this.displayNextPart();
+    } else {
+      this.selectVerse(true);
+    }
+  } else {
+    // Previous part/verse
+    if (this.currentPartIndex > 0) {
+      this.displayPreviousPart();
+    } else {
+      this.displayPreviousVerse();
+    }
+  }
+  this.isHoldingGlobal = false;
+  return;
+}
+
+
+  if (this.isHoldingGlobal && !isControlButtonClick) {
+    if (this.isPausedByPause) {
+      console.log('Resuming from pause due to UI click');
+      this.resumeVerseDisplayFromPause();
+    }
+    const clickX = event.clientX;
+    const screenWidth = window.innerWidth;
+    const isArabic = this.currentLanguage === 'ar';
+if ((clickX > screenWidth / 2)) {
+  if (this.currentPartIndex < this.currentTextParts.length - 1) {
+    console.log('Mouse up - Next part');
+    this.displayNextPart();
+  } else {
+    console.log('Mouse up - Next verse');
+    this.selectVerse(true);
+  }
+} else {
+  if (this.currentPartIndex > 0) {
+    console.log('Mouse up - Previous part');
+    this.displayPreviousPart();
+  } else {
+    console.log('Mouse up - Previous verse');
+    this.displayPreviousVerse();
+  }
+}
+  }
+  this.isHoldingGlobal = false;
+  console.log('Mouse up at x:', event.clientX);
+},
+// Save last viewed verse and surah to localStorage
+saveLastViewed() {
+  if (this.currentVerseData) {
+    localStorage.setItem('lastVerseUuid', this.currentVerseData.uuid);
+    localStorage.setItem('lastSurahId', this.currentVerseData.surah);
+    localStorage.setItem('lastVerseNumber', this.currentVerseData.verse);
+    localStorage.setItem('lastDisplayMode', this.displayMode);
+  }
+  if (this.currentSurahData) {
+    localStorage.setItem('lastSurahId', this.currentSurahData.id);
+  }
+},
+handleAppTouchEnd(event) {
+
+  const isControlButtonTouch =
+    event.target.closest('button') ||
+    event.target.closest('.control-buttons-container') ||
+    event.target.closest('.notes-overlay') ||
+    event.target.closest('.loops-overlay') ||
+    event.target.closest('.highlight-menu') ||
+    event.target.closest('.highlight-context-menu') ||
+    event.target.closest('.search-overlay') ||
+    event.target.closest('.voice-search-overlay') ||
+    event.target.closest('.surah-verse-overlay');
+
+  clearTimeout(this.holdStartTimeoutId);
+
+  // Prevent navigation if tapping on any button or overlay
+  if (isControlButtonTouch) {
+    this.isHoldingGlobal = false;
+    this.touchStartX = null;
+    this.touchStartY = null;
+    this.touchStartTime = null;
+    this.hasSwiped = false;
+    return;
+  }
+
+  // Full-surah navigation for mobile
+  if (this.displayMode === 'full-surah') {
+    if (this.wasScrolling) {
+      // Don't navigate if user was scrolling
       this.isHoldingGlobal = false;
       this.touchStartX = null;
       this.touchStartY = null;
       this.touchStartTime = null;
       this.hasSwiped = false;
-    },
-
-    enterHifzMode() {
-      this.isPausedByPause = false;
-      this.isPausedByHold = false;
-      this.currentLoop = 1;
-      this.updateHifzVerseQueue();
-      this.currentVerseData = this.hifzVerseQueue[0] || this.currentVerseData;
-      this.currentTextParts = this.segmentText(this.currentVerseData.text);
-      this.currentPartIndex = 0;
-      this.displayedWords = [];
-      this.clearAnimationTimers();
-      this.displayCurrentPart();
-      this.loadVerseNote();
-      this.loadVerseCompletion();
-      this.loadVerseHighlights();
-    },
-
-    updateHifzVerseQueue() {
-      if (!this.currentVerseData) return;
-      const currentSurah = this.currentVerseData.surah;
-      const currentVerseNum = this.currentVerseData.verse;
-      const versesInRange = [];
-      let verseCount = 0;
-      let surah = currentSurah;
-      let verseNum = currentVerseNum;
-
-      while (verseCount < this.hifzLoopCount && surah <= 114) {
-        const verse = this.allVerses.find(v => v.surah === surah && v.verse === verseNum);
-        if (verse) {
-          versesInRange.push(verse);
-          verseCount++;
+      this.wasScrolling = false;
+      return;
+    }
+    if (event.changedTouches && event.changedTouches.length > 0) {
+      const touchX = event.changedTouches[0].clientX;
+      const screenWidth = window.innerWidth;
+      if (touchX > screenWidth / 2) {
+        // Right side: next surah
+        if (this.currentSurahData && this.currentSurahData.id < 114) {
+          this.selectedSurah = this.currentSurahData.id + 1;
+          this.loadSurahVerses(this.selectedSurah);
         }
-        verseNum++;
-        const surahInfo = SURAH_DATA.find(s => s.id === surah);
-        if (verseNum > surahInfo.verses) {
-          surah++;
-          verseNum = 1;
+      } else {
+        // Left side: previous surah
+        if (this.currentSurahData && this.currentSurahData.id > 1) {
+          this.selectedSurah = this.currentSurahData.id - 1;
+          this.loadSurahVerses(this.selectedSurah);
+        }
+      }
+    }
+    this.isHoldingGlobal = false;
+    this.touchStartX = null;
+    this.touchStartY = null;
+    this.touchStartTime = null;
+    this.hasSwiped = false;
+        this.wasScrolling = false;
+
+    return;
+  }
+  if (this.isPausedByHold && !this.hasSwiped) {
+    if (!isControlButtonTouch) {
+      this.resumeVerseDisplayFromHold();
+    }
+    this.isHoldingGlobal = false;
+    this.touchStartX = null;
+    this.touchStartY = null;
+    this.touchStartTime = null;
+    this.hasSwiped = false;
+    return;
+  }
+  if (this.isHoldingGlobal && !isControlButtonTouch && this.touchStartTime !== null && !this.hasSwiped) { // Check touchStartTime instead of touchStartY
+    if (this.isPausedByPause) {
+      console.log('Resuming from pause due to UI tap');
+      this.resumeVerseDisplayFromPause();
+    }
+    if (event.changedTouches.length > 0) {
+      const touchX = event.changedTouches[0].clientX;
+      const screenWidth = window.innerWidth;
+      const isArabic = this.currentLanguage === 'ar';
+      const currentTime = Date.now();
+      const isDoubleTap = currentTime - this.lastTapTime < this.DOUBLE_TAP_THRESHOLD;
+      const rightSideTapped = (touchX > screenWidth / 2 && !isArabic) || (touchX <= screenWidth / 2 && isArabic);
+
+      if (this.displayMode === 'tafseer') {
+        if (isDoubleTap) {
+          if (rightSideTapped) {
+            console.log('Double tap - Next Surah');
+            this.selectVerse(true);
+            this.loadTafseer();
+          } else {
+            console.log('Double tap - Previous Surah');
+            this.displayPreviousVerse();
+            this.loadTafseer();
+          }
+        } else {
+          if (rightSideTapped) {
+            console.log('Single tap - Next Tafseer part');
+            this.displayNextPart(); // Corrected
+          } else {
+            console.log('Single tap - Previous Tafseer part');
+            this.displayPreviousPart(); // Corrected
+          }
+        }
+      } else if (this.displayMode === 'hifz') {
+        if (!this.isSelectingWords) {
+          if (rightSideTapped) {
+            console.log('Tap - Next Hifz verse');
+            this.selectNextHifzVerse(); // Corrected
+          } else {
+            console.log('Tap - Previous Hifz verse');
+            this.displayPreviousVerse(); // Corrected
+          }
+        }
+      } else if (this.displayMode === 'verse') {
+        if (rightSideTapped) {
+          if (this.currentPartIndex < this.currentTextParts.length - 1) {
+            console.log('Tap - Next part');
+            this.displayNextPart();
+          } else {
+            console.log('Tap - Next verse');
+            this.selectVerse(true);
+          }
+        } else {
+          if (this.currentPartIndex > 0) {
+            console.log('Tap - Previous part');
+            this.displayPreviousPart();
+          } else {
+            console.log('Tap - Previous verse');
+            this.displayPreviousVerse();
+          }
         }
       }
 
-      this.hifzVerseQueue = versesInRange;
-      this.hifzCurrentVerseIndex = 0;
-    },
-    exitHifzMode() {
+      this.lastTapTime = currentTime;
+    }
+  }
+  this.isHoldingGlobal = false;
+  this.touchStartX = null;
+  this.touchStartY = null;
+  this.touchStartTime = null;
+  this.hasSwiped = false;
+},
+
+
+async enterHifzMode() { // Make async
+  this.isPausedByPause = false;
+  this.isPausedByHold = false;
+  this.currentLoopIteration = 0; // Reset loop iteration
+  this.updateHifzVerseQueue();
+
+  if (this.hifzVerseQueue.length > 0) {
+    this.currentVerseData = { ...this.hifzVerseQueue[0] };
+    this.hifzCurrentVerseIndex = 0;
+  } else if (!this.currentVerseData && this.allVerses.length > 0) {
+    // Fallback if queue is empty and no current verse (e.g. first time entering hifz)
+    this.currentVerseData = { ...this.allVerses[0] };
+    this.updateHifzVerseQueue(); // Try to build queue again
+    if (this.hifzVerseQueue.length > 0) {
+        this.currentVerseData = { ...this.hifzVerseQueue[0] };
+        this.hifzCurrentVerseIndex = 0;
+    } else {
+        this.displayMode = 'verse';
+        this.errorMessage = "Could not start Hifz mode.";
+        return;
+    }
+  } else if (!this.currentVerseData) {
       this.displayMode = 'verse';
-      this.selectVerse();
-    },
-    toggleNotesOverlay() {
-      this.showNotesOverlay = !this.showNotesOverlay;
-      if (this.showNotesOverlay) {
-        this.loadVerseNote();
+      this.errorMessage = "No verses loaded to start Hifz mode.";
+      return;
+  }
+
+  if (this.currentVerseData && this.currentVerseData.uuid) {
+    await this.loadVerseNote(this.currentVerseData.uuid);
+    await this.loadVerseCompletion(this.currentVerseData.uuid);
+    await this.loadVerseHighlights(this.currentVerseData.uuid);
+  }
+
+  this.currentTextParts = this.segmentText(this.currentVerseData.text);
+  this.currentPartIndex = 0;
+  this.displayedWords = [];
+  this.clearAnimationTimers();
+  this.displayCurrentPart();
+},
+
+updateHifzVerseQueue() {
+  if (!this.currentVerseData) return;
+  const currentSurah = this.currentVerseData.surah;
+  const currentVerseNum = this.currentVerseData.verse;
+  const versesInRange = [];
+  let verseCount = 0;
+  let surah = currentSurah;
+  let verseNum = currentVerseNum;
+
+  while (verseCount < this.hifzLoopCount && surah <= 114) {
+    const verse = this.allVerses.find(v => v.surah === surah && v.verse === verseNum);
+    if (verse) {
+      versesInRange.push(verse);
+      verseCount++;
+    }
+    verseNum++;
+    const surahInfo = SURAH_DATA.find(s => s.id === surah);
+    if (verseNum > surahInfo.verses) {
+      surah++;
+      verseNum = 1;
+    }
+  }
+
+  this.hifzVerseQueue = versesInRange;
+  this.hifzCurrentVerseIndex = 0;
+},
+  exitHifzMode() {
+    this.displayMode = 'verse';
+    this.selectVerse();
+  },
+  toggleNotesOverlay() {
+    this.showNotesOverlay = !this.showNotesOverlay;
+    if (this.showNotesOverlay) {
+      // Determine which verse's note to load
+      let verseUuidForNote = this.activeVerseUuidForNotes; // Prioritize if set by openVerseNote
+      if (!verseUuidForNote && this.currentVerseData && this.displayMode === 'hifz') { // Fallback for Hifz mode button
+        verseUuidForNote = this.currentVerseData.uuid;
       }
-    },
-    async loadVerseNote() {
-      if (!this.currentVerseData) return;
-      const db = await this.$indexedDB;
-      const tx = db.transaction('notes', 'readonly');
-      const store = tx.objectStore('notes');
-      const note = await store.get(this.currentVerseData.uuid);
-      this.currentNote = note ? note.text : '';
-    },
-    async saveVerseNote() {
-      if (!this.currentVerseData) return;
-      const db = await this.$indexedDB;
-      const tx = db.transaction('notes', 'readwrite');
-      const store = tx.objectStore('notes');
-      await store.put({
-        uuid: this.currentVerseData.uuid,
-        text: this.currentNote,
-      });
-    },
-    async closeNotesOverlay() {
-      try {
-        await this.saveVerseNote();
-      } catch (error) {
-        console.error('Error saving note:', error);
-        this.errorMessage = this.getLocalizedErrorMessage('saveNoteError', error.message);
-      }
-      this.showNotesOverlay = false;
-    },
-    getCurrentLoopVerses() {
-      const verses = [];
-      let current = this.currentLoopStartVerse;
-      while (current && (current.surah !== this.currentLoopEndVerse.surah || current.verse <= this.currentLoopEndVerse.verse)) {
-        verses.push(current);
-        current = this.getNextVerse(current);
-      }
-      return verses;
-    },
-    getLoopEndVerse(startVerse) {
-      let current = { ...startVerse };
-      for (let i = 0; i < this.hifzLoopRange - 1 && current; i++) {
-        current = this.getNextVerse(current);
-      }
-      return current || startVerse;
-    },
-    toggleComplete() {
-      if (!this.currentVerseData || this.displayMode !== 'hifz') return;
-      const verseKey = `${this.currentVerseData.surah}:${this.currentVerseData.verse}`;
-      this.completedVerses[verseKey] = !this.completedVerses[verseKey];
-      const loopVerses = this.getCurrentLoopVerses();
-      const allComplete = loopVerses.every(verse => {
-        const key = `${verse.surah}:${verse.verse}`;
-        return this.completedVerses[key];
-      });
-      if (allComplete) {
-        const lastVerseInLoop = loopVerses[loopVerses.length - 1];
-        const nextVerse = this.getNextVerse(lastVerseInLoop);
-        if (nextVerse) {
-          this.currentVerseData = nextVerse;
-          this.currentLoopStartVerse = nextVerse;
-          this.currentLoopEndVerse = this.getLoopEndVerse(nextVerse);
-          this.hifzLoopCount = this.defaultHifzLoopCount;
-          this.currentLoopIteration = 0;
-          loopVerses.forEach(verse => {
-            const key = `${verse.surah}:${verse.verse}`;
-            this.completedVerses[key] = false;
+      
+      if (verseUuidForNote) {
+        this.loadVerseNote(verseUuidForNote).then(() => {
+          this.$nextTick(() => {
+            if (this.$refs.notesTextarea) {
+              this.$refs.notesTextarea.focus();
+            }
           });
-        }
-      }
-      this.saveCompletedVerses();
-    },
-    startCompleteHold(event) {
-      this.completeHoldTimeout = setTimeout(() => {
-        if (this.displayMode === 'hifz') {
-          this.completeCurrentLoop();
-        }
-      }, 1000);
-    },
-    stopCompleteHold() {
-      clearTimeout(this.completeHoldTimeout);
-    },
-    async saveVerseCompletion() {
-      if (!this.currentVerseData) return;
-      try {
-        const db = await this.$indexedDB;
-        if (!db) return;
-        const tx = db.transaction('completions', 'readwrite');
-        const store = tx.objectStore('completions');
-        await store.put({
-          uuid: this.currentVerseData.uuid,
-          completed: this.completions[this.currentVerseData.uuid] || false,
         });
-      } catch (error) {
-        console.error('Error saving completion:', error);
-        this.errorMessage = this.getLocalizedErrorMessage('saveCompletionError', error.message);
+      } else {
+        // If no specific verse context, clear the note and focus
+        this.currentNote = '';
+        this.$nextTick(() => {
+          if (this.$refs.notesTextarea) {
+            this.$refs.notesTextarea.focus();
+          }
+        });
       }
-    },
+      // If no verseUuidForNote, currentNote remains empty, and textarea is focused.
+    }
+  },
+openVerseNote(verse) {
+    if (!verse || !verse.uuid) return;
+    // If a highlight selection is active (though isSelectingWords is false by the time click fires),
+    // or if the highlight menu is shown, it implies the user was interacting with highlighting.
+    // The @click.stop on individual words is the primary fix for this.
 
-    async loadVerseCompletion() {
-      if (!this.currentVerseData) return;
-      try {
-        const db = await this.$indexedDB;
-        if (!db) return;
-        const tx = db.transaction('completions', 'readonly');
-        const store = tx.objectStore('completions');
-        const completion = await store.get(this.currentVerseData.uuid);
-        this.completions[this.currentVerseData.uuid] = completion ? completion.completed : false;
-        this.isVerseCompleted = this.completions[this.currentVerseData.uuid] || false;
-      } catch (error) {
-        console.error('Error loading completion:', error);
-        this.errorMessage = this.getLocalizedErrorMessage('loadCompletionError', error.message);
-      }
-    },
-    completeCurrentLoop() {
-      this.currentLoop++;
-      if (this.currentLoop > this.hifzLoopCount) {
-        this.currentLoop = 1;
-        this.hifzVerseQueue = [];
-      }
-      this.selectNextHifzVerse();
-    },
-    toggleLoopsMenu() {
-      this.showLoopsMenu = !this.showLoopsMenu;
-    },
-    startLoopSwipe(event) {
-      this.loopSwipeStartY = event.changedTouches[0].clientY;
-    },
-    handleLoopSwipe(event) {
-      const currentY = event.changedTouches[0].clientY;
-      const deltaY = this.loopSwipeStartY - currentY;
-      if (Math.abs(deltaY) > 20) {
-        const increment = deltaY > 0 ? 1 : -1;
-        this.hifzLoopCount = Math.max(0, Math.min(100, this.hifzLoopCount + increment));
-        this.loopSwipeStartY = currentY;
-        if (navigator.vibrate) navigator.vibrate(50);
-      }
-    },
-    endLoopSwipe() {
-      this.loopSwipeStartY = null;
-    },
-    selectNextHifzVerse() {
-      if (this.hifzVerseQueue.length === 0) return;
-      this.hifzCurrentVerseIndex = (this.hifzCurrentVerseIndex + 1) % this.hifzVerseQueue.length;
-      this.currentVerseData = { ...this.hifzVerseQueue[this.hifzCurrentVerseIndex] };
-      this.currentTextParts = this.segmentText(this.currentVerseData.text);
-      this.currentPartIndex = 0;
-      this.displayedWords = [];
-      this.clearAnimationTimers();
-      this.displayCurrentPart();
-      this.loadVerseNote();
-      this.loadVerseCompletion();
-      this.loadVerseHighlights();
-    },
+    this.activeVerseUuidForNotes = verse.uuid;
+    this.loadVerseNote(verse.uuid).then(() => {
+      this.showNotesOverlay = true;
+      // Ensure textarea is focused after overlay is shown and DOM is updated
+      this.$nextTick(() => {
+        if (this.$refs.notesTextarea) {
+          this.$refs.notesTextarea.focus();
+        }
+      });
+    }).catch(error => {
+      console.error("Error loading note for openVerseNote:", error);
+      this.errorMessage = this.getLocalizedErrorMessage('loadNoteError', error.message);
+    });
+  },
+  async loadVerseNote(verseUuid) {
+    if (!verseUuid) { this.currentNote = ''; return; }
+    this.activeVerseUuidForNotes = verseUuid; // Keep track for saving
+ 
+    const db = await this.$indexedDB;
+    const tx = db.transaction('notes', 'readonly');
+    const store = tx.objectStore('notes');
+    const note = await store.get(verseUuid);
+    this.currentNote = note ? note.text : '';
+  },
+  async saveVerseNote() {
+    if (!this.activeVerseUuidForNotes) return; // Use the active UUID for notes
+    const db = await this.$indexedDB;
+    const tx = db.transaction('notes', 'readwrite');
+    const store = tx.objectStore('notes');
+    await store.put({
+      uuid: this.activeVerseUuidForNotes,
+      text: this.currentNote,
+    });
+  },
+async closeNotesOverlay() {
+  try {
+    await this.saveVerseNote();
+  } catch (error) {
+    console.error('Error saving note:', error);
+    this.errorMessage = this.getLocalizedErrorMessage('saveNoteError', error.message);
+  }
+  this.showNotesOverlay = false;
+},
+getCurrentLoopVerses() {
+  const verses = [];
+  let current = this.currentLoopStartVerse;
+  while (current && (current.surah !== this.currentLoopEndVerse.surah || current.verse <= this.currentLoopEndVerse.verse)) {
+    verses.push(current);
+    current = this.getNextVerse(current);
+  }
+  return verses;
+},
+getLoopEndVerse(startVerse) {
+  let current = { ...startVerse };
+  for (let i = 0; i < this.hifzLoopRange - 1 && current; i++) {
+    current = this.getNextVerse(current);
+  }
+  return current || startVerse;
+},
+toggleComplete() {
+  return current || startVerse; 
+  return this.hifzVerseQueue; // The current hifzVerseQueue is the loop
+},
+async toggleComplete() {
+  if (!this.currentVerseData || this.displayMode !== 'hifz') return;
+  const verseUuid = this.currentVerseData.uuid; // Declare verseUuid once
+  const currentCompletionStatus = this.completions[verseUuid] || false;
+  const newCompletionStatus = !currentCompletionStatus;
 
-    displayPreviousVerse() {
-      if (this.displayMode === 'hifz') {
-        if (this.hifzVerseQueue.length === 0) return;
-        this.hifzCurrentVerseIndex = (this.hifzCurrentVerseIndex - 1 + this.hifzVerseQueue.length) % this.hifzVerseQueue.length;
-        this.currentVerseData = { ...this.hifzVerseQueue[this.hifzCurrentVerseIndex] };
+  this.completions[verseUuid] = newCompletionStatus;
+  this.isVerseCompleted = newCompletionStatus; // Directly update for immediate UI feedback
+  this.saveVerseCompletion(); // Save this individual verse's completion
+
+  // Check if all verses in the current hifzVerseQueue are now complete
+  if (this.hifzVerseQueue.length > 0) {
+    const allInQueueComplete = this.hifzVerseQueue.every(verseInQueue => {
+      return this.completions[verseInQueue.uuid] === true;
+    });
+
+    if (allInQueueComplete) {
+      console.log("All verses in the current Hifz queue are complete. Advancing to the next block.");
+      const lastVerseInCurrentQueue = this.hifzVerseQueue[this.hifzVerseQueue.length - 1];
+      const nextVerseAfterQueue = this.getNextVerse(lastVerseInCurrentQueue);
+
+      if (nextVerseAfterQueue) {
+        this.currentVerseData = { ...nextVerseAfterQueue }; // Set the new current verse
+        this.updateHifzVerseQueue(); // This will rebuild hifzVerseQueue starting from new currentVerseData
+        this.hifzCurrentVerseIndex = 0; // Start at the beginning of the new queue
+        this.currentLoopIteration = 0; // Reset loop repetitions for the new queue
+
+        // Load data for the new current verse
+     if (this.currentVerseData && this.currentVerseData.uuid) {
+          await this.loadVerseNote(this.currentVerseData.uuid);
+          await this.loadVerseCompletion(this.currentVerseData.uuid);
+          await this.loadVerseHighlights(this.currentVerseData.uuid);
+        }
+        // Now display the new verse
         this.currentTextParts = this.segmentText(this.currentVerseData.text);
         this.currentPartIndex = 0;
         this.displayedWords = [];
         this.clearAnimationTimers();
-        this.displayCurrentPart();
-        this.loadVerseNote();
-        this.loadVerseCompletion();
-        this.loadVerseHighlights();
-      } else {
-        if (!this.currentVerseData) return;
-        let prevVerse = null;
-        if (this.currentVerseData.verse > 1) {
-          prevVerse = this.allVerses.find(
-            v => v.surah === this.currentVerseData.surah && v.verse === this.currentVerseData.verse - 1
-          );
-        } else if (this.currentVerseData.surah > 1) {
-          const prevSurah = SURAH_DATA.find(s => s.id === this.currentVerseData.surah - 1);
-          prevVerse = this.allVerses.find(
-            v => v.surah === this.currentVerseData.surah - 1 && v.verse === prevSurah.verses
-          );
-        }
-        if (prevVerse) {
-          this.currentVerseData = { ...prevVerse };
-          this.currentTextParts = this.segmentText(prevVerse.text);
-          this.currentPartIndex = 0;
-          this.displayedWords = [];
-          this.clearAnimationTimers();
-          this.displayCurrentPart();
-          this.loadVerseNote();
-          this.loadVerseCompletion();
-          this.loadVerseHighlights();
-        }
+        this.displayCurrentPart();      } else {
+        // End of Quran or no next verse found
+        this.hifzVerseQueue = [];
+        this.displayMode = 'verse'; // Exit Hifz mode
+        this.errorMessage = this.getLocalizedErrorMessage('hifzComplete');
+        // Optionally, navigate to the beginning of the Quran or show a specific completion screen
+        // this.selectVerse(false); 
       }
-    },
+    }
+  }
 
-    handleAppTouchMove(event) {
-      if (!this.isHoldingGlobal || this.hasSwiped) return;
-      if (this.showVoiceSearchOverlay) {
-        this.handleVoiceSearchTouchMove(event);
+},
+  startCompleteHold(event) {
+        if (this.displayMode !== 'hifz') return;
+
+    this.completeHoldTimeout = setTimeout(() => {
+      if (this.displayMode === 'hifz') {
+        this.completeCurrentLoop();
+      }
+    }, 1000);
+  },
+  stopCompleteHold() {
+    clearTimeout(this.completeHoldTimeout);
+  },
+async saveVerseCompletion() {
+  if (!this.currentVerseData) return;
+  try {
+    const db = await this.$indexedDB;
+    if (!db) return;
+    const tx = db.transaction('completions', 'readwrite');
+    const store = tx.objectStore('completions');
+    await store.put({
+      uuid: this.currentVerseData.uuid,
+      completed: this.completions[this.currentVerseData.uuid] || false,
+    });
+  } catch (error) {
+    console.error('Error saving completion:', error);
+    this.errorMessage = this.getLocalizedErrorMessage('saveCompletionError', error.message);
+  }
+},
+
+// Update loadVerseCompletion method
+
+async loadVerseCompletion(verseUuid) {
+  if (!verseUuid) return;
+  try {
+    const db = await this.$indexedDB;
+    if (!db) return;
+    const tx = db.transaction('completions', 'readonly');
+    const store = tx.objectStore('completions');
+    const completion = await store.get(verseUuid);
+    this.completions[verseUuid] = completion ? completion.completed : false;
+    if (this.currentVerseData && this.currentVerseData.uuid === verseUuid) {
+      this.isVerseCompleted = this.completions[verseUuid] || false;
+    }
+  } catch (error) {
+    console.error('Error loading completion:', error);
+    this.errorMessage = this.getLocalizedErrorMessage('loadCompletionError', error.message);
+  }
+},
+async completeCurrentLoop() { // Make async
+  if (!this.currentVerseData || this.hifzVerseQueue.length === 0) return;
+  this.currentLoopIteration++;
+  if (this.currentLoopIteration >= this.hifzLoopCount) {
+    // Move to the next verse after the current queue
+    const lastVerse = this.hifzVerseQueue[this.hifzVerseQueue.length - 1];
+    const nextVerse = this.getNextVerse(lastVerse);
+    if (nextVerse) {
+      this.currentVerseData = { ...nextVerse };
+      this.updateHifzVerseQueue(); // Rebuild queue starting from next verse
+      this.currentLoopIteration = 0;
+   this.hifzCurrentVerseIndex = 0; // Reset index for the new queue
+
+      // Load data for the new current verse
+      if (this.currentVerseData && this.currentVerseData.uuid) {
+        await this.loadVerseNote(this.currentVerseData.uuid);
+        await this.loadVerseCompletion(this.currentVerseData.uuid);
+        await this.loadVerseHighlights(this.currentVerseData.uuid);
+      }
+      // Now display the new verse
+      this.currentTextParts = this.segmentText(this.currentVerseData.text);
+      this.currentPartIndex = 0;
+      this.displayedWords = [];
+      this.clearAnimationTimers();
+      this.displayCurrentPart();
+     } else {
+      // End of Quran, reset to start or show completion
+      this.hifzVerseQueue = [];
+      this.displayMode = 'verse';
+      this.errorMessage = this.getLocalizedErrorMessage('hifzComplete');
+    }
+  } else {
+    // Repetitions not yet complete, just move to the next verse in the current queue.
+    await this.selectNextHifzVerse();
+  }
+  // Removed saveVerseCompletion() from here as completion status is managed by toggleComplete.
+  // completeCurrentLoop is about repetition tracking and advancing the queue based on that.
+
+},
+
+getNextVerse(current) {
+      if (!this.allVerses || this.allVerses.length === 0) return null;
+
+    if (!current) return null;
+    const surahInfo = this.SURAH_DATA.find(s => s.id === current.surah);
+    if (current.verse < surahInfo.verses) {
+      return this.allVerses.find(v => v.surah === current.surah && v.verse === current.verse + 1);
+    } else if (current.surah < 114) {
+      return this.allVerses.find(v => v.surah === current.surah + 1 && v.verse === 1);
+    }
+    return null;
+  },
+  toggleLoopsMenu() {
+    this.showLoopsMenu = !this.showLoopsMenu;
+  },
+  startLoopSwipe(event) {
+    this.loopSwipeStartY = event.changedTouches[0].clientY;
+  },
+  handleLoopSwipe(event) {
+    const currentY = event.changedTouches[0].clientY;
+    const deltaY = this.loopSwipeStartY - currentY;
+    if (Math.abs(deltaY) > 20) {
+      const increment = deltaY > 0 ? 1 : -1;
+      this.hifzLoopCount = Math.max(0, Math.min(100, this.hifzLoopCount + increment));
+      this.loopSwipeStartY = currentY;
+      // Vibrate on change
+      if (navigator.vibrate) navigator.vibrate(50);
+    }
+  },
+  endLoopSwipe() {
+    this.loopSwipeStartY = null;
+  },
+async selectNextHifzVerse() { // Make async
+  if (this.hifzVerseQueue.length === 0) return;
+  this.hifzCurrentVerseIndex = (this.hifzCurrentVerseIndex + 1) % this.hifzVerseQueue.length;
+  this.currentVerseData = { ...this.hifzVerseQueue[this.hifzCurrentVerseIndex] };
+
+  if (this.currentVerseData && this.currentVerseData.uuid) { // Load data for new verse
+      await this.loadVerseNote(this.currentVerseData.uuid);
+      await this.loadVerseCompletion(this.currentVerseData.uuid);
+      await this.loadVerseHighlights(this.currentVerseData.uuid);
+  }
+
+
+  this.currentTextParts = this.segmentText(this.currentVerseData.text);
+  this.currentPartIndex = 0;
+  this.displayedWords = [];
+    this.clearAnimationTimers(); // Clear timers for the old verse
+
+    if (this.currentVerseData && this.currentVerseData.text) {
+        this.displayCurrentPart(); // Display new verse
+    }
+    if (this.currentVerseData && this.currentVerseData.uuid) { // Load data for new verse
+        this.loadVerseNote(this.currentVerseData.uuid);
+        this.loadVerseCompletion(this.currentVerseData.uuid);
+        this.loadVerseHighlights(this.currentVerseData.uuid);
+    }
+ this.clearAnimationTimers(); // Clear timers for the old verse
+
+  if (this.currentVerseData && this.currentVerseData.text) {
+      this.displayCurrentPart(); // Display new verse
+  }
+},
+
+async displayPreviousVerse() {
+  if (this.displayMode === 'hifz') {
+    // ... your hifz logic (unchanged) ...
+    if (this.hifzVerseQueue.length === 0) return;
+    this.hifzCurrentVerseIndex = (this.hifzCurrentVerseIndex - 1 + this.hifzVerseQueue.length) % this.hifzVerseQueue.length;
+    this.currentVerseData = { ...this.hifzVerseQueue[this.hifzCurrentVerseIndex] };
+    if (this.currentVerseData && this.currentVerseData.uuid) {
+      await this.loadVerseNote(this.currentVerseData.uuid);
+      await this.loadVerseCompletion(this.currentVerseData.uuid);
+      await this.loadVerseHighlights(this.currentVerseData.uuid);
+    }
+this.currentTextParts = this.segmentText(this.currentVerseData.text);
+this.currentPartIndex = this.currentTextParts.length > 0 ? this.currentTextParts.length - 1 : 0;
+this.displayedWords = [];
+this.clearAnimationTimers();
+this.displayCurrentPart();
+  } else {
+    // NON-HIFZ MODE (e.g., Verse, Tafseer)
+    if (!this.currentVerseData || !this.allVerses || this.allVerses.length === 0) return;
+    let prevVerse = null;
+    if (this.currentVerseData.verse > 1) {
+      // Previous verse in the same surah
+      prevVerse = this.allVerses.find(
+        v => v.surah === this.currentVerseData.surah && v.verse === this.currentVerseData.verse - 1
+      );
+    } else if (this.currentVerseData.surah > 1) {
+      // Go to last verse of previous surah
+      const prevSurahInfo = SURAH_DATA.find(s => s.id === this.currentVerseData.surah - 1);
+      if (prevSurahInfo) {
+        prevVerse = this.allVerses.find(
+          v => v.surah === prevSurahInfo.id && v.verse === prevSurahInfo.verses
+        );
+      }
+    }
+    if (prevVerse) {
+      this.currentVerseData = { ...prevVerse };
+      if (this.currentVerseData && this.currentVerseData.uuid) {
+        await this.loadVerseNote(this.currentVerseData.uuid);
+        await this.loadVerseCompletion(this.currentVerseData.uuid);
+        await this.loadVerseHighlights(this.currentVerseData.uuid);
+      }
+this.currentTextParts = this.segmentText(this.currentVerseData.text);
+this.currentPartIndex = this.currentTextParts.length > 0 ? this.currentTextParts.length - 1 : 0;
+this.displayedWords = [];
+this.clearAnimationTimers();
+this.displayCurrentPart();
+    }
+  }
+},
+
+handleAppTouchMove(event) {
+if (this.displayMode === 'full-surah') {
+    // Only trigger swipe down if at top of scroll
+    const container = this.$refs.versesContainer;
+    if (container && container.scrollTop === 0) {
+      const touchY = event.changedTouches[0].clientY;
+      const deltaY = touchY - this.touchStartY;
+      if (deltaY > this.SWIPE_THRESHOLD) {
+        this.showSearchOverlay = true;
+        this.focusSearchInput();
+        this.hasSwiped = true;
         return;
       }
-      if (event.changedTouches.length > 0) {
-        const touchX = event.changedTouches[0].clientX;
-        const touchY = event.changedTouches[0].clientY;
-        const deltaY = this.touchStartY - touchY;
-        const deltaX = Math.abs(this.touchStartX - touchX);
-        const timeElapsed = Date.now() - this.touchStartTime;
-        if (Math.abs(deltaY) > this.SWIPE_THRESHOLD && deltaX < this.SWIPE_HORIZONTAL_THRESHOLD && timeElapsed < this.SWIPE_TIME_THRESHOLD) {
-          this.hasSwiped = true;
-          clearTimeout(this.holdStartTimeoutId);
-          this.isHoldingGlobal = false;
-          if (deltaY > 0) {
-            this.showSearchOverlay = false;
-            this.showVoiceSearchOverlay = true;
-            this.resetVoiceSearch();
-          } else {
-            this.showVoiceSearchOverlay = false;
-            this.showSearchOverlay = true;
-          }
-          this.touchStartX = null;
-          this.touchStartY = null;
-          this.touchStartTime = null;
-        }
+    }
+    this.wasScrolling = true;
+    return;
+  }
+  if (!this.isHoldingGlobal || this.hasSwiped) return;
+  if (this.showVoiceSearchOverlay) {
+    this.handleVoiceSearchTouchMove(event);
+    return;
+  }
+  if (event.changedTouches.length > 0) {
+    const touchX = event.changedTouches[0].clientX;
+    const touchY = event.changedTouches[0].clientY;
+    const deltaY = this.touchStartY - touchY;
+    const deltaX = Math.abs(this.touchStartX - touchX);
+    const timeElapsed = Date.now() - this.touchStartTime;
+    console.log('Touch move at x:', touchX, 'y:', touchY, 'deltaY:', deltaY, 'deltaX:', deltaX, 'time:', timeElapsed);
+    if (Math.abs(deltaY) > this.SWIPE_THRESHOLD && deltaX < this.SWIPE_HORIZONTAL_THRESHOLD && timeElapsed < this.SWIPE_TIME_THRESHOLD) {
+      this.hasSwiped = true;
+      clearTimeout(this.holdStartTimeoutId);
+      this.isHoldingGlobal = false;
+      if (deltaY > 0) {
+        console.log('Swipe up detected - Opening voice search');
+        this.showSearchOverlay = false;
+        this.showVoiceSearchOverlay = true;
+        this.resetVoiceSearch();
+      } else if (deltaY < 0) {
+        console.log('Swipe down detected - Opening search');
+        this.showVoiceSearchOverlay = false;
+        this.showSearchOverlay = true;
+        this.focusSearchInput();
       }
-    },
+      this.touchStartX = null;
+      this.touchStartY = null;
+      this.touchStartTime = null;
+    }
+  }
+},
 
-    handleAppTouchCancel() {
-      if (this.isHoldingGlobal) {
-        clearTimeout(this.holdStartTimeoutId);
-        this.isHoldingGlobal = false;
-        this.touchStartX = null;
-        this.touchStartY = null;
-        this.touchStartTime = null;
-        this.hasSwiped = false;
-      }
-    },
-
-    handleAppMouseLeave() {
-      if (this.isHoldingGlobal) {
-        clearTimeout(this.holdStartTimeoutId);
-        this.isHoldingGlobal = false;
-      }
-    },
-    displayPreviousPart() {
-      if (this.currentPartIndex > 0) {
-        this.currentPartIndex--;
-        this.displayCurrentPart();
-      }
-    },
-    shareVerse() {
-      if (!this.currentVerseData || !this.currentVerseData.text) {
-        console.error('No verse data to share');
-        this.errorMessage = this.getLocalizedErrorMessage('noVersesAvailable');
+handleAppTouchMove(event) {
+if (this.displayMode === 'full-surah') {
+    // Only trigger swipe down if at top of scroll
+    const container = this.$refs.versesContainer;
+    if (container && container.scrollTop === 0) {
+      const touchY = event.changedTouches[0].clientY;
+      const deltaY = touchY - this.touchStartY;
+      if (deltaY > this.SWIPE_THRESHOLD) {
+        this.showSearchOverlay = true;
+        this.focusSearchInput();
+        this.hasSwiped = true;
         return;
       }
-      const text = `${this.currentVerseData.text}\n${this.currentLanguage === 'ar' ? this.currentVerseData.surahArabicName : this.currentVerseData.surahEnglishName} ${this.currentVerseData.verse}`;
-      if (navigator.share) {
-        navigator.share({ text })
-          .catch(err => {
-            console.error('Share failed:', err);
-            this.errorMessage = this.getLocalizedErrorMessage('shareError');
-          });
+    }
+    this.wasScrolling = true;
+    return;
+  }
+  if (!this.isHoldingGlobal || this.hasSwiped) return;
+  if (this.showVoiceSearchOverlay) {
+    this.handleVoiceSearchTouchMove(event);
+    return;
+  }
+  if (event.changedTouches.length > 0) {
+    const touchX = event.changedTouches[0].clientX;
+    const touchY = event.changedTouches[0].clientY;
+    const deltaY = this.touchStartY - touchY;
+    const deltaX = Math.abs(this.touchStartX - touchX);
+    const timeElapsed = Date.now() - this.touchStartTime;
+    console.log('Touch move at x:', touchX, 'y:', touchY, 'deltaY:', deltaY, 'deltaX:', deltaX, 'time:', timeElapsed);
+    if (Math.abs(deltaY) > this.SWIPE_THRESHOLD && deltaX < this.SWIPE_HORIZONTAL_THRESHOLD && timeElapsed < this.SWIPE_TIME_THRESHOLD) {
+      this.hasSwiped = true;
+      clearTimeout(this.holdStartTimeoutId);
+      this.isHoldingGlobal = false;
+      if (deltaY > 0) {
+        console.log('Swipe up detected - Opening voice search');
+        this.showSearchOverlay = false;
+        this.showVoiceSearchOverlay = true;
+        this.resetVoiceSearch();
       } else {
-        navigator.clipboard.write(text)
-          .then(() => {
-            this.showCopyNotification = true;
-            setTimeout(() => {
-              this.showCopyNotification = false;
-            }, 2000);
-          })
-          .catch(err => {
-            console.error('Clipboard copy failed:', err);
-            this.errorMessage = this.getLocalizedErrorMessage('shareError');
-          });
+        console.log('Swipe down detected - Opening search');
+        this.showVoiceSearchOverlay = false;
+        this.showSearchOverlay = true;
       }
-    },
+      this.touchStartX = null;
+      this.touchStartY = null;
+      this.touchStartTime = null;
+    }
+  }
+},
+
+
+
+handleAppTouchCancel() {
+  if (this.isHoldingGlobal) {
+    clearTimeout(this.holdStartTimeoutId);
+    this.isHoldingGlobal = false;
+    this.touchStartX = null;
+    this.touchStartY = null;
+    this.touchStartTime = null;
+    this.hasSwiped = false;
+    console.log('Touch cancelled');
+  }
+},
+
+  hideHighlightContextMenu(e) {
+    // Only hide if not clicking inside the menu
+    if (!e.target.closest('.highlight-context-menu')) {
+      this.showHighlightContextMenu = false;
+    }
+  },
+
+handleAppMouseLeave() {
+  if (this.isHoldingGlobal) {
+    clearTimeout(this.holdStartTimeoutId);
+    this.isHoldingGlobal = false;
+    console.log('Mouse left container');
+  }
+},
+displayPreviousPart() {
+  if (this.currentPartIndex > 0) {
+    this.currentPartIndex--;
+    this.displayCurrentPart();
+  }
+},
+ handleGlobalClick(e) {
+    // If not clicking inside the control menu, hide it
+     if (this.showHighlightMenu && !e.target.closest('.highlight-menu')) {
+    this.showHighlightMenu = false;
+    e.stopPropagation();
+    e.preventDefault();
+    return;
+  }
+    const menu = document.querySelector('.control-buttons-container');
+    if (menu && !menu.contains(e.target)) {
+      this.hideControlMenu();
+    }
+  },
+shareVerse() {
+  if (!this.currentVerseData || !this.currentVerseData.text) {
+    console.error('No verse data to share');
+    this.errorMessage = this.getLocalizedErrorMessage('noVersesAvailable');
+    return;
+  }
+  const text = `${this.currentVerseData.text}\n${this.currentLanguage === 'ar' ? this.currentVerseData.surahArabicName : this.currentVerseData.surahEnglishName} ${this.currentVerseData.verse}`;
+  console.log('Share text:', text);
+  if (navigator.share) {
+    navigator.share({ text })
+      .catch(err => {
+        console.error('Share failed:', err);
+        this.errorMessage = this.getLocalizedErrorMessage('shareError');
+      });
+  } else {
+    navigator.clipboard.write(text)
+      .then(() => {
+        this.showCopyNotification = true;
+        setTimeout(() => {
+          this.showCopyNotification = false;
+        }, 2000);
+      })
+      .catch(err => {
+        console.error('Clipboard copy failed:', err);
+        this.errorMessage = this.getLocalizedErrorMessage('shareError');
+      });
+  }
+},
   },
 
   async mounted() {
@@ -2869,31 +4114,945 @@ export default {
     await db.transaction('highlights', 'readwrite').objectStore('highlights');
     document.documentElement.setAttribute('data-theme', this.currentTheme);
     
-    if (this.currentLanguage === 'ar') {
-      this.showMushafSelection = true;
-    } else {
-      await this.loadInitialData();
-      if (this.allVerses.length > 0 && !this.errorMessage) {
-        this.selectVerse();
-      } else if (!this.errorMessage) {
-        this.errorMessage = this.getLocalizedErrorMessage('noDataAfterLoad');
-        this.isLoading = false;
-      }
+    // Show mushaf selection when Arabic is selected
+ const savedLang = localStorage.getItem('language');
+  const savedMushaf = localStorage.getItem('mushafType');
+  if (savedLang) {
+    this.currentLanguage = savedLang;
+    this.showLanguageSelection = false;
+  } else {
+    this.showLanguageSelection = true;
+  }
+  if (this.currentLanguage === 'ar' && !savedMushaf) {
+  } else {
+    this.showMushafSelection = false;
+       if (savedMushaf) {
+        this.mushafType = savedMushaf;
     }
+    await this.loadInitialData();
+     const lastDisplayMode = localStorage.getItem('lastDisplayMode');
+  const lastVerseUuid = localStorage.getItem('lastVerseUuid');
+  const lastSurahId = parseInt(localStorage.getItem('lastSurahId'));
+  const lastVerseNumber = parseInt(localStorage.getItem('lastVerseNumber'));
+
+  if (lastDisplayMode === 'full-surah' && lastSurahId) {
+    this.setDisplayMode('full-surah');
+    this.selectedSurah = lastSurahId;
+    await this.loadSurahVerses(lastSurahId);
+    // Optionally scroll to last verse
+    this.$nextTick(() => {
+      if (lastVerseUuid) {
+        const verseEl = document.querySelector(`[data-verse-uuid="${lastVerseUuid}"]`);
+        if (verseEl) verseEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      }
+    });
+  } else if (lastVerseUuid) {
+    const verse = this.allVerses.find(v => v.uuid === lastVerseUuid);
+    if (verse) {
+      this.currentVerseData = { ...verse };
+      this.currentTextParts = this.segmentText(verse.text);
+      this.currentPartIndex = 0;
+      this.displayedWords = [];
+      this.displayCurrentPart();
+    }
+  }
+   if (this.allVerses.length > 0 && !this.errorMessage) {
+      this.selectVerse();
+    } else if (!this.errorMessage) {
+      this.errorMessage = this.getLocalizedErrorMessage('noDataAfterLoad');
+    }
+    this.isLoading = false; // Ensure isLoading is false after initial attempt
+  }
+    document.addEventListener('click', this.hideHighlightContextMenu);
+  this.showControlMenu();
+ document.addEventListener('mousedown', this.handleGlobalClick);
+  document.addEventListener('touchstart', this.handleGlobalClick);
+  
   },
   
   beforeUnmount() {
     this.clearAnimationTimers();
     this.stopSpeechRecognition();
-    if (this.verseObserver && this.sentinel) {
-      this.verseObserver.unobserve(this.sentinel);
-      this.verseObserver.disconnect();
-      this.sentinel.remove();
-    }
+      document.removeEventListener('click', this.hideHighlightContextMenu);
+ document.removeEventListener('mousedown', this.handleGlobalClick);
+  document.removeEventListener('touchstart', this.handleGlobalClick);
+  
   }
 };
 </script>
 
-<style>
-/* Add your styles here */
+<style scoped>
+/* Existing styles... */
+:root {
+  --text-color-dark: #e5e7eb; /* gray-200 */
+  --text-color-light: #1f2937; /* gray-800 */
+  --bg-dark-start: black;
+  --bg-dark-end: rgb(0, 12, 18);
+  --bg-light-start: #e0f2fe; /* sky-100 */
+  --bg-light-end: #bae6fd; /* sky-300 */
+
+  --info-text-dark: #9ca3af; /* gray-400 */
+  --info-text-light: #4b5563; /* gray-600 */
+
+  --control-bg-dark: rgba(55, 65, 81, 0.6); /* gray-700 with opacity */
+  --control-text-dark: #f3f4f6; /* gray-100 */
+  --control-bg-light: rgba(255, 255, 255, 0.7); /* white with opacity */
+  --control-text-light: #1f2937; /* gray-800 */
+  
+  /* ... existing vars ... */
+  --glow-color-soft-dark-val: rgba(220, 220, 220, 0.4);  /* Light Blueish */
+  --glow-color-strong-dark-val: rgba(255, 255, 255, 0.7);
+  --glow-color-extra-dark-val: rgba(221, 221, 221, 0.3);
+
+  --glow-color-soft-light-val: rgba(31, 31, 31, 0.4);  /* Amber/Goldish */
+  --glow-color-strong-light-val: rgba(0, 0, 0, 0.7);
+  --glow-color-extra-light-val: rgba(31, 31, 31, 0.3);
+
+}
+
+html, body {
+  margin: 0;
+  padding: 0;
+  width: 100%;
+  height: 100%;
+  font-family: 'Amiri', serif;
+  overflow: hidden; /* Prevent scrollbars on body itself */
+}
+
+#app { /* Assuming your Vue app mounts to #app */
+  width: 100%;
+  height: 100%;
+}
+
+.app-container {
+  min-height: 100vh;
+  width: 100vw;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1rem; /* p-4 */
+  position: fixed; /* To ensure it covers full screen */
+  top: 0;
+  left: 0;
+  overflow: hidden; /* Prevent scrollbars on the main container */
+  transition: background 0.5s ease, color 0.5s ease;
+}
+
+.app-container.dark-theme {
+  background: linear-gradient(to bottom, var(--bg-dark-start), var(--bg-dark-end));
+  color: var(--text-color-dark);
+  --current-glow-soft: var(--glow-color-soft-dark-val);
+  --current-glow-strong: var(--glow-color-strong-dark-val);
+  --current-glow-extra: var(--glow-color-extra-dark-val);
+}
+
+.app-container.light-theme {
+  background: linear-gradient(to bottom, var(--bg-light-start), var(--bg-light-end));
+  color: var(--text-color-light);
+  --current-glow-soft: var(--glow-color-soft-light-val);
+  --current-glow-strong: var(--glow-color-strong-light-val);
+  --current-glow-extra: var(--glow-color-extra-light-val);
+}
+
+.app-container.light-theme .quran-verse-text-content {
+  /* Example: Slightly adjust text color if glow makes it hard to read, or ensure glow is subtle */
+}
+
+.main-content-transition {
+  position: relative; /* For stacking context if needed */
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.loading-message, .error-message, .no-verse-message, .quran-verse-display {
+  /* Common styling for main content blocks */
+  width: 100%;
+  max-width: 60rem; /* Adjust as needed, e.g., max-w-5xl */
+}
+.app-container.light-theme .loading-message,
+.app-container.light-theme .no-verse-message {
+  color: var(--text-color-light);
+}
+.app-container.dark-theme .loading-message,
+.app-container.dark-theme .no-verse-message {
+  color: var(--text-color-dark);
+}
+.error-message {
+  color: #ef4444; /* red-500 */
+}
+.app-container.light-theme .error-message {
+  color: #b91c1c; /* red-700 for better contrast on light bg */
+}
+
+
+.app-container.dark-theme .quran-verse-text-content {
+  color: var(--text-color-dark);
+}
+.app-container.light-theme .quran-verse-text-content {
+  color: var(--text-color-light);
+}
+
+
+.bottom-info {
+  opacity: 0.8;
+}
+.app-container.dark-theme .bottom-info {
+  color: var(--info-text-dark);
+}
+.app-container.light-theme .bottom-info {
+  color: var(--info-text-light);
+}
+
+/* Overall fade for content blocks */
+.fade-enter-active,
+.fade-leave-active {
+  transition: opacity 0.5s ease;
+}
+.fade-enter-from,
+.fade-leave-to {
+  opacity: 0;
+}
+
+/* Word animation styles */
+.word-fade-enter-active {
+  transition: opacity 0.4s ease, filter 0.4s ease;
+}
+.word-fade-enter-from {
+  opacity: 0;
+  filter: blur(5px);
+}
+.word-fade-enter-to {
+  opacity: 1;
+  filter: blur(0px);
+}
+
+.control-buttons-container {
+  /* Positioned by Tailwind classes */
+}
+
+.control-button {
+  font-family:Arial, Helvetica, sans-serif;
+  width: 4rem; /* ~44px */
+  height: 4rem; /* ~44px */
+  border-radius: 9999px; /* pill shape */
+  display: flex;
+  font-size: 12px;
+  align-items: center;
+  justify-content: center;
+  font-weight: 600; /* semibold */
+  border: none;
+  cursor: pointer;
+  box-shadow: 0 4px 6px -1px rgba(0,0,0,.1), 0 2px 4px -2px rgba(0,0,0,.1); /* Tailwind shadow-md */
+  transition: background-color 0.2s ease, color 0.2s ease, transform 0.15s ease;
+  -webkit-backdrop-filter: blur(4px);
+  backdrop-filter: blur(4px);
+}
+
+.app-container.dark-theme .control-button {
+  background-color: var(--control-bg-dark);
+  color: var(--control-text-dark);
+}
+.app-container.dark-theme .control-button:hover {
+  background-color: rgba(31, 41, 55, 0.7); /* gray-800 with opacity */
+}
+
+
+.app-container.light-theme .control-button {
+  background-color: var(--control-bg-light);
+  color: var(--control-text-light);
+}
+.app-container.light-theme .control-button:hover {
+  background-color: rgba(229, 231, 235, 0.8); /* gray-200 with opacity */
+}
+
+.theme-toggle-button svg {
+  /* SVG size is controlled by w-5 h-5 in template */
+}
+
+
+@keyframes pulse-glow {
+  0%, 100% {
+    text-shadow: 0 0 4px var(--current-glow-soft), 0 0 7px var(--current-glow-soft);
+  }
+  50% {
+    text-shadow: 0 0 8px var(--current-glow-strong), 0 0 12px var(--current-glow-strong), 0 0 16px var(--current-glow-extra);
+  }
+}
+
+.pulsing-word {
+  animation: pulse-glow 6s infinite ease-in-out;
+}
+
+.language-selection-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  display: flex;
+  align-items: center;
+  flex-direction: column;
+  gap: 1rem;
+  justify-content: center;
+  z-index: 10;
+  background: rgba(0, 0, 0, 0.9);
+  backdrop-filter: blur(12px);
+}
+
+.language-selection-overlay.light-theme {
+  background: rgba(255, 255, 255, 0.9);
+}
+
+.language-selection-container {
+  display: flex;
+  gap: 1rem;
+}
+
+
+.search-overlay,
+.voice-search-overlay {
+  background: rgba(0, 0, 0, 0.7);
+  backdrop-filter: blur(8px);
+}
+
+.search-overlay.light-theme,
+.voice-search-overlay.light-theme {
+  background: rgba(255, 255, 255, 0.7);
+}
+
+.search-container,
+.voice-search-container {
+  max-width: 90%;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+}
+
+.search-container input {
+  transition: border-color 0.2s ease;
+}
+
+.search-container input:focus {
+  border-color: #3b82f6; /* blue-500 */
+}
+
+
+.search-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
+  overflow-y: auto;
+  align-items: center;
+  justify-content: flex-start;
+  z-index: 8;
+  background: rgba(0, 0, 0, 0.542);
+  backdrop-filter: blur(12px);
+}
+
+.search-overlay.light-theme {
+  background: rgba(255, 255, 255, 0.411);
+}
+
+.search-container {
+  width: 100%;
+  max-width: 800px;
+  display: flex;
+  gap: 1rem;
+}
+
+.search-input {
+  flex: 1;
+  padding: 0.75rem;
+  border: none;
+  border-radius: 0.5rem;
+  font-family: 'Amiri', serif;
+  font-size: 1rem;
+}
+
+.search-input.dark-theme {
+  background: var(--search-bg-dark);
+  color: var(--text-color-dark);
+}
+.search-input.light-theme {
+  background: var(--search-bg-light);
+  color: var(--text-color-light);
+}
+
+.search-results {
+  width: 100%;
+  margin-top: 2rem;
+  max-height: calc(100vh - 150px);
+
+}
+
+.search-result-item {
+  padding: 1rem;
+  margin-bottom: 1rem;
+  border-radius: 0.5rem;
+}
+
+.search-result-item.dark-theme {
+  background: var(--search-bg-dark);
+  color: var(--text-color-dark);
+}
+.search-result-item.light-theme {
+  background: var(--search-bg-light);
+  color: var(--text-color-light);
+}
+
+.search-link {
+  color: #3b82f6;
+  text-decoration: underline;
+}
+.search-link:hover {
+  color: #1d4ed8;
+}
+
+.pagination {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 1rem;
+  margin-top: 1rem;
+  padding-bottom: 5rem;
+
+}
+
+.pagination button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.voice-search-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  z-index: 8;
+  background: rgba(0, 0, 0, 0.39);
+  backdrop-filter: blur(12px);
+}
+
+.voice-search-overlay.light-theme {
+  background: rgba(116, 116, 116, 0.238);
+}
+
+.voice-search-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1.5rem;
+}
+
+.hifz-mode .control-button {
+  /* Ensure consistent styling */
+}
+.complete-active {
+  background-color: #34d399 !important; /* emerald-400 */
+  color: white !important;
+}
+.app-container.dark-theme .complete-active:hover {
+  background-color: #2dd4bf !important; /* emerald-500 */
+}
+.app-container.light-theme .complete-active:hover {
+  background-color: #10b981 !important; /* emerald-600 */
+}
+.notes-overlay,
+.loops-overlay {
+  background: rgba(0, 0, 0, 0.5);
+  backdrop-filter: blur(12px);
+  transition: background 0.5s ease;
+}
+.notes-overlay.light-theme,
+.loops-overlay.light-theme {
+  background: rgba(255, 255, 255, 0.5);
+}
+.notes-container,
+.loops-container {
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+  transition: background 0.5s ease, color 0.5s ease;
+}
+.loops-picker {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  height: 100px;
+}
+.loop-value {
+  font-size: 2rem;
+  user-select: none;
+}
+.highlight-menu {
+  transition: background 0.5s ease, color 0.5s ease;
+}
+.highlighted {
+  transition: background 0.2s ease;
+}
+.highlight-ffcccb { background-color: #ffcccb; }
+.highlight-d4edda { background-color: #d4edda; }
+.highlight-cce5ff { background-color: #cce5ff; }
+.highlight-fff3cd { background-color: #fff3cd; }
+.highlight-e2d1f9 { background-color: #e2d1f9; }
+
+
+.surah-verse-overlay {
+  background: rgba(0, 0, 0, 0.5);
+  backdrop-filter: blur(12px);
+  transition: background 0.5s ease;
+}
+.surah-verse-overlay.light-theme {
+  background: rgba(255, 255, 255, 0.5);
+}
+.surah-verse-container {
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+  transition: background 0.5s ease, color 0.5s ease;
+}
+.surah-verse-container select,
+.surah-verse-container button {
+  transition: background 0.2s ease, color 0.2s ease, border-color 0.2s ease;
+}
+
+.search-overlay {
+  background: rgba(0, 0, 0, 0.5);
+  backdrop-filter: blur(12px);
+  transition: background 0.5s ease;
+}
+.search-overlay.light-theme {
+  background: rgba(255, 255, 255, 0.5);
+}
+.search-container {
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.034);
+  transition: background 0.5s ease, color 0.5s ease;
+}
+.search-input {
+  border: 1px solid var(--control-text-dark);
+  transition: border-color 0.2s ease, background 0.5s ease, color 0.5s ease;
+}
+.app-container.light-theme .search-input {
+  border-color: var(--control-text-light);
+}
+.search-result-item {
+  transition: background 0.2s ease;
+}
+.pagination button {
+  transition: background 0.2s ease, color 0.2s ease;
+}
+.pagination button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.audio-active {
+  background-color: white !important;
+  color: black !important;
+}
+.app-container.dark-theme .audio-active:hover {
+  background-color: #e5e7eb !important; /* gray-200 */
+}
+.app-container.light-theme .audio-active:hover {
+  background-color: #d1d5db !important; /* gray-300 */
+}
+
+.notes-overlay,
+.loops-overlay,
+.surah-verse-overlay,
+.search-overlay,
+.voice-search-overlay {
+  z-index: 50;
+}
+.highlight-menu {
+  z-index: 60;
+}
+.control-buttons-container {
+  z-index: 70;
+}
+
+.sepia-theme {
+  background-color: #d7d0be;
+  color: #5f4b32;
+}
+
+.sepia-theme .notes-container, .sepia-theme .loops-container, .sepia-theme .surah-verse-container, 
+.sepia-theme .language-menu, .sepia-theme .display-mode-menu, .sepia-theme .highlight-menu {
+  background-color: #d7d0be;
+  color: #5f4b32;
+}
+
+.sepia-theme .notes-container, .sepia-theme .loops-container, .sepia-theme .surah-verse-container, 
+.sepia-theme .language-menu, .sepia-theme .display-mode-menu, .sepia-theme .highlight-menu {
+  background-color: #d7d0be;
+  color: #5f4b32;
+}
+
+
+
+.verse-line {
+  transition: opacity 0.3s ease;
+}
+.select-container {
+  background: var(--select-bg, #f3f4f6); /* Light theme */
+  border-radius: 0.5rem;
+  padding: 0.5rem;
+}
+.dark-theme .select-container {
+  --select-bg: #1f2937; /* Dark theme */
+}
+.mistake-glow {
+  animation: glow 1s ease-in-out infinite;
+  background-color: rgba(255, 0, 0, 0.2);
+}
+@keyframes glow {
+  0%, 100% { box-shadow: 0 0 5px rgba(255, 0, 0, 0.5); }
+  50% { box-shadow: 0 0 15px rgba(255, 0, 0, 0.8); }
+}
+.decorative-number {
+  font-family: 'Amiri', serif;
+  color: var(--verse-number-color, #4b5563);
+}
+.dark-theme .decorative-number {
+  --verse-number-color: #9ca3af;
+}
+
+
+/* Revision Mode Styles */
+.correct-highlight {
+  background-color: rgba(0, 255, 0, 0.3);
+  border-radius: 3px;
+}
+
+.mistake-glow {
+  animation: mistakeGlow 0.5s ease-in-out infinite alternate;
+  border-radius: 3px;
+}
+
+@keyframes mistakeGlow {
+  from {
+    box-shadow: 0 0 5px rgba(255, 0, 0, 0.5);
+  }
+  to {
+    box-shadow: 0 0 15px rgba(255, 0, 0, 0.8);
+  }
+}
+
+/* Mushaf Selection Overlay */
+.mushaf-selection-overlay {
+  position: fixed;
+  height: 100%;
+  width: 100%;
+  z-index: 99;
+  background: rgba(0, 0, 0, 0.9);
+  backdrop-filter: blur(10px);
+}
+
+.mushaf-selection-overlay.light-theme {
+  background: rgba(255, 255, 255, 0.7);
+}
+
+.mushaf-selection-container {
+  max-width: 90%;
+  width: 400px;
+}
+
+/* Voice Animation */
+.voice-animation {
+  position: relative;
+  width: 100px;
+  height: 100px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.ring {
+  position: absolute;
+  border-radius: 50%;
+  border: 2px solid currentColor;
+  opacity: 0;
+}
+
+.pulse-1 {
+  width: 100%;
+  height: 100%;
+  animation: pulse 2s infinite;
+}
+
+.pulse-2 {
+  width: 80%;
+  height: 80%;
+  animation: pulse 2s infinite 0.2s;
+}
+
+.pulse-3 {
+  width: 60%;
+  height: 60%;
+  animation: pulse 2s infinite 0.4s;
+}
+
+@keyframes pulse {
+  0% {
+    transform: scale(0.8);
+    opacity: 0;
+  }
+  50% {
+    opacity: 0.8;
+  }
+  100% {
+    transform: scale(1.2);
+    opacity: 0;
+  }
+}
+
+.mic-icon {
+  width: 40px;
+  height: 40px;
+}
+
+.detected-text {
+  max-width: 80vw;
+  text-align: center;
+}
+
+.word-animation {
+  display: inline-block;
+  animation: wordPop 0.3s ease;
+}
+
+@keyframes wordPop {
+  0% {
+    transform: scale(0.8);
+    opacity: 0;
+  }
+  100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
+/* Full Surah Mode */
+.full-surah-display {
+  position: fixed;
+  width: 100vw;
+  height: 100vh;
+  overflow-y: scroll;
+  padding: 7.5%;
+
+}
+
+.verse-line {
+  transition: opacity 0.3s ease;
+}
+
+/* Select Fix */
+select {
+  -webkit-appearance: none;
+  -moz-appearance: none;
+  appearance: none;
+}
+
+/* Theme-respecting backgrounds */
+.surah-verse-overlay.dark-theme,
+.notes-overlay.dark-theme,
+.loops-overlay.dark-theme,
+.search-overlay.dark-theme,
+.voice-search-overlay.dark-theme {
+  background: rgb(0, 0, 0);
+}
+
+.surah-verse-overlay.light-theme,
+.notes-overlay.light-theme,
+.loops-overlay.light-theme,
+.search-overlay.light-theme,
+.voice-search-overlay.light-theme {
+  background: rgba(255, 255, 255, 0.7);
+}
+
+/* Offline support indicator */
+.offline-indicator {
+  position: fixed;
+  bottom: 5px;
+  left: 5px;
+  padding: 5px 10px;
+  border-radius: 5px;
+  font-size: 12px;
+  z-index: 100;
+}
+
+.offline-indicator.online {
+  background-color: #4CAF50;
+  color: white;
+}
+
+.offline-indicator.offline {
+  background-color: #F44336;
+  color: white;
+}
+
+/* Decorative verse numbers */
+.decorative-number {
+  font-family: 'Amiri', serif;
+  color: var(--verse-number-color, #4b5563);
+}
+
+.dark-theme .decorative-number {
+  --verse-number-color: #9ca3af;
+}
+
+/* CSP-compliant styles */
+@media (max-width: 768px) {
+  .control-buttons-container {
+    bottom: 70px;
+    right: 10px;
+  }
+}
+
+.hamburg {
+      right: auto;
+    bottom: 1.5rem;
+    opacity: 0.48;
+    position: absolute;
+}
+
+
+
+/* Responsive adjustments for mobile */
+@media (max-width: 768px) {
+  .control-buttons-container {
+    right: auto;
+    bottom: 1.5rem;
+    width: 98vw;
+    max-width: 98vw;
+    padding: 0.5rem 0.25rem;
+    gap: 0.25rem;
+    flex-wrap: wrap;
+    justify-content: center;
+  }
+  .control-button {
+    margin-bottom: 0.25rem;
+    min-width: 40px;
+    max-width: 60px;
+  }
+}
+
+.surah-title-header {
+  font-size: 1.5rem; /* Equivalent to text-2xl */
+  line-height: 2rem;
+  margin-bottom: 3rem; /* Equivalent to mb-12 */
+  text-align: center; /* Equivalent to text-center */
+  padding-top: 0.75rem; /* Slightly more than py-2 for balance with borders */
+  padding-bottom: 0.75rem;
+  border-top-width: 1px;
+  border-bottom-width: 1px;
+  border-style: solid;
+  /* Theme-specific colors will be applied below */
+  transition: background-color 0.3s ease, color 0.3s ease, border-color 0.3s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.light-theme .surah-title-header {
+  background-image: url("data:image/svg+xml,%3Csvg width='20' height='20' xmlns='http://www.w3.org/2000/svg'%3E%3Cg transform='rotate(35 10 10)'%3E%3Cpath d='M0 5 V15 H5 V20 H15 V15 H20 V5 H15 V0 H5 V5Z' stroke-width='0.75' stroke-opacity='0.15' stroke='rgb(0,0,0)' fill='none'/%3E%3C/g%3E%3C/svg%3E");
+
+  color: #1f2937;          /* Tailwind gray-800 - strong contrast for text */
+  border-color: #d1d5db;     /* Tailwind gray-300 - subtle border */
+}
+
+.dark-theme .surah-title-header {
+  background-image: url("data:image/svg+xml,%3Csvg width='20' height='20' xmlns='http://www.w3.org/2000/svg'%3E%3Cg transform='rotate(35 10 10)'%3E%3Cpath d='M0 5 V15 H5 V20 H15 V15 H20 V5 H15 V0 H5 V5Z' stroke-width='0.75' stroke-opacity='0.15' stroke='rgb(255,255,255)' fill='none'/%3E%3C/g%3E%3C/svg%3E");
+
+  color: #e5e7eb;          /* Tailwind gray-200 - clear text on dark bg */
+  border-color: #4b5563;     /* Tailwind gray-600 - subtle border */
+}
+
+.sepia-theme .surah-title-header {
+   background-image: url("data:image/svg+xml,%3Csvg width='20' height='20' xmlns='http://www.w3.org/2000/svg'%3E%3Cg transform='rotate(35 10 10)'%3E%3Cpath d='M0 5 V15 H5 V20 H15 V15 H20 V5 H15 V0 H5 V5Z' stroke-width='0.75' stroke-opacity='0.10' stroke='rgb(95,75,50)' fill='none'/%3E%3C/g%3E%3C/svg%3E");
+  color: #5f4b32;          /* Main sepia text color */
+  border-color: #bfb59f;     /* A mid-tone sepia for the border */
+}
+
+.surah-title-header::before,
+.surah-title-header::after {
+  content: '۞'; /* ARABIC START OF RUB EL HIZB symbol (U+06DE) */
+  font-family: 'Amiri', serif; /* Ensure it uses the same font */
+  font-size: 0.7em; /* Make it smaller than the title text */
+  opacity: 0.65; /* Make it subtle */
+  padding: 0 0.6em; /* Add some horizontal spacing */
+  line-height: 1; /* Helps with vertical alignment */
+}
+
+.light-theme .surah-title-header::before,
+.light-theme .surah-title-header::after {
+  color: #4b5563; /* Tailwind gray-600 */
+}
+
+.dark-theme .surah-title-header::before,
+.dark-theme .surah-title-header::after {
+  color: #9ca3af; /* Tailwind gray-400 */
+}
+
+.sepia-theme .surah-title-header::before,
+.sepia-theme .surah-title-header::after {
+  color: #8c7b60; /* A darker, less prominent sepia tone */
+}
+.surah-verse-select {
+  cursor: pointer !important;
+   pointer-events: all !important;
+   z-index: 99 !important;
+ }
+ .highlight-ffcccb { background-color: #ffcccb; color: black; padding: .32rem .51rem; border-radius: 4px; }
+.highlight-d4edda { background-color: #d4edda; color: black; padding: .32rem .51rem; border-radius: 4px; }
+.highlight-cce5ff { background-color: #cce5ff; color: black; padding: .32rem .51rem; border-radius: 4px; }
+.highlight-fff3cd { background-color: #fff3cd; color: black; padding: .32rem .51rem; border-radius: 4px; }
+.highlight-e2d1f9 { background-color: #e2d1f9; color: black; padding: .32rem .51rem; border-radius: 4px; }
+
+.complete-active {
+  background-color: #34d399 !important; /* emerald-400 */
+  color: white !important;
+}
+.highlight-context-menu {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  justify-content: center; /* Center horizontally */
+  gap: 16px; /* Space between buttons */
+  min-width: 120px;
+  min-height: 48px;
+  /* Optional: add background, border, or padding as needed */
+}
+.sepia-theme .control-buttons-container {
+  background-color: #e6dfc9 !important;
+  color: #5f4b32 !important;
+}
+.sepia-theme .control-button,
+.sepia-theme .control-button svg {
+  background-color: #e6dfc9 !important;
+  color: #5f4b32 !important;
+  fill: #5f4b32 !important;
+  border-color: #bfb59f !important;
+}
+.sepia-hamburger {
+  background-color: #e6dfc9 !important;
+  color: #5f4b32 !important;
+  fill: #5f4b32 !important;
+  border: 1px solid #bfb59f !important;
+}
+
+.control-buttons-container.fade-out {
+  opacity: 0;
+  transition: opacity 2s;
+  pointer-events: none;
+}
+.control-buttons-container {
+  opacity: 1;
+  transition: opacity 0.3s;
+}
 </style>

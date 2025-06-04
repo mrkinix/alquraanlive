@@ -1,0 +1,483 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <style>
+        body {
+            margin: 0;
+            background: #000;
+            overflow: hidden;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            font-family: Arial, sans-serif;
+        }
+        
+        .container {
+            position: relative;
+            width: 100%;
+            height: 100%;
+        }
+        
+        /* Page styling */
+        .page {
+            position: absolute;
+            width: 40%;
+            height: 90%;
+            background: #F4EBD0;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            top: 5%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            overflow: hidden;
+        }
+        
+        .lines {
+            position: absolute;
+            width: 70%;
+            padding-left: 15%;
+            height: 80%;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+        }
+        
+        .line {
+            height: 5px;
+            background: linear-gradient(90deg, transparent 0%, #ccc 20%, #ccc 80%, transparent 100%);
+            margin: 8px 0;
+            position: relative;
+        }
+        
+       
+        
+        .page-number {
+            position: absolute;
+            bottom: 20px;
+            right: calc(50% - 1.25ch);
+            font-size: 21px;
+            color: #666;
+        }
+        
+        /* Phone styling */
+        .phone {
+            position: absolute;
+            width: 250px;
+            height: 450px;
+            border-radius: 30px;
+            bottom: -500px;
+            left: 50%;
+            transform: translateX(-50%);
+            border: 4px solid #333;
+            box-shadow: 0 0 20px rgba(0,0,0,0.5);
+            animation: rise-up 2s forwards 0.5s;
+        }
+        
+        .phone::before {
+            content: '';
+            position: absolute;
+            top: 10px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 60px;
+            height: 8px;
+            background: #222;
+            border-radius: 4px;
+        }
+        
+        .phone::after {
+            content: '';
+            position: absolute;
+            bottom: 10px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 120px;
+            height: 8px;
+            background: #222;
+            border-radius: 4px;
+        }
+        
+        .screen {
+            position: absolute;
+            top: 30px;
+            left: 10px;
+            right: 10px;
+            bottom: 30px;
+            border-radius: 5px;
+            overflow: hidden;
+            background: rgba(255,255,255,0.1);
+        }
+        
+        /* Focus zone lines */
+        .focus-zone {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 40%;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            z-index: 2;
+        }
+        
+        .focus-line {
+            width: 100%;
+            height: 1px;
+            background: rgba(51, 64, 111, 0.452);
+            margin: 15% 0;
+            box-shadow: 0 0 5px rgba(255,255,255,0.5);
+        }
+        
+        .camera-button {
+            width: 60px;
+            height: 60px;
+            background: rgba(255,255,255,0.2);
+            border-radius: 50%;
+            border: 3px solid rgba(255,255,255,0.5);
+            position: relative;
+        }
+        
+        .camera-button::after {
+            content: '';
+            position: absolute;
+            top: 5px;
+            left: 5px;
+            right: 5px;
+            bottom: 5px;
+            background: rgba(255,255,255,0.5);
+            border-radius: 50%;
+            border: 2px solid rgba(255,255,255,0.7);
+        }
+        
+        /* Status bar */
+        .status-bar {
+            position: absolute;
+            z-index: 9;
+            top: 0;
+            left: 0;
+            border-radius: 25px 25px 0 0;
+            right: 0;
+            height: 30px;
+            background: rgba(0,0,0,0.5);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            color: white;
+            font-size: 12px;
+        }
+        
+        /* Camera app overlays */
+        .camera-app-top-overlay {
+            position: absolute;
+            top: 30px;
+            left: 0;
+            right: 0;
+            height: 50px;
+            background: rgba(0,0,0,0.3);
+            display: flex;
+            justify-content: space-between;
+            padding: 0 15px;
+            align-items: center;
+            z-index: 1;
+        }
+        
+        .camera-app-bottom-overlay {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            height: 100px;
+            background: rgba(0,0,0,0.3);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 1;
+        }
+        
+        /* Flash effect */
+        .flash {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: #F4EBD0;
+            opacity: 0;
+            z-index: 8;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            border-radius: 30px;
+        }
+        
+        .flash::before {
+            content: '';
+            position: absolute;
+            top: 10px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 60px;
+            height: 8px;
+            background: #222;
+            border-radius: 4px;
+        }
+        
+        .flash::after {
+            content: '';
+            position: absolute;
+            bottom: 10px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 120px;
+            height: 8px;
+            background: #222;
+            border-radius: 4px;
+        }
+        
+        /* Moon icon */
+        .moon-icon {
+            width: 80px;
+            height: 80px;
+            color: #5E3C16;
+            opacity: 0;
+        }
+        
+        /* Arabic text */
+        .arabic-text {
+            color: #5E3C16;
+            text-align: center;
+            width: 100%;
+            opacity: 0;
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+        }
+        
+        .surah-name {
+            font-size: 22px;
+            font-weight: bold;
+            margin-bottom: 10px;
+        }
+        
+        .page-info {
+            font-size: 18px;
+            margin-bottom: 20px;
+        }
+        
+        .instruction {
+            font-size: 16px;
+            margin-bottom: 30px;
+        }
+        
+        /* Verse buttons */
+        .verse-buttons {
+            display: flex;
+            flex-wrap: wrap;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            max-width: 100%;
+            opacity: 0;
+        }
+            /* Add this new rule to reset the background */
+        .flash.reset-bg {
+            background: transparent;
+        }
+        .verse-button {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            background: #5E3C16;
+            color: #F4EBD0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-size: 16px;
+        }
+        
+        /* Animations */
+        @keyframes rise-up {
+            to { bottom: calc(50% - 195px); }
+        }
+        
+        @keyframes fall-down {
+                        from { bottom: calc(50% - 225px); }
+            to { bottom: -500px; }
+            
+        }
+        
+        @keyframes button-press {
+            0% { transform: scale(1); }
+            50% { transform: scale(0.88); }
+            100% { transform: scale(1); }
+        }
+        
+        @keyframes fade-in {
+            to { opacity: 1; }
+        }
+        
+        @keyframes fade-out {
+            to { opacity: 0; }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="page">
+            <div class="lines">
+                <div class="line"></div>
+                <div class="line"></div>
+                <div class="line"></div>
+                <div class="line"></div>
+                <div class="line"></div>
+                <div class="line"></div>
+                <div class="line"></div>
+                <div class="line"></div>
+                <div class="line"></div>
+                <div class="line"></div>
+            </div>
+            <div class="page-number">٣٤٦</div>
+        </div>
+        
+        <div class="phone">
+            <div class="status-bar"></div>
+            <div class="camera-app-top-overlay"></div>
+            <div class="focus-zone">
+                <div class="focus-line"></div>
+                <div class="focus-line"></div>
+            </div>
+            <div class="screen">
+                <div class="camera-app-bottom-overlay">
+                    <div class="camera-button button-press"></div>
+                </div>
+            </div>
+            <div class="flash">
+                <svg class="moon-icon" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24">
+                    <g fill="none" stroke="currentColor" stroke-dasharray="4" stroke-dashoffset="4" stroke-linecap="round" stroke-linejoin="round" stroke-width="1">
+                        <path d="M13 4h1.5M13 4h-1.5M13 4v1.5M13 4v-1.5">
+                            <animate id="lineMdMoonAltLoop0" fill="freeze" attributeName="stroke-dashoffset" begin="0.7s;lineMdMoonAltLoop0.begin+6s" dur="0.4s" values="4;0"/>
+                            <animate fill="freeze" attributeName="stroke-dashoffset" begin="lineMdMoonAltLoop0.begin+2s;lineMdMoonAltLoop0.begin+4s" dur="0.4s" values="4;0"/>
+                            <animate fill="freeze" attributeName="stroke-dashoffset" begin="lineMdMoonAltLoop0.begin+1.2s;lineMdMoonAltLoop0.begin+3.2s;lineMdMoonAltLoop0.begin+5.2s" dur="0.4s" values="0;4"/>
+                            <set fill="freeze" attributeName="d" begin="lineMdMoonAltLoop0.begin+1.8s" to="M12 5h1.5M12 5h-1.5M12 5v1.5M12 5v-1.5"/>
+                            <set fill="freeze" attributeName="d" begin="lineMdMoonAltLoop0.begin+3.8s" to="M12 4h1.5M12 4h-1.5M12 4v1.5M12 4v-1.5"/>
+                            <set fill="freeze" attributeName="d" begin="lineMdMoonAltLoop0.begin+5.8s" to="M13 4h1.5M13 4h-1.5M13 4v1.5M13 4v-1.5"/>
+                        </path>
+                        <path d="M19 11h1.5M19 11h-1.5M19 11v1.5M19 11v-1.5">
+                            <animate id="lineMdMoonAltLoop1" fill="freeze" attributeName="stroke-dashoffset" begin="1.1s;lineMdMoonAltLoop1.begin+6s" dur="0.4s" values="4;0"/>
+                            <animate fill="freeze" attributeName="stroke-dashoffset" begin="lineMdMoonAltLoop1.begin+2s;lineMdMoonAltLoop1.begin+4s" dur="0.4s" values="4;0"/>
+                            <animate fill="freeze" attributeName="stroke-dashoffset" begin="lineMdMoonAltLoop1.begin+1.2s;lineMdMoonAltLoop1.begin+3.2s;lineMdMoonAltLoop1.begin+5.2s" dur="0.4s" values="0;4"/>
+                            <set fill="freeze" attributeName="d" begin="lineMdMoonAltLoop1.begin+1.8s" to="M17 11h1.5M17 11h-1.5M17 11v1.5M17 11v-1.5"/>
+                            <set fill="freeze" attributeName="d" begin="lineMdMoonAltLoop1.begin+3.8s" to="M18 12h1.5M18 12h-1.5M18 12v1.5M18 12v-1.5"/>
+                            <set fill="freeze" attributeName="d" begin="lineMdMoonAltLoop1.begin+5.8s" to="M19 11h1.5M19 11h-1.5M19 11v1.5M19 11v-1.5"/>
+                        </path>
+                        <path d="M19 4h1.5M19 4h-1.5M19 4v1.5M19 4v-1.5">
+                            <animate id="lineMdMoonAltLoop2" fill="freeze" attributeName="stroke-dashoffset" begin="2s;lineMdMoonAltLoop2.begin+6s" dur="0.4s" values="4;0"/>
+                            <animate fill="freeze" attributeName="stroke-dashoffset" begin="lineMdMoonAltLoop2.begin+2s" dur="0.4s" values="4;0"/>
+                            <animate fill="freeze" attributeName="stroke-dashoffset" begin="lineMdMoonAltLoop2.begin+1.2s;lineMdMoonAltLoop2.begin+3.2s" dur="0.4s" values="0;4"/>
+                            <set fill="freeze" attributeName="d" begin="lineMdMoonAltLoop2.begin+1.8s" to="M20 5h1.5M20 5h-1.5M20 5v1.5M20 5v-1.5"/>
+                            <set fill="freeze" attributeName="d" begin="lineMdMoonAltLoop2.begin+5.8s" to="M19 4h1.5M19 4h-1.5M19 4v1.5M19 4v-1.5"/>
+                        </path>
+                    </g>
+                    <path fill="none" stroke="currentColor" stroke-dasharray="56" stroke-dashoffset="56" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 6 C7 12.08 11.92 17 18 17 C18.53 17 19.05 16.96 19.56 16.89 C17.95 19.36 15.17 21 12 21 C7.03 21 3 16.97 3 12 C3 8.83 4.64 6.05 7.11 4.44 C7.04 4.95 7 5.47 7 6 Z">
+                        <animate fill="freeze" attributeName="stroke-dashoffset" dur="0.6s" values="56;0"/>
+                    </path>
+                </svg>
+                
+                <div class="arabic-text">
+                    <div class="surah-name">سورة المؤمنون</div>
+                    <div class="page-info">صفحة 346</div>
+                    <div class="instruction">اختر الآية للبحث عن تفسيرها</div>
+                    
+                    <div class="verse-buttons">
+                        <!-- Verse buttons will be added by JavaScript -->
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            // Create verse buttons (60-74)
+            const buttonsContainer = document.querySelector('.verse-buttons');
+            for (let i = 60; i <= 74; i++) {
+                const button = document.createElement('div');
+                button.className = 'verse-button';
+                button.textContent = i;
+                buttonsContainer.appendChild(button);
+            }
+            
+            // Animation sequence
+            function runAnimationSequence() {
+                // Reset all elements
+                document.querySelector('.flash').style.opacity = '0';
+                document.querySelector('.moon-icon').style.opacity = '0';
+                document.querySelector('.arabic-text').style.opacity = '0';
+                const flash = document.querySelector('.flash');
+                flash.style.opacity = '0';
+                document.querySelector('.verse-buttons').style.opacity = '0';
+                                flash.classList.add('reset-bg'); // Add this line to reset background
+                // Phone rises (0.5s delay)
+                document.querySelector('.phone').style.animation = 'rise-up 2s forwards';
+                    const cameraBtn = document.querySelector('.camera-button');
+                    cameraBtn.style.animation = 'none';
+                
+                // Camera button press (2.5s from start)
+                setTimeout(() => {
+                    cameraBtn.style.animation = 'button-press 1.4s forwards ';
+                    
+                    // Flash appears (3.9s from start)
+                    setTimeout(() => {
+                        document.querySelector('.flash').style.animation = 'fade-in 0.5s forwards';
+                           const flash = document.querySelector('.flash');
+                        flash.classList.remove('reset-bg'); // Remove reset to show sepia
+                        flash.style.animation = 'fade-in 0.5s forwards';
+                        // Moon appears after flash (4.4s from start)
+                        setTimeout(() => {
+                            document.querySelector('.moon-icon').style.animation = 'fade-in 0.5s forwards';
+                            
+                            // Moon disappears (5.4s from start)
+                            setTimeout(() => {
+                                document.querySelector('.moon-icon').style.animation = 'fade-out 0.5s forwards';
+                                
+                                // Text appears (5.9s from start)
+                                setTimeout(() => {
+                                    document.querySelector('.arabic-text').style.animation = 'fade-in 0.5s forwards';
+                                    
+                                    // Buttons appear (6.9s from start)
+                                    setTimeout(() => {
+                                        document.querySelector('.verse-buttons').style.animation = 'fade-in 0.5s forwards';
+                                        
+                                        // Everything disappears (7.9s from start)
+                                        setTimeout(() => {
+                                            document.querySelector('.arabic-text').style.animation = 'fade-out 0.5s forwards';
+                                            document.querySelector('.verse-buttons').style.animation = 'fade-out 0.5s forwards';
+                                            
+                                            // Phone falls down (8.4s from start)
+                                            setTimeout(() => {
+                                                document.querySelector('.phone').style.animation = 'fall-down 2s forwards';
+                                                document.querySelector('.flash').style.opacity = '0';
+                                                // Restart animation after phone is down (10.4s from start)
+                                                // The fall-down animation is 2s (2000ms).
+                                                // Wait for it to complete (2000ms) + add a 200ms pause before restarting.
+                                                setTimeout(runAnimationSequence, 2200);
+                                            }, 1000);
+                                        }, 2000);
+                                    }, 10);
+                                }, 500);
+                            }, 1000);
+                        }, 500);
+                    }, 1400);
+                }, 2000);
+            }
+            
+            // Start initial animation
+            setTimeout(runAnimationSequence, 500);
+        });
+    </script>
+</body>
+</html>

@@ -10,15 +10,19 @@
     "fuzzball": "^2.2.2",
     "html2canvas": "^1.4.1",
     "idb": "^8.0.3",
+    "ocrad.js": "^0.0.1",
     "tailwindcss": "^3.3.3",
+    "tesseract.js": "^6.0.1",
     "uuid": "^11.1.0",
-    "vue": "^3.2.47"
+    "vue": "^3.2.47",
+    "vuedraggable": "^2.24.3"
   },
   "devDependencies": {
     "@vitejs/plugin-vue": "^4.2.3",
     "autoprefixer": "^10.4.21",
     "postcss": "^8.5.3",
     "vite": "^4.4.9",
+    "vite-plugin-mkcert": "^1.17.8",
     "vite-plugin-pwa": "^1.0.0"
   }
 }
