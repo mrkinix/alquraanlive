@@ -1,4 +1,5 @@
 <template>
+  <fassarli v-if="fassarliMode" @close="fassarliMode = false" class="z-[9999999] fixed w-full h-full" />
   <instructions @click="closeInstructions" v-if="showNavigationInstructions" />
   <div
     class="app-container"
@@ -532,7 +533,7 @@ class="control-buttons-container   bg-black/30 rounded-xl p-2 max-sm:scale-90 fi
       <!-- Revision Mode Button -->
       <button
         v-if="displayMode !== 'revision' && currentLanguage === 'ar'"
-         @click.stop="openOcr" 
+         @click.stop="fassarliMode = !fassarliMode" 
         class="control-button opacity-65 hover:opacity-100"
         :title="currentLanguage === 'ar' ? 'وضع المراجعة' : 'Revision Mode'"
       >
@@ -900,6 +901,7 @@ export default {
     hamburgerMenuVisible: false,
     controlMenuTimeoutId: null,
     controlMenuFading: false,
+    fassarliMode: false,
       // Revision mode
       isRevisionMode: false,
       speechRecognition: null,
