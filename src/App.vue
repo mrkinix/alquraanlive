@@ -2,7 +2,7 @@
   <fassarli v-if="fassarliMode" @close="fassarliMode = false" class="z-[9999999] fixed w-full h-full" />
   <instructions @click="closeInstructions" v-if="showNavigationInstructions" />
   <div
-    class="app-container"
+    class="app-container overflow-hidden"
     :class="[currentTheme === 'dark' ? 'dark-theme' : currentTheme === 'sepia' ? 'sepia-theme' : 'light-theme']"
     @mousedown="handleAppMouseDown"
     @mouseup="handleAppMouseUp"
@@ -58,7 +58,9 @@
       :key="currentSurahData.id"
       ref="versesContainer"
     >
-      <h2 class="surah-title-header font-amiri" :dir="currentLanguage === 'ar' ? 'rtl' : 'ltr'">
+      <h2 class="surah-title-header font-amiri cursor-pointer"   @touchstart.stop="toggleSurahVerseMenu"
+        @touchend.stop="toggleSurahVerseMenu"
+      @click.stop="toggleSurahVerseMenu"  :dir="currentLanguage === 'ar' ? 'rtl' : 'ltr'">
         <span class="title-text">
           {{ currentLanguage === 'ar' ? currentSurahData.arabicName : currentSurahData.englishName }}
         </span>
@@ -530,6 +532,26 @@
   @mousedown.stop="showControlMenu"
   @touchstart.stop="showControlMenu"
 class="control-buttons-container   bg-black/30 rounded-xl p-2 max-sm:scale-90 fixed max-sm:bottom-12 bottom-5 sm:right-5 flex space-x-2 z-50">
+      <!-- Hifz Mode Exit Button -->
+      <button
+        v-if="displayMode !== 'verse'"
+        @click.stop="exitHifzMode"
+        class="control-button opacity-65 hover:opacity-100"
+        :title="currentLanguage === 'ar' ? 'الخروج من وضع الحفظ' : 'Exit Hifz Mode'"
+      >
+        ✕
+      </button>
+   <button
+        v-if="displayMode === 'full-surah'"
+         @click.stop="scrollToTop" 
+        class="control-button opacity-65 hover:opacity-100"
+        :title="currentLanguage === 'ar' ? 'وضع المراجعة' : 'Revision Mode'"
+      >
+      <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24"><path fill="currentColor" fill-rule="evenodd" d="M17.53 10.03a.75.75 0 0 0 0-1.06l-5-5a.75.75 0 0 0-1.06 0l-5 5a.75.75 0 1 0 1.06 1.06l3.72-3.72v8.19c0 .713-.22 1.8-.859 2.687c-.61.848-1.635 1.563-3.391 1.563a.75.75 0 0 0 0 1.5c2.244 0 3.72-.952 4.609-2.187c.861-1.196 1.141-2.61 1.141-3.563V6.31l3.72 3.72a.75.75 0 0 0 1.06 0" clip-rule="evenodd"/></svg>
+      </button>
+      <!-- Revision Mode Button -->
+  
+
       <!-- Revision Mode Button -->
       <button
         v-if="displayMode !== 'revision' && currentLanguage === 'ar'"
@@ -548,15 +570,7 @@ class="control-buttons-container   bg-black/30 rounded-xl p-2 max-sm:scale-90 fi
         <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 384 512"><path fill="currentColor" d="M192 0c-53 0-96 43-96 96v160c0 53 43 96 96 96s96-43 96-96V96c0-53-43-96-96-96M64 216c0-13.3-10.7-24-24-24s-24 10.7-24 24v40c0 89.1 66.2 162.7 152 174.4V464h-48c-13.3 0-24 10.7-24 24s10.7 24 24 24h144c13.3 0 24-10.7 24-24s-10.7-24-24-24h-48v-33.6c85.8-11.7 152-85.3 152-174.4v-40c0-13.3-10.7-24-24-24s-24 10.7-24 24v40c0 70.7-57.3 128-128 128S64 326.7 64 256z"/></svg>
       </button>
 
-      <!-- Hifz Mode Exit Button -->
-      <button
-        v-if="displayMode === 'hifz'"
-        @click.stop="exitHifzMode"
-        class="control-button opacity-65 hover:opacity-100"
-        :title="currentLanguage === 'ar' ? 'الخروج من وضع الحفظ' : 'Exit Hifz Mode'"
-      >
-        ✕
-      </button>
+
       
       <!-- Notes Button (Hifz Mode) -->
       <button
@@ -601,6 +615,7 @@ class="control-buttons-container   bg-black/30 rounded-xl p-2 max-sm:scale-90 fi
         @mouseup="stopAudioHold"
         @touchstart="startAudioHold"
         @touchend="stopAudioHold"
+        v-if="displayMode === 'verse'"
         class="control-button opacity-65 hover:opacity-100"
         :class="{ 'audio-active': isAudioPlaying }"
         :title="currentLanguage === 'ar' ? (isAudioPlaying ? 'إيقاف الصوت' : 'تشغيل الصوت') : (isAudioPlaying ? 'Stop Audio' : 'Play Audio')"
@@ -640,28 +655,28 @@ class="control-buttons-container   bg-black/30 rounded-xl p-2 max-sm:scale-90 fi
             <button
               v-if="currentLanguage !== 'ar'"
               @click.stop="setDisplayMode('verse')"
-              class="control-button w-12 h-12 flex items-center justify-center text-lg font-bold opacity-65 hover:opacity-100"
+              class="control-button w-12 h-12 flex items-center justify-center text-lg font-bold hover:opacity-100"
               :aria-label="currentLanguage === 'ar' ? 'عرض الآية' : 'Verse view'"
             >
               {{ currentLanguage === 'ar' ? 'آية' : 'Verse' }}
             </button>
             <button
               @click.stop="setDisplayMode('full-surah')"
-              class="control-button w-12 h-12 flex items-center justify-center text-lg font-bold opacity-65 hover:opacity-100"
+              class="control-button w-12 h-12 flex items-center justify-center text-lg font-bold hover:opacity-100"
               :aria-label="currentLanguage === 'ar' ? 'عرض السورة كاملة' : 'Full Surah view'"
             >
               {{ currentLanguage === 'ar' ? 'سورة' : 'Surah' }}
             </button>
             <button
               @click.stop="setDisplayMode('tafseer')"
-              class="control-button w-12 h-12 flex items-center justify-center text-lg font-bold opacity-65 hover:opacity-100"
+              class="control-button w-12 h-12 flex items-center justify-center text-lg font-bold hover:opacity-100"
               :aria-label="currentLanguage === 'ar' ? 'عرض التفسير' : 'Tafseer view'"
             >
               {{ currentLanguage === 'ar' ? 'تفسير' : 'Tafseer' }}
             </button>
             <button
               @click.stop="setDisplayMode('hifz')"
-              class="control-button w-12 h-12 flex items-center justify-center text-lg font-bold opacity-65 hover:opacity-100"
+              class="control-button w-12 h-12 flex items-center justify-center text-lg font-bold hover:opacity-100"
               :aria-label="currentLanguage === 'ar' ? 'وضع الحفظ' : 'Hifz Mode'"
             >
               {{ currentLanguage === 'ar' ? 'حفظ' : 'Hifz' }}
@@ -696,6 +711,8 @@ class="control-buttons-container   bg-black/30 rounded-xl p-2 max-sm:scale-90 fi
       <!-- Shuffle Button -->
       <button
         @click.stop="toggleShuffleMode"
+        v-if="displayMode === 'verse'"
+        
         class="control-button opacity-65 hover:opacity-100"
         :title="isShuffleMode ? (currentLanguage === 'ar' ? 'الوضع العشوائي' : 'Shuffle Mode') : (currentLanguage === 'ar' ? 'الوضع المتسلسل' : 'Continuous Mode')"
       >
@@ -710,7 +727,7 @@ class="control-buttons-container   bg-black/30 rounded-xl p-2 max-sm:scale-90 fi
       
       <!-- Pause Button -->
       <button
-        v-if="displayMode !== 'hifz'"
+        v-if="displayMode !== 'hifz' && displayMode !== 'full-surah'"
         @click.stop="togglePause"
         class="control-button opacity-65 hover:opacity-100"
         :aria-label="isPausedByPause ? 'Resume' : 'Pause'"
@@ -1067,6 +1084,12 @@ controlMenuTimeoutId: null,
   },
 
   methods: {
+     scrollToTop() {
+      const container = this.$refs.versesContainer;
+      if (container) {
+        container.scrollTo({ top: 0, behavior: 'smooth' });
+      }
+    },
     openOcr() {
       const hasSeen = localStorage.getItem('ocrInstructions');
       this.ocrInstructions = true
@@ -1771,6 +1794,8 @@ getWordHighlightColor(index, verseUuid) {
         this.currentTheme = 'light';
       }
       document.documentElement.setAttribute('data-theme', this.currentTheme);
+      localStorage.setItem('theme', this.currentTheme);
+
     },
     
     // Offline Support
@@ -3253,22 +3278,7 @@ handleAppMouseUp(event) {
   }
 
   if (this.displayMode === 'full-surah') {
-    const clickX = event.clientX;
-    const screenWidth = window.innerWidth;
-    if (clickX > screenWidth / 2) {
-      // Right side: next surah
-      if (this.currentSurahData && this.currentSurahData.id < 114) {
-        this.selectedSurah = this.currentSurahData.id + 1;
-        this.loadSurahVerses(this.selectedSurah);
-      }
-    } else {
-      // Left side: previous surah
-      if (this.currentSurahData && this.currentSurahData.id > 1) {
-        this.selectedSurah = this.currentSurahData.id - 1;
-        this.loadSurahVerses(this.selectedSurah);
-      }
-    }
-    this.isHoldingGlobal = false;
+  
     return;
   }
     // If in full-surah mode, don't do any verse/part navigation from global clicks
@@ -4108,6 +4118,8 @@ shareVerse() {
   },
 
   async mounted() {
+    this.currentTheme = localStorage.getItem('theme') || 'system';
+
     this.$indexedDB = await this.initIndexedDB();
     const db = await this.$indexedDB;
     await db.transaction('notes', 'readwrite').objectStore('notes');

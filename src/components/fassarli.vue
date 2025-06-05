@@ -73,21 +73,24 @@
           v-model="tafsirData"
           item-key="edition.identifier"
           @end="saveTafsirOrder"
+          :delay="200"
+          :delay-on-touch-only="true"
+          :move="checkMove"
           class="space-y-4"
         >
-          <template #item="{ element: tafsir, index }">
+          <template #item="{ element: tafsir }">
             <div
               class="border rounded-lg p-4"
               :class="theme === 'dark' ? 'border-gray-600' : 'border-gray-300'"
             >
-              <div class="flex justify-between items-center cursor-pointer" @click="toggleTafsir(index)">
+              <div class="flex justify-between items-center cursor-pointer" @click="toggleTafsir(tafsir.edition.identifier)">
                 <h3 class="text-lg font-medium text-right">
                   {{ tafsir.edition.name }} ({{ tafsir.edition.englishName }})
                 </h3>
-                <span>{{ collapsedTafsir[index] ? '➕' : '➖' }}</span>
+                <span>{{ tafsirCollapseStates[tafsir.edition.identifier] ? '➕' : '➖' }}</span>
               </div>
               <p
-                v-if="!collapsedTafsir[index]"
+                v-if="!tafsirCollapseStates[tafsir.edition.identifier]"
                 class="mt-2 text-right text-lg leading-relaxed font-arabic"
               >
                 {{ tafsir.text }}
@@ -129,7 +132,7 @@ const matches = ref([]);
 const isPlaying = ref(false);
 const audio = ref(new Audio());
 const theme = ref(localStorage.getItem('theme') || 'system');
-const collapsedTafsir = ref(JSON.parse(localStorage.getItem('collapsedTafsir') || '{}'));
+const tafsirCollapseStates = ref(JSON.parse(localStorage.getItem('tafsirCollapseStatesById') || '{}'));
 const text = ref('');
 const loading = ref(false);
 const isInverted = ref(false);
@@ -279,15 +282,37 @@ const fetchTafsir = async (surah, verse) => {
         .catch(() => null)
     );
     const results = await Promise.all(promises);
-    tafsirData.value = results.filter(r => r?.status === 'OK').map(r => r.data);
-    if (tafsirData.value.length > 0) {
-      // Initialize collapsed state for each tafsir
-      collapsedTafsir.value = {};
-      tafsirData.value.forEach((_, index) => {
-        collapsedTafsir.value[index] = true;
+ let fetchedTafsirs = results.filter(r => r?.status === 'OK').map(r => r.data);
+
+    if (fetchedTafsirs.length > 0) {
+      const savedOrderIdentifiers = JSON.parse(localStorage.getItem('tafsirOrderByIdentifiers') || 'null');
+      if (savedOrderIdentifiers && Array.isArray(savedOrderIdentifiers)) {
+        const tafsirMap = new Map(fetchedTafsirs.map(t => [t.edition.identifier, t]));
+        const orderedTafsirs = [];
+        savedOrderIdentifiers.forEach(id => {
+          if (tafsirMap.has(id)) {
+            orderedTafsirs.push(tafsirMap.get(id));
+            tafsirMap.delete(id);
+          }
+        });
+        orderedTafsirs.push(...tafsirMap.values()); // Add any new/unsorted tafsirs
+        tafsirData.value = orderedTafsirs;
+      } else {
+        tafsirData.value = fetchedTafsirs;
+      }
+
+      // Initialize or confirm collapse states for all tafsirs
+      let statesChanged = false;
+      tafsirData.value.forEach(tafsir => {
+        const identifier = tafsir.edition.identifier;
+        if (tafsirCollapseStates.value[identifier] === undefined) {
+          tafsirCollapseStates.value[identifier] = true; // Default to collapsed
+          statesChanged = true;
+        }
       });
-      saveTafsirOrder();
-    }
+   if (statesChanged) {
+        localStorage.setItem('tafsirCollapseStatesById', JSON.stringify(tafsirCollapseStates.value));
+      }    }
   } catch (err) {
     console.error('Tafsir fetch error:', err);
   }
@@ -296,8 +321,10 @@ const fetchTafsir = async (surah, verse) => {
 // Save tafsir order
 const saveTafsirOrder = () => {
   if (tafsirData.value?.length) {
-    localStorage.setItem('collapsedTafsir', JSON.stringify(collapsedTafsir.value));
-  }
+  const order = tafsirData.value.map(tafsir => tafsir.edition.identifier);
+    localStorage.setItem('tafsirOrderByIdentifiers', JSON.stringify(order));
+    localStorage.setItem('tafsirCollapseStatesById', JSON.stringify(tafsirCollapseStates.value));
+   }
 };
 
 // Audio playback
@@ -332,9 +359,9 @@ const saveTheme = () => {
 };
 
 // Tafsir collapse and order
-const toggleTafsir = (index) => {
-  collapsedTafsir.value[index] = !collapsedTafsir.value[index];
-  localStorage.setItem('collapsedTafsir', JSON.stringify(collapsedTafsir.value));
+const toggleTafsir = (identifier) => {
+  tafsirCollapseStates.value[identifier] = !tafsirCollapseStates.value[identifier];
+  localStorage.setItem('tafsirCollapseStatesById', JSON.stringify(tafsirCollapseStates.value));
 };
 
 // Toggle invert
@@ -423,6 +450,13 @@ async function selectVerse(verseId) {
   await fetchVerse(surahId, verseId);
 }
 
+// Check if a tafsir item can be moved (dragged)
+const checkMove = (evt) => {
+    const identifier = evt.draggedContext.element.edition.identifier;
+
+  // Allow dragging only if the tafsir item is collapsed
+  return tafsirCollapseStates.value[identifier];
+};
 onMounted(async () => {
   if (theme.value === 'system') {
     const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
