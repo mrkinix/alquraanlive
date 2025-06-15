@@ -29,6 +29,12 @@ export default defineConfig({
     "purpose": "any maskable"
   },
   {
+  "src": "/icons/icon-180x180.png",
+  "sizes": "180x180",
+  "type": "image/png",
+  "purpose": "any maskable"
+},
+  {
     "src": "icons/icon-72x72.png",
     "sizes": "72x72",
     "type": "image/png",

@@ -62,74 +62,83 @@ qaloon mushaf
     </div>
 
     <!-- Full Surah Display -->
-    <div
-      v-if="displayMode === 'full-surah' && currentSurahData"
-      class="full-surah-display text-justify sm:px-[30%] leading-relaxed select-none"
-      :key="currentSurahData.id"
-      ref="versesContainer"
-    >
-      <h2 class="surah-title-header font-amiri cursor-pointer"   @touchstart.stop="toggleSurahVerseMenu"
-        @touchend.stop="toggleSurahVerseMenu"
-      @click.stop="toggleSurahVerseMenu"  :dir="currentLanguage === 'ar' ? 'rtl' : 'ltr'">
-        <span class="title-text">
-          {{ currentLanguage === 'ar' ? currentSurahData.arabicName : currentSurahData.englishName }}
-        </span>
-      </h2>
-      <div
-        v-for="verse in displayedVerses"
-        :key="verse.uuid"
-          :data-verse-uuid="verse.uuid"
-
-        class="verse-line flex items-center justify-start py-2 cursor-pointer"
-        :dir="currentLanguage === 'ar' ? 'rtl' : 'ltr'"
-      >
-      
-        <span class="verse-text text-2xl font-amiri flex-1">
-<span
-  v-for="(word, index) in verse.text.split(' ')"
-  :key="`${verse.uuid}-${index}`"
-  :data-word-uuid="`${verse.uuid}-${index}`"
-  class="inline-block mx-1 py-3"
-  :class="[
-  { 'highlighted': isWordHighlighted(index, verse.uuid) },
-  getHighlightClass(index, verse.uuid)
-]"
-  @mousedown.stop="highlightMode ? startWordSelection($event, index, verse.uuid) : null"
-  @mousemove.stop="highlightMode ? updateWordSelection($event, index, verse.uuid) : null"
-  @mouseup.stop="highlightMode ? endWordSelection($event) : null"
-  @touchstart.stop="highlightMode ? startWordSelection($event, index, verse.uuid) : null"
-  @touchmove.stop="highlightMode ? updateWordSelection($event, index, verse.uuid) : null"
-  @touchend.stop="highlightMode ? endWordSelection($event) : null"
-  @click.stop="highlightMode ? handleWordClick(index, verse) : null"
+<div
+  v-if="displayMode === 'full-surah' && currentSurahData"
+  class="full-surah-display text-justify sm:px-[16.66%] sm:text-xl leading-relaxed select-none"
+  :key="currentSurahData.id"
+  ref="versesContainer"
 >
-  {{ word }} 
-</span>         <!-- @todo  Verse Number Decoration maybe touchendstop etc etc-->
-          <svg
-            @click.stop.prevent="openVerseNote(verse)"
-            @touchend.stop
-            width="26"
-            height="26"
-            viewBox="0 0 26 26"
-            class="verse-number-svg ml-2 decorative-number cursor-pointer inline-block align-middle"
-            xmlns="http://www.w3.org/2000/svg"
-          >
-            <circle cx="13" cy="13" r="11.5" stroke="currentColor" stroke-width="1.5" fill="transparent" />
-            <text
-              x="50%"
-              y="50%"
-              dominant-baseline="middle"
-              text-anchor="middle"
-              fill="currentColor"
-              class="font-amiri"
-              style="font-size: 11px;" 
-            >
-              {{ verse.verse }}
-            </text>
-          </svg>
+  <h2 class="surah-title-header font-amiri cursor-pointer"
+      @touchstart.stop="toggleSurahVerseMenu"
+      @touchend.stop="toggleSurahVerseMenu"
+      @click.stop="toggleSurahVerseMenu"
+      :dir="currentLanguage === 'ar' ? 'rtl' : 'ltr'">
+    <span class="title-text">
+      {{ currentLanguage === 'ar' ? currentSurahData.arabicName : currentSurahData.englishName }}
+    </span>
+  </h2>
+  <RecycleScroller
+    :items="displayedVerses"
+    :item-size="1" 
+    key-field="uuid"
+    class="virtual-scroller"
+    :min-item-size="48"
+    :buffer="8"
+    v-slot="{ item: verse }"
+  >
+    <div
+      :key="verse.uuid"
+      :data-verse-uuid="verse.uuid"
+      class="verse-line flex items-center justify-start py-2 cursor-pointer"
+      :dir="currentLanguage === 'ar' ? 'rtl' : 'ltr'"
+    >
+      <span class="verse-text text-2xl font-amiri flex-1">
+        <span
+          v-for="(word, index) in verse.text.split(' ')"
+          :key="`${verse.uuid}-${index}`"
+          :data-word-uuid="`${verse.uuid}-${index}`"
+          class="inline-block mx-1 py-3"
+          :class="[
+            { 'highlighted': isWordHighlighted(index, verse.uuid) },
+            getHighlightClass(index, verse.uuid)
+          ]"
+          @mousedown.stop="highlightMode ? startWordSelection($event, index, verse.uuid) : null"
+          @mousemove.stop="highlightMode ? updateWordSelection($event, index, verse.uuid) : null"
+          @mouseup.stop="highlightMode ? endWordSelection($event) : null"
+          @touchstart.stop="highlightMode ? startWordSelection($event, index, verse.uuid) : null"
+          @touchmove.stop="highlightMode ? updateWordSelection($event, index, verse.uuid) : null"
+          @touchend.stop="highlightMode ? endWordSelection($event) : null"
+          @click.stop="highlightMode ? handleWordClick(index, verse) : null"
+        >
+          {{ word }}
         </span>
-
-      </div>
+        <!-- Verse Number Decoration -->
+        <svg
+          @click.stop.prevent="openVerseNote(verse)"
+          @touchend.stop
+          width="26"
+          height="26"
+          viewBox="0 0 26 26"
+          class="verse-number-svg ml-2 decorative-number cursor-pointer inline-block align-middle"
+          xmlns="http://www.w3.org/2000/svg"
+        >
+          <circle cx="13" cy="13" r="11.5" stroke="currentColor" stroke-width="1.5" fill="transparent" />
+          <text
+            x="50%"
+            y="50%"
+            dominant-baseline="middle"
+            text-anchor="middle"
+            fill="currentColor"
+            class="font-amiri"
+            style="font-size: 11px;"
+          >
+            {{ verse.verse }}
+          </text>
+        </svg>
+      </span>
     </div>
+  </RecycleScroller>
+</div>
   
     <transition v-if="displayMode !== 'full-surah'" name="fade" mode="out-in" class="main-content-transition select-none">
       <div v-if="isLoading" class="loading-message text-xl text-center" key="loading">
@@ -166,13 +175,13 @@ qaloon mushaf
               ]"
 
 
-              @mousedown.stop="displayMode === 'Hifdh' && highlightMode ? startWordSelection($event, index, currentVerseData.uuid) : null"
-  @mousemove.stop="displayMode === 'Hifdh' && highlightMode ? updateWordSelection($event, index, currentVerseData.uuid) : null"
-  @mouseup.stop="displayMode === 'Hifdh' && highlightMode ? endWordSelection($event) : null"
-  @touchstart.stop="displayMode === 'Hifdh' && highlightMode ? startWordSelection($event, index, currentVerseData.uuid) : null"
-  @touchmove.stop="displayMode === 'Hifdh' && highlightMode ? updateWordSelection($event, index, currentVerseData.uuid) : null"
-  @touchend.stop="displayMode === 'Hifdh' && highlightMode ? endWordSelection($event) : null"
-  @click.stop="displayMode === 'Hifdh' && highlightMode ? handleWordClick(index, verse) : null"
+            v-on:mousedown="displayMode === 'Hifdh' && highlightMode ? (e) => { e.stopPropagation(); startWordSelection(e, index, currentVerseData.uuid); } : null"
+    v-on:mousemove="displayMode === 'Hifdh' && highlightMode ? (e) => { e.stopPropagation(); updateWordSelection(e, index, currentVerseData.uuid); } : null"
+    v-on:mouseup="displayMode === 'Hifdh' && highlightMode ? (e) => { e.stopPropagation(); endWordSelection(e); } : null"
+    v-on:touchstart="displayMode === 'Hifdh' && highlightMode ? (e) => { e.stopPropagation(); startWordSelection(e, index, currentVerseData.uuid); } : null"
+    v-on:touchmove="displayMode === 'Hifdh' && highlightMode ? (e) => { e.stopPropagation(); updateWordSelection(e, index, currentVerseData.uuid); } : null"
+    v-on:touchend="displayMode === 'Hifdh' && highlightMode ? (e) => { e.stopPropagation(); endWordSelection(e); } : null"
+    v-on:click="displayMode === 'Hifdh' && highlightMode ? (e) => { e.stopPropagation(); handleWordClick(index, verse); } : null"
             >
             <!-- -->
               {{ word }}
@@ -189,6 +198,7 @@ qaloon mushaf
     <div
       v-if="showBottomInfo && !isLoading && !errorMessage && currentVerseData"
       class="bottom-info control-buttons-container w-auto text-sm font-amiri z-[55] fixed bottom-5 px-5 rounded-md text-center cursor-pointer"
+      :class="displayMode === 'full-surah' ? 'max-sm:bottom-16 bottom-5' : ''"
       :dir="currentLanguage === 'ar' ? 'rtl' : 'ltr'"
         @touchstart.stop="toggleSurahVerseMenu"
         @touchend.stop="toggleSurahVerseMenu"
@@ -544,7 +554,8 @@ qaloon mushaf
 
 
     <!-- Control Buttons Container -->
-    <div   v-show=" (controlMenuVisible || (showBottomUI && !isMobile)) || displayMode === 'Hifdh'"    :class="['control-buttons-container', { 'fade-out': controlMenuFading }, `${controlMenuVisible ? '' :'max-sm:hidden'}`]"
+    <div   v-show=" (controlMenuVisible || (showBottomUI && !isMobile)) || displayMode === 'Hifdh'"    
+    :class="['control-buttons-container', { 'fade-out': controlMenuFading }, `${controlMenuVisible ? '' :'max-sm:hidden'}`, displayMode === 'full-surah' ? '!bottom-0 bg-black/50' : '']"
   @mousedown.stop="showControlMenu"
   @touchstart.stop="showControlMenu"
 class="control-buttons-container  rounded-xl p-2 max-sm:scale-90 fixed max-sm:bottom-12 bottom-5 sm:right-5 flex space-x-2 z-50">
@@ -779,7 +790,9 @@ class="control-buttons-container  rounded-xl p-2 max-sm:scale-90 fixed max-sm:bo
       </button>
     </div>
     <div   
+    :class="displayMode === 'full-surah' ? '!bottom-0' : ''"
 class="hamburg   !bg-none rounded-xl p-2 max-sm:scale-90 fixed max-sm:bottom-12 bottom-5 sm:right-5 flex space-x-2 z-50">
+
     <button
   v-if="hamburgerMenuVisible && isMobile"
   class="fixed bottom-5 left-1/2 z-50 transform -translate-x-1/2 sepia-hamburger"
@@ -800,7 +813,7 @@ class="hamburg   !bg-none rounded-xl p-2 max-sm:scale-90 fixed max-sm:bottom-12 
 import { openDB } from 'idb';
 import {ratio} from 'fuzzball';
 import fassarli from './components/fassarli.vue';
-
+import { RecycleScroller } from 'vue-virtual-scroller';
 
 const SURAH_DATA = [
   { id: 1, arabicName: "الفاتحة", englishName: "Al-Fatiha", verses: 7 },
@@ -934,7 +947,9 @@ import instructions from './components/instructions.vue';
 export default {
   components: {
     instructions,
-    fassarli
+    fassarli,
+      RecycleScroller
+
   },
   data() {
     return {
@@ -1933,6 +1948,9 @@ async loadTafseer() {
   }
   this.originalSurah = this.currentVerseData.surah;
   this.isLoading = true;
+    this.displayedWords = [];
+  this.currentTextParts = [];
+  this.$forceUpdate();
   try {
     const verseKey = this.currentVerseData.verseKey;
     const response = await fetch(`https://api.alquran.cloud/v1/ayah/${verseKey}/ar.waseet`);
@@ -2960,20 +2978,18 @@ displayCurrentPart() {
 
 
 animateWords() {
-  let wordIndex = 0; // Start fresh for the new part
-  this.displayedWords = []; // Ensure cleared again before animation
-  console.log('Starting word animation for part:', this.currentPartIndex);
+ let wordIndex = this.displayedWords.length; // Start from where we left off
+  // Do NOT clear displayedWords here!
   this.wordIntervalId = setInterval(() => {
     if (wordIndex < this.currentPartWords.length) {
-      this.displayedWords = [...this.displayedWords, this.currentPartWords[wordIndex]];
+      this.displayedWords.push(this.currentPartWords[wordIndex]);
       wordIndex++;
-      console.log('Added word:', this.currentPartWords[wordIndex - 1], 'Total words:', this.displayedWords.length);
     } else {
       clearInterval(this.wordIntervalId);
       this.wordIntervalId = null;
-      console.log('Word animation completed');
     }
   }, this.WORD_ANIMATION_INTERVAL);
+
 },
 
 clearAnimationTimers() {
@@ -3154,8 +3170,9 @@ resumeVerseDisplayFromPause() {
 
 resumeVerseDisplayFromPause() {
   if (!this.isPausedByPause) return;
-  console.log('Resuming from pause button');
-  if (this.currentPartWords && this.currentPartWords.length > 0 && this.displayedWords.length < this.currentPartWords.length) {
+  this.isPausedByPause = false;
+  this.isResuming = true; // <-- Add this
+  if (this.currentPartWords && this.currentPartWords.length > this.displayedWords.length) {
     this.animateWords();
   }
   if (this.pausedPartRemainingTime > 0) {
@@ -3206,9 +3223,23 @@ resumeVerseDisplayFromHold() {
     this.partTimeoutStartTime = Date.now();
   }
   this.isPausedByHold = false;
+  this.showBottomInfo = true;
 },
 
 displayCurrentPart() {
+
+    if (this.isPausedByPause) return;
+  this.clearAnimationTimers();
+
+  // Only clear displayedWords if starting a new part (not resuming)
+  if (!this.isResuming) {
+    this.displayedWords = [];
+  }
+  this.currentPartWords = [];
+  this.correctWords = [];
+  this.mistakeWords = [];
+  this.unreadVerses = [];
+  this.$forceUpdate();
   this.clearAnimationTimers();
   this.correctWords = [];
   this.mistakeWords = [];
