@@ -1,3 +1,13 @@
+<!-- @todo 
+* full surah mode; add highlight btn
+notes: click not touchstart
+qaloon mushaf
+ full surah mode save scroll
+ lazy load
+
+-->
+
+
 <template>
   <fassarli v-if="fassarliMode" @close="fassarliMode = false" class="z-[9999999] fixed w-full h-full" />
   <instructions @click="closeInstructions" v-if="showNavigationInstructions" />
@@ -54,7 +64,7 @@
     <!-- Full Surah Display -->
     <div
       v-if="displayMode === 'full-surah' && currentSurahData"
-      class="full-surah-display text-justify sm:px-[30%] leading-relaxed"
+      class="full-surah-display text-justify sm:px-[30%] leading-relaxed select-none"
       :key="currentSurahData.id"
       ref="versesContainer"
     >
@@ -84,19 +94,19 @@
   { 'highlighted': isWordHighlighted(index, verse.uuid) },
   getHighlightClass(index, verse.uuid)
 ]"
-  @mousedown.stop="startWordSelection($event, index, verse.uuid)"
-  @mousemove.stop="updateWordSelection($event, index, verse.uuid)"
-  @mouseup.stop="endWordSelection($event)"
-  @touchstart.stop="startWordSelection($event, index, verse.uuid)"
-  @touchmove.stop="updateWordSelection($event, index, verse.uuid)"
-  @touchend.stop="endWordSelection($event)"
-  @click.stop="handleWordClick(index, verse)"
+  @mousedown.stop="highlightMode ? startWordSelection($event, index, verse.uuid) : null"
+  @mousemove.stop="highlightMode ? updateWordSelection($event, index, verse.uuid) : null"
+  @mouseup.stop="highlightMode ? endWordSelection($event) : null"
+  @touchstart.stop="highlightMode ? startWordSelection($event, index, verse.uuid) : null"
+  @touchmove.stop="highlightMode ? updateWordSelection($event, index, verse.uuid) : null"
+  @touchend.stop="highlightMode ? endWordSelection($event) : null"
+  @click.stop="highlightMode ? handleWordClick(index, verse) : null"
 >
   {{ word }} 
-</span>         <!-- Verse Number Decoration -->
+</span>         <!-- @todo  Verse Number Decoration maybe touchendstop etc etc-->
           <svg
             @click.stop.prevent="openVerseNote(verse)"
-            @touchend.stop.prevent="openVerseNote(verse)"
+            @touchend.stop
             width="26"
             height="26"
             viewBox="0 0 26 26"
@@ -121,7 +131,7 @@
       </div>
     </div>
   
-    <transition v-if="displayMode !== 'full-surah'" name="fade" mode="out-in" class="main-content-transition">
+    <transition v-if="displayMode !== 'full-surah'" name="fade" mode="out-in" class="main-content-transition select-none">
       <div v-if="isLoading" class="loading-message text-xl text-center" key="loading">
         <p v-if="currentLanguage === 'ar'">بِسْمِ اللَّهِ الرَّحْمَنِ الرَّحِيمِ</p>
         <p v-else>In the name of Allah, the Most Gracious, the Most Merciful.</p>
@@ -154,13 +164,17 @@
     { 'mistake-glow': isWordMistake(index) },
     { 'opacity-40': isWordUnread(index) }
               ]"
-              @mousedown.stop="startWordSelection($event, index, currentVerseData.uuid)"
-              @mousemove.stop="updateWordSelection($event, index, currentVerseData.uuid)"
-              @mouseup.stop="endWordSelection"
-              @touchstart.stop="startWordSelection($event, index, currentVerseData.uuid)"
-              @touchmove.stop="updateWordSelection($event, index, currentVerseData.uuid)"
-              @touchend="endWordSelection"
+
+
+              @mousedown.stop="displayMode === 'Hifdh' && highlightMode ? startWordSelection($event, index, currentVerseData.uuid) : null"
+  @mousemove.stop="displayMode === 'Hifdh' && highlightMode ? updateWordSelection($event, index, currentVerseData.uuid) : null"
+  @mouseup.stop="displayMode === 'Hifdh' && highlightMode ? endWordSelection($event) : null"
+  @touchstart.stop="displayMode === 'Hifdh' && highlightMode ? startWordSelection($event, index, currentVerseData.uuid) : null"
+  @touchmove.stop="displayMode === 'Hifdh' && highlightMode ? updateWordSelection($event, index, currentVerseData.uuid) : null"
+  @touchend.stop="displayMode === 'Hifdh' && highlightMode ? endWordSelection($event) : null"
+  @click.stop="displayMode === 'Hifdh' && highlightMode ? handleWordClick(index, verse) : null"
             >
+            <!-- -->
               {{ word }}
             </span>
           </transition-group>
@@ -173,7 +187,7 @@
 
     <!-- Bottom Information Display -->
     <div
-      v-if="!isLoading && !errorMessage && currentVerseData"
+      v-if="showBottomInfo && !isLoading && !errorMessage && currentVerseData"
       class="bottom-info control-buttons-container w-auto text-sm font-amiri z-[55] fixed bottom-5 px-5 rounded-md text-center cursor-pointer"
       :dir="currentLanguage === 'ar' ? 'rtl' : 'ltr'"
         @touchstart.stop="toggleSurahVerseMenu"
@@ -320,7 +334,7 @@
     </div>
 
     <!-- Language Selection Overlay -->
-    <div v-if="showLanguageSelection" class="language-selection-overlay">
+    <div v-if="showLanguageSelection" class="language-selection-overlay text-white">
       <button
         v-for="lang in ['ar', 'en', 'fr', 'bn', 'tr', 'ur']"
         :key="lang"
@@ -394,7 +408,7 @@
       </div>
     </div>
 
-    <!-- Notes Overlay (Hifz Mode) -->
+    <!-- Notes Overlay (Hifdh Mode) -->
     <div
       v-if="showNotesOverlay"
       class="notes-overlay fixed inset-0 flex items-center justify-center z-50"
@@ -433,7 +447,7 @@
       </div>
     </div>
 
-    <!-- Loops Menu (Hifz Mode) -->
+    <!-- Loops Menu (Hifdh Mode) -->
     <div
       v-if="showLoopsMenu"
       class="loops-overlay fixed inset-0 flex items-center justify-center z-50"
@@ -454,7 +468,7 @@
         </div>
         <div class="loops-picker w-full h-full p-10">
           <div class="loop-value text-2xl text-center">
-            {{ hifzLoopCount }}
+            {{ HifdhLoopCount }}
           </div>
         </div>
       </div>
@@ -527,20 +541,33 @@
     <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 32 32"><path fill="currentColor" d="M11 2a1 1 0 0 0-1 1v1H8.25A3.25 3.25 0 0 0 5 7.25v18.5A3.25 3.25 0 0 0 8.25 29h9.25v-5.75A3.25 3.25 0 0 1 20.75 20H27V7.25A3.25 3.25 0 0 0 23.75 4H22V3a1 1 0 1 0-2 0v1h-3V3a1 1 0 1 0-2 0v1h-3V3a1 1 0 0 0-1-1m15.414 20H20.75c-.69 0-1.25.56-1.25 1.25v5.616a1 1 0 0 0 .207-.159zM10 11a1 1 0 0 1 1-1h10a1 1 0 1 1 0 2H11a1 1 0 0 1-1-1m1 4h10a1 1 0 1 1 0 2H11a1 1 0 1 1 0-2m-1 6a1 1 0 0 1 1-1h4a1 1 0 1 1 0 2h-4a1 1 0 0 1-1-1"/></svg>     
   </button>
 </div>
+
+
     <!-- Control Buttons Container -->
-    <div   v-show="controlMenuVisible || !isMobile"    :class="['control-buttons-container', { 'fade-out': controlMenuFading }, `${controlMenuVisible ? '' :'max-sm:hidden'}`]"
+    <div   v-show=" (controlMenuVisible || (showBottomUI && !isMobile)) || displayMode === 'Hifdh'"    :class="['control-buttons-container', { 'fade-out': controlMenuFading }, `${controlMenuVisible ? '' :'max-sm:hidden'}`]"
   @mousedown.stop="showControlMenu"
   @touchstart.stop="showControlMenu"
-class="control-buttons-container   bg-black/30 rounded-xl p-2 max-sm:scale-90 fixed max-sm:bottom-12 bottom-5 sm:right-5 flex space-x-2 z-50">
-      <!-- Hifz Mode Exit Button -->
+class="control-buttons-container  rounded-xl p-2 max-sm:scale-90 fixed max-sm:bottom-12 bottom-5 sm:right-5 flex space-x-2 z-50">
+      <!-- Exit Button -->
       <button
         v-if="displayMode !== 'verse'"
-        @click.stop="exitHifzMode"
+        @click.stop="exitHifdhMode"
         class="control-button opacity-65 hover:opacity-100"
-        :title="currentLanguage === 'ar' ? 'الخروج من وضع الحفظ' : 'Exit Hifz Mode'"
+        :title="currentLanguage === 'ar' ? 'الخروج من وضع الحفظ' : 'Exit Hifdh Mode'"
       >
         ✕
       </button>
+      <!-- Highlight Button -->
+
+               <button
+        v-if="displayMode === 'full-surah' || displayMode === 'Hifdh'"
+        @click.stop="toggleHighLight"
+        class="control-button opacity-65 hover:opacity-100 "
+        :class="highlightMode ? '!bg-orange-400 !text-white' : ''"
+        :title="currentLanguage === 'ar' ? 'تلوين' : 'Highlight'"
+      >    <span :style="{ backgroundColor: 'lightyellow', width: '24px', height: '24px', borderRadius: '50%', display: 'inline-block', border: '2px solid #888' }"></span>
+</button>
+      
    <button
         v-if="displayMode === 'full-surah'"
          @click.stop="scrollToTop" 
@@ -553,37 +580,37 @@ class="control-buttons-container   bg-black/30 rounded-xl p-2 max-sm:scale-90 fi
   
 
       <!-- Revision Mode Button -->
-      <button
+      <!-- <button
         v-if="displayMode !== 'revision' && currentLanguage === 'ar'"
          @click.stop="fassarliMode = !fassarliMode" 
         class="control-button opacity-65 hover:opacity-100"
         :title="currentLanguage === 'ar' ? 'وضع المراجعة' : 'Revision Mode'"
       >
 <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24"><path fill="currentColor" d="M13.925 2.504a2.25 2.25 0 0 1 1.94 1.11l.814 1.387h2.071A3.25 3.25 0 0 1 22 8.25v9.5A3.25 3.25 0 0 1 18.75 21H5.25A3.25 3.25 0 0 1 2 17.75v-9.5A3.25 3.25 0 0 1 5.25 5h2.08l.875-1.424a2.25 2.25 0 0 1 1.917-1.073zM12 8a4.5 4.5 0 1 0 0 9a4.5 4.5 0 0 0 0-9m0 1.5a3 3 0 1 1 0 6a3 3 0 0 1 0-6"/></svg>      </button>
-      <!-- Revision Mode Button -->
-      <button
+      Revision Mode Button -->
+      <!-- <button
         v-if="displayMode !== 'revision' && currentLanguage === 'ar'"
         @click.stop="toggleRevisionMode"
         class="control-button opacity-65 hover:opacity-100"
         :title="currentLanguage === 'ar' ? 'وضع المراجعة' : 'Revision Mode'"
       >
         <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 384 512"><path fill="currentColor" d="M192 0c-53 0-96 43-96 96v160c0 53 43 96 96 96s96-43 96-96V96c0-53-43-96-96-96M64 216c0-13.3-10.7-24-24-24s-24 10.7-24 24v40c0 89.1 66.2 162.7 152 174.4V464h-48c-13.3 0-24 10.7-24 24s10.7 24 24 24h144c13.3 0 24-10.7 24-24s-10.7-24-24-24h-48v-33.6c85.8-11.7 152-85.3 152-174.4v-40c0-13.3-10.7-24-24-24s-24 10.7-24 24v40c0 70.7-57.3 128-128 128S64 326.7 64 256z"/></svg>
-      </button>
+      </button> -->
 
 
       
-      <!-- Notes Button (Hifz Mode) -->
+      <!-- Notes Button (Hifdh Mode) -->
       <button
-        v-if="displayMode === 'hifz'"
+        v-if="displayMode === 'Hifdh'"
         @click.stop="toggleNotesOverlay"
         class="control-button opacity-65 hover:opacity-100"
         :title="currentLanguage === 'ar' ? 'ملاحظات' : 'Notes'"
       >
 <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 32 32"><path fill="currentColor" d="M11 2a1 1 0 0 0-1 1v1H8.25A3.25 3.25 0 0 0 5 7.25v18.5A3.25 3.25 0 0 0 8.25 29h9.25v-5.75A3.25 3.25 0 0 1 20.75 20H27V7.25A3.25 3.25 0 0 0 23.75 4H22V3a1 1 0 1 0-2 0v1h-3V3a1 1 0 1 0-2 0v1h-3V3a1 1 0 0 0-1-1m15.414 20H20.75c-.69 0-1.25.56-1.25 1.25v5.616a1 1 0 0 0 .207-.159zM10 11a1 1 0 0 1 1-1h10a1 1 0 1 1 0 2H11a1 1 0 0 1-1-1m1 4h10a1 1 0 1 1 0 2H11a1 1 0 1 1 0-2m-1 6a1 1 0 0 1 1-1h4a1 1 0 1 1 0 2h-4a1 1 0 0 1-1-1"/></svg>      </button>
       
-      <!-- Complete Button (Hifz Mode) -->
+      <!-- Complete Button (Hifdh Mode) -->
       <button
-        v-if="displayMode === 'hifz'"
+        v-if="displayMode === 'Hifdh'"
         @click.stop="toggleComplete"
         @mousedown="startCompleteHold"
         @mouseup="stopCompleteHold"
@@ -597,19 +624,19 @@ class="control-buttons-container   bg-black/30 rounded-xl p-2 max-sm:scale-90 fi
         </svg>
       </button>
       
-      <!-- Loops Button (Hifz Mode) -->
+      <!-- Loops Button (Hifdh Mode) -->
       <button
-        v-if="displayMode === 'hifz'"
+        v-if="displayMode === 'Hifdh'"
         @click.stop="toggleLoopsMenu"
         
         class="control-button opacity-65 hover:opacity-100"
         :title="currentLanguage === 'ar' ? 'عدد التكرارات' : 'Number of Loops'"
       >
-        ({{ hifzLoopCount }})
+        ({{ HifdhLoopCount }})
       </button>
 
       <!-- Audio Button -->
-      <button
+      <!-- <button
         @click.stop="toggleAudio"
         @mousedown="startAudioHold"
         @mouseup="stopAudioHold"
@@ -626,7 +653,7 @@ class="control-buttons-container   bg-black/30 rounded-xl p-2 max-sm:scale-90 fi
         <svg v-else xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="currentColor">
           <path d="M6 7l6-5v16l-6-5H3V7h3zm6 10V7m8 6h-3m3-2h-3"/>
         </svg>
-      </button>
+      </button> -->
       
       <!-- Search Button (Desktop Only) -->
       <button
@@ -641,7 +668,7 @@ class="control-buttons-container   bg-black/30 rounded-xl p-2 max-sm:scale-90 fi
       </button>
       
       <!-- Display Mode Menu -->
-      <div class="relative">
+      <div class="relative" v-if="displayMode !== 'full-surah' && displayMode !== 'Hifdh' && displayMode !== 'tafseer'"  >
         <button @click.stop="toggleDisplayModeMenu" class="control-button opacity-65 hover:opacity-100" :aria-label="currentLanguage === 'ar' ? 'تغيير وضع العرض' : 'Change display mode'">
           <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24">
             <path fill="currentColor" d="M4 18h16v-2H4zm0-5h16v-2H4zm0-5h16V6H4z"/>
@@ -675,19 +702,19 @@ class="control-buttons-container   bg-black/30 rounded-xl p-2 max-sm:scale-90 fi
               {{ currentLanguage === 'ar' ? 'تفسير' : 'Tafseer' }}
             </button>
             <button
-              @click.stop="setDisplayMode('hifz')"
+              @click.stop="setDisplayMode('Hifdh')"
               class="control-button w-12 h-12 flex items-center justify-center text-lg font-bold hover:opacity-100"
-              :aria-label="currentLanguage === 'ar' ? 'وضع الحفظ' : 'Hifz Mode'"
+              :aria-label="currentLanguage === 'ar' ? 'وضع الحفظ' : 'Hifdh Mode'"
             >
-              {{ currentLanguage === 'ar' ? 'حفظ' : 'Hifz' }}
+              {{ currentLanguage === 'ar' ? 'حفظ' : 'Hifdh' }}
             </button>
           </div>
         </transition>
       </div>
       
       <!-- Language Menu -->
-      <div class="relative">
-        <button @click.stop="toggleLanguageMenu" class="control-button opacity-65 hover:opacity-100" :aria-label="languageToggleAriaLabel">
+      <div  v-if="displayMode !== 'Hifdh'"  class="relative">
+        <button @click.stop="toggleLanguageMenu" class="control-button opacity-65 hover:opacity-100 " :aria-label="languageToggleAriaLabel">
           {{ currentLanguage === 'ar' ? 'ع' : (currentLanguage === 'en' ? 'EN' : (currentLanguage === 'fr' ? 'FR' : (currentLanguage === 'bn' ? 'BN' : (currentLanguage === 'tr' ? 'TR' : 'UR')))) }}
         </button>
         <transition name="fade">
@@ -727,7 +754,7 @@ class="control-buttons-container   bg-black/30 rounded-xl p-2 max-sm:scale-90 fi
       
       <!-- Pause Button -->
       <button
-        v-if="displayMode !== 'hifz' && displayMode !== 'full-surah'"
+        v-if="displayMode !== 'full-surah'"
         @click.stop="togglePause"
         class="control-button opacity-65 hover:opacity-100"
         :aria-label="isPausedByPause ? 'Resume' : 'Pause'"
@@ -742,7 +769,7 @@ class="control-buttons-container   bg-black/30 rounded-xl p-2 max-sm:scale-90 fi
       </button>
       
       <!-- Theme Toggle Button -->
-      <button @click.stop="toggleTheme" class="control-button theme-toggle-button opacity-65 hover:opacity-100" :aria-label="currentTheme === 'dark' ? 'Switch to Light Theme' : 'Switch to Dark Theme'">
+      <button v-if="displayMode !== 'Hifdh'" @click.stop="toggleTheme" class="control-button theme-toggle-button opacity-65 hover:opacity-100" :aria-label="currentTheme === 'dark' ? 'Switch to Light Theme' : 'Switch to Dark Theme'">
         <svg v-if="currentTheme !== 'dark'" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" class="w-5 h-5">
           <path d="M12 2.25a.75.75 0 01.75.75v2.25a.75.75 0 01-1.5 0V3a.75.75 0 01.75-.75zM7.5 12a4.5 4.5 0 119 0 4.5 4.5 0 01-9 0zM18.894 6.166a.75.75 0 00-1.06-1.06l-1.591 1.59a.75.75 0 101.06 1.061l1.591-1.59zM21.75 12a.75.75 0 01-.75.75h-2.25a.75.75 0 010-1.5H21a.75.75 0 01.75.75zM17.834 18.894a.75.75 0 001.06-1.06l-1.59-1.591a.75.75 0 10-1.061 1.06l1.59 1.591zM12 18a.75.75 0 01.75.75V21a.75.75 0 01-1.5 0v-2.25A.75.75 0 0112 18zM7.758 17.303a.75.75 0 00-1.061-1.06l-1.591 1.59a.75.75 0 001.06 1.061l1.591-1.59zM6 12a.75.75 0 01-.75.75H3a.75.75 0 010-1.5h2.25A.75.75 0 016 12zM6.166 7.758a.75.75 0 001.06-1.06L5.634 5.106a.75.75 0 00-1.06 1.06l1.59 1.591z"/>
         </svg>
@@ -919,6 +946,8 @@ export default {
     controlMenuTimeoutId: null,
     controlMenuFading: false,
     fassarliMode: false,
+    showBottomUI: true,
+showBottomInfo: true,
       // Revision mode
       isRevisionMode: false,
       speechRecognition: null,
@@ -935,11 +964,12 @@ export default {
       wordIndex: null,
       color: null,
     },
-wasScrolling: false,
+      wasScrolling: false,
+      highlightMode: false,
 
-          hifzVerseQueue: [],
-      hifzCurrentVerseIndex: 0,
-      hifzLoopCount: 10,
+          HifdhVerseQueue: [],
+      HifdhCurrentVerseIndex: 0,
+      HifdhLoopCount: 10,
       currentLoopIteration: 0, // Track current loop iteration
             activeVerseUuidForHighlighting: null,
 controlMenuVisible: true,
@@ -954,8 +984,8 @@ controlMenuTimeoutId: null,
       currentAudio: null,
       isContinuousAudio: false,
       completions: {},
-      hifzVerseQueue: [],
-      hifzCurrentVerseIndex: 0,
+      HifdhVerseQueue: [],
+      HifdhCurrentVerseIndex: 0,
       showSurahVerseMenu: false,
       selectedSurah: 1,
       
@@ -966,7 +996,7 @@ controlMenuTimeoutId: null,
       showNotesOverlay: false,
       currentNote: '',
       isVerseCompleted: false,
-      hifzLoopCount: 10,
+      HifdhLoopCount: 10,
       showLoopsMenu: false,
       loopSwipeStartY: null,
       showHighlightMenu: false,
@@ -1084,6 +1114,21 @@ controlMenuTimeoutId: null,
   },
 
   methods: {
+           handleDesktopMouseMove() {
+        if (this.isMobile) return;
+        this.showBottomUI = true;
+        this.startBottomUIFadeTimer();
+      },
+      startBottomUIFadeTimer() {
+        if (this.isMobile) return;
+        if (this.bottomUIFadeTimeout) clearTimeout(this.bottomUIFadeTimeout);
+        this.bottomUIFadeTimeout = setTimeout(() => {
+          this.showBottomUI = false;
+        }, 3000);
+      },
+    toggleHighLight() {
+      this.highlightMode = !this.highlightMode;
+    },
      scrollToTop() {
       const container = this.$refs.versesContainer;
       if (container) {
@@ -1115,6 +1160,7 @@ controlMenuTimeoutId: null,
 },
 hideControlMenu() {
   this.controlMenuVisible = false;
+  this.showDisplayModeMenu = false;
   this.hamburgerMenuVisible = true;
   this.controlMenuFading = false;
   if (this.controlMenuTimeoutId) clearTimeout(this.controlMenuTimeoutId);
@@ -1434,8 +1480,8 @@ getWordHighlightColor(index, verseUuid) {
     this.showHighlightContextMenu = false;
   },
   async selectVerse(next = true) { // Make async
-    if (this.displayMode === 'hifz') {
-      this.selectNextHifzVerse();
+    if (this.displayMode === 'Hifdh') {
+      this.selectNextHifdhVerse();
       return;
     }
     if (this.isRevisionMode) {
@@ -1512,6 +1558,7 @@ getWordHighlightColor(index, verseUuid) {
   },
 
   displayCurrentPart() {
+    if (this.isPausedByPause) return
     this.clearAnimationTimers();
         this.currentPartIndex = 0
       // Reset revision highlights for the new part/verse
@@ -1525,7 +1572,7 @@ getWordHighlightColor(index, verseUuid) {
       if (!this.currentVerseData || this.currentPartIndex >= this.currentTextParts.length) {
         console.log('No more parts, moving to next verse');
         // Prevent auto-advancing in revision mode
-        if (this.displayMode !== 'revision') {
+        if (this.displayMode !== 'revision'  && !this.isPausedByPause) {
           this.partTimeoutId = setTimeout(() => this.selectVerse(true), this.NEXT_VERSE_DELAY);
         }
         return;
@@ -1554,7 +1601,7 @@ getWordHighlightColor(index, verseUuid) {
       this.currentActivePartDuration = currentPartDuration;
       this.partTimeoutStartTime = Date.now();
       console.log('Part duration:', currentPartDuration);
-        if (this.displayMode !== 'revision') {
+        if (this.displayMode !== 'revision'  && !this.isPausedByPause) {
           this.partTimeoutId = setTimeout(() => this.displayNextPart(), currentPartDuration);
         }
     });
@@ -1567,7 +1614,7 @@ getWordHighlightColor(index, verseUuid) {
     this.displayCurrentPart();
   } else {
     // If at the last part, auto-advance to the next verse after a short delay
-        if (this.displayMode !== 'revision'){
+        if (this.displayMode !== 'revision' && !this.isPausedByPause){
     setTimeout(() => {
       this.selectVerse(true);
     }, 800); // 800ms pause before next verse, adjust as needed
@@ -1747,8 +1794,8 @@ getWordHighlightColor(index, verseUuid) {
   this.clearAnimationTimers();
   this.showDisplayModeMenu = false;
 
-  if (mode === 'hifz') {
-    this.enterHifzMode();
+  if (mode === 'Hifdh') {
+    this.enterHifdhMode();
   } else if (mode === 'tafseer') {
     this.loadTafseer();
   } else if (mode === 'full-surah') {
@@ -1917,9 +1964,9 @@ getLocalizedErrorMessage(key, detail = '') {
       tr: `Not yükleme hatası: ${detail}`,
       ur: `نوٹ لوڈ کرنے میں خرابی: ${detail}`,
     },
-    hifzComplete: {
+    HifdhComplete: {
       ar: 'تم إكمال الحفظ! ابدأ من جديد؟',
-      en: 'Hifz completed! Start over?',
+      en: 'Hifdh completed! Start over?',
       fr: `Erreur lors du chargement de la note : ${detail}`,
       bn: `নোট লোডিংয়ে ত্রুটি: ${detail}`,
       tr: `Not yükleme hatası: ${detail}`,
@@ -2083,14 +2130,13 @@ getLocalizedErrorMessage(key, detail = '') {
 
 startWordSelection(event, index, verseUuidParam = null) {
   const targetVerseUuid = verseUuidParam || (this.currentVerseData ? this.currentVerseData.uuid : null);
-
   if (!targetVerseUuid) {
     console.warn("startWordSelection: No targetVerseUuid available.");
     return;
   }
 
   // Define which modes allow word selection for highlighting
-  const highlightEnabledModes = ['hifz', 'full-surah']; // Add 'verse', 'tafseer' if needed
+  const highlightEnabledModes = ['Hifdh', 'full-surah']; // Add 'verse', 'tafseer' if needed
   if (!highlightEnabledModes.includes(this.displayMode)) {
     return;
   }
@@ -2110,7 +2156,7 @@ updateWordSelection(event, index, verseUuidParam = null) {
     return;
   }
 
-  const highlightEnabledModes = ['hifz', 'full-surah']; // Add 'verse', 'tafseer' if needed
+  const highlightEnabledModes = ['Hifdh', 'full-surah']; // Add 'verse', 'tafseer' if needed
   if (!highlightEnabledModes.includes(this.displayMode)) {
     return;
   }
@@ -2127,7 +2173,7 @@ updateWordSelection(event, index, verseUuidParam = null) {
 },
 
 endWordSelection(event) {
- const highlightEnabledModes = ['hifz', 'full-surah'];
+ const highlightEnabledModes = ['Hifdh', 'full-surah'];
   if (!highlightEnabledModes.includes(this.displayMode) || !this.isSelectingWords) {
     this.isSelectingWords = false;
     return;
@@ -2756,8 +2802,8 @@ async loadVerseHighlights(verseUuid) {
   }
 },
 isWordHighlighted(index, verseUuidParam = null) {
-    // Only show highlights in hifz or full-surah mode
-  if (this.displayMode !== 'hifz' && this.displayMode !== 'full-surah') {
+    // Only show highlights in Hifdh or full-surah mode
+  if (this.displayMode !== 'Hifdh' && this.displayMode !== 'full-surah') {
     return false;
   }
   const uuidToUse = verseUuidParam || this.activeVerseUuidForHighlighting || (this.currentVerseData ? this.currentVerseData.uuid : null);
@@ -2765,8 +2811,8 @@ isWordHighlighted(index, verseUuidParam = null) {
   return !!(this.highlights[uuidToUse] && this.highlights[uuidToUse][index]);
 },
 getHighlightClass(index, verseUuidParam = null) {
-    // Only apply highlight classes in hifz or full-surah mode
-  if (this.displayMode !== 'hifz' && this.displayMode !== 'full-surah') {
+    // Only apply highlight classes in Hifdh or full-surah mode
+  if (this.displayMode !== 'Hifdh' && this.displayMode !== 'full-surah') {
     return '';
   }
   const uuidToUse = verseUuidParam || this.activeVerseUuidForHighlighting || (this.currentVerseData ? this.currentVerseData.uuid : null);
@@ -2786,7 +2832,7 @@ toggleAudio() {
   }
 },
 readNextVerseAudio() {
-  if (this.isAudioPlaying && this.displayMode !== 'hifz') {
+  if (this.isAudioPlaying && this.displayMode !== 'Hifdh') {
     const nextVerse = this.getNextVerse(this.currentVerseData);
     if (nextVerse) {
       this.currentVerseData = nextVerse;
@@ -2856,6 +2902,8 @@ stopAudioHold() {
     },
 
 displayCurrentPart() {
+    if (this.isPausedByPause) return
+
   // Clear any ongoing animations and timers
   this.clearAnimationTimers();
   
@@ -3124,6 +3172,8 @@ pauseVerseDisplayByHold() {
   if (this.isLoading || this.errorMessage || !this.currentVerseData || this.isPausedByHold) {
     return;
   }
+  this.showBottomUI = false;
+  this.showBottomInfo = false;
   this.isPausedByHold = true;
   console.log('Paused by hold');
   if (this.wordIntervalId) {
@@ -3167,7 +3217,7 @@ displayCurrentPart() {
     this.currentPartWords = [];
     this.$forceUpdate();
 
-  if (!this.currentVerseData || this.currentPartIndex >= this.currentTextParts.length) {
+  if (!this.isPausedByPause && (!this.currentVerseData || this.currentPartIndex >= this.currentTextParts.length)) {
     this.displayedWords = [];
     this.partTimeoutId = setTimeout(this.selectVerse, this.NEXT_VERSE_DELAY);
     return;
@@ -3277,27 +3327,10 @@ handleAppMouseUp(event) {
     return;
   }
 
-  if (this.displayMode === 'full-surah') {
-  
-    return;
-  }
+
     // If in full-surah mode, don't do any verse/part navigation from global clicks
 if (this.displayMode === 'full-surah') {
-  const clickX = event.clientX;
-  const screenWidth = window.innerWidth;
-  if (clickX > screenWidth / 2) {
-    // Right side: next surah
-    if (this.currentSurahData && this.currentSurahData.id < 114) {
-      this.selectedSurah = this.currentSurahData.id + 1;
-      this.loadSurahVerses(this.selectedSurah);
-    }
-  } else {
-    // Left side: previous surah
-    if (this.currentSurahData && this.currentSurahData.id > 1) {
-      this.selectedSurah = this.currentSurahData.id - 1;
-      this.loadSurahVerses(this.selectedSurah);
-    }
-  }
+
   this.isHoldingGlobal = false;
   return;
 }
@@ -3331,10 +3364,7 @@ if (this.displayMode === 'verse') {
 
 
   if (this.isHoldingGlobal && !isControlButtonClick) {
-    if (this.isPausedByPause) {
-      console.log('Resuming from pause due to UI click');
-      this.resumeVerseDisplayFromPause();
-    }
+
     const clickX = event.clientX;
     const screenWidth = window.innerWidth;
     const isArabic = this.currentLanguage === 'ar';
@@ -3408,23 +3438,7 @@ handleAppTouchEnd(event) {
       this.wasScrolling = false;
       return;
     }
-    if (event.changedTouches && event.changedTouches.length > 0) {
-      const touchX = event.changedTouches[0].clientX;
-      const screenWidth = window.innerWidth;
-      if (touchX > screenWidth / 2) {
-        // Right side: next surah
-        if (this.currentSurahData && this.currentSurahData.id < 114) {
-          this.selectedSurah = this.currentSurahData.id + 1;
-          this.loadSurahVerses(this.selectedSurah);
-        }
-      } else {
-        // Left side: previous surah
-        if (this.currentSurahData && this.currentSurahData.id > 1) {
-          this.selectedSurah = this.currentSurahData.id - 1;
-          this.loadSurahVerses(this.selectedSurah);
-        }
-      }
-    }
+
     this.isHoldingGlobal = false;
     this.touchStartX = null;
     this.touchStartY = null;
@@ -3446,10 +3460,7 @@ handleAppTouchEnd(event) {
     return;
   }
   if (this.isHoldingGlobal && !isControlButtonTouch && this.touchStartTime !== null && !this.hasSwiped) { // Check touchStartTime instead of touchStartY
-    if (this.isPausedByPause) {
-      console.log('Resuming from pause due to UI tap');
-      this.resumeVerseDisplayFromPause();
-    }
+  
     if (event.changedTouches.length > 0) {
       const touchX = event.changedTouches[0].clientX;
       const screenWidth = window.innerWidth;
@@ -3478,13 +3489,13 @@ handleAppTouchEnd(event) {
             this.displayPreviousPart(); // Corrected
           }
         }
-      } else if (this.displayMode === 'hifz') {
+      } else if (this.displayMode === 'Hifdh') {
         if (!this.isSelectingWords) {
           if (rightSideTapped) {
-            console.log('Tap - Next Hifz verse');
-            this.selectNextHifzVerse(); // Corrected
+            console.log('Tap - Next Hifdh verse');
+            this.selectNextHifdhVerse(); // Corrected
           } else {
-            console.log('Tap - Previous Hifz verse');
+            console.log('Tap - Previous Hifdh verse');
             this.displayPreviousVerse(); // Corrected
           }
         }
@@ -3519,30 +3530,30 @@ handleAppTouchEnd(event) {
 },
 
 
-async enterHifzMode() { // Make async
+async enterHifdhMode() { // Make async
   this.isPausedByPause = false;
   this.isPausedByHold = false;
   this.currentLoopIteration = 0; // Reset loop iteration
-  this.updateHifzVerseQueue();
+  this.updateHifdhVerseQueue();
 
-  if (this.hifzVerseQueue.length > 0) {
-    this.currentVerseData = { ...this.hifzVerseQueue[0] };
-    this.hifzCurrentVerseIndex = 0;
+  if (this.HifdhVerseQueue.length > 0) {
+    this.currentVerseData = { ...this.HifdhVerseQueue[0] };
+    this.HifdhCurrentVerseIndex = 0;
   } else if (!this.currentVerseData && this.allVerses.length > 0) {
-    // Fallback if queue is empty and no current verse (e.g. first time entering hifz)
+    // Fallback if queue is empty and no current verse (e.g. first time entering Hifdh)
     this.currentVerseData = { ...this.allVerses[0] };
-    this.updateHifzVerseQueue(); // Try to build queue again
-    if (this.hifzVerseQueue.length > 0) {
-        this.currentVerseData = { ...this.hifzVerseQueue[0] };
-        this.hifzCurrentVerseIndex = 0;
+    this.updateHifdhVerseQueue(); // Try to build queue again
+    if (this.HifdhVerseQueue.length > 0) {
+        this.currentVerseData = { ...this.HifdhVerseQueue[0] };
+        this.HifdhCurrentVerseIndex = 0;
     } else {
         this.displayMode = 'verse';
-        this.errorMessage = "Could not start Hifz mode.";
+        this.errorMessage = "Could not start Hifdh mode.";
         return;
     }
   } else if (!this.currentVerseData) {
       this.displayMode = 'verse';
-      this.errorMessage = "No verses loaded to start Hifz mode.";
+      this.errorMessage = "No verses loaded to start Hifdh mode.";
       return;
   }
 
@@ -3559,7 +3570,7 @@ async enterHifzMode() { // Make async
   this.displayCurrentPart();
 },
 
-updateHifzVerseQueue() {
+updateHifdhVerseQueue() {
   if (!this.currentVerseData) return;
   const currentSurah = this.currentVerseData.surah;
   const currentVerseNum = this.currentVerseData.verse;
@@ -3568,7 +3579,7 @@ updateHifzVerseQueue() {
   let surah = currentSurah;
   let verseNum = currentVerseNum;
 
-  while (verseCount < this.hifzLoopCount && surah <= 114) {
+  while (verseCount < this.HifdhLoopCount && surah <= 114) {
     const verse = this.allVerses.find(v => v.surah === surah && v.verse === verseNum);
     if (verse) {
       versesInRange.push(verse);
@@ -3582,10 +3593,10 @@ updateHifzVerseQueue() {
     }
   }
 
-  this.hifzVerseQueue = versesInRange;
-  this.hifzCurrentVerseIndex = 0;
+  this.HifdhVerseQueue = versesInRange;
+  this.HifdhCurrentVerseIndex = 0;
 },
-  exitHifzMode() {
+  exitHifdhMode() {
     this.displayMode = 'verse';
     this.selectVerse();
   },
@@ -3594,7 +3605,7 @@ updateHifzVerseQueue() {
     if (this.showNotesOverlay) {
       // Determine which verse's note to load
       let verseUuidForNote = this.activeVerseUuidForNotes; // Prioritize if set by openVerseNote
-      if (!verseUuidForNote && this.currentVerseData && this.displayMode === 'hifz') { // Fallback for Hifz mode button
+      if (!verseUuidForNote && this.currentVerseData && this.displayMode === 'Hifdh') { // Fallback for Hifdh mode button
         verseUuidForNote = this.currentVerseData.uuid;
       }
       
@@ -3678,17 +3689,17 @@ getCurrentLoopVerses() {
 },
 getLoopEndVerse(startVerse) {
   let current = { ...startVerse };
-  for (let i = 0; i < this.hifzLoopRange - 1 && current; i++) {
+  for (let i = 0; i < this.HifdhLoopRange - 1 && current; i++) {
     current = this.getNextVerse(current);
   }
   return current || startVerse;
 },
 toggleComplete() {
   return current || startVerse; 
-  return this.hifzVerseQueue; // The current hifzVerseQueue is the loop
+  return this.HifdhVerseQueue; // The current HifdhVerseQueue is the loop
 },
 async toggleComplete() {
-  if (!this.currentVerseData || this.displayMode !== 'hifz') return;
+  if (!this.currentVerseData || this.displayMode !== 'Hifdh') return;
   const verseUuid = this.currentVerseData.uuid; // Declare verseUuid once
   const currentCompletionStatus = this.completions[verseUuid] || false;
   const newCompletionStatus = !currentCompletionStatus;
@@ -3697,21 +3708,22 @@ async toggleComplete() {
   this.isVerseCompleted = newCompletionStatus; // Directly update for immediate UI feedback
   this.saveVerseCompletion(); // Save this individual verse's completion
 
-  // Check if all verses in the current hifzVerseQueue are now complete
-  if (this.hifzVerseQueue.length > 0) {
-    const allInQueueComplete = this.hifzVerseQueue.every(verseInQueue => {
+  // Check if all verses in the current HifdhVerseQueue are now complete
+  if (this.HifdhVerseQueue.length > 0) {
+    const allInQueueComplete = this.HifdhVerseQueue.every(verseInQueue => {
       return this.completions[verseInQueue.uuid] === true;
     });
 
-    if (allInQueueComplete) {
-      console.log("All verses in the current Hifz queue are complete. Advancing to the next block.");
-      const lastVerseInCurrentQueue = this.hifzVerseQueue[this.hifzVerseQueue.length - 1];
+
+    if (allInQueueComplete || atLeastOneComplete) {
+      console.log("All verses in the current Hifdh queue are complete. Advancing to the next block.");
+      const lastVerseInCurrentQueue = this.HifdhVerseQueue[this.HifdhVerseQueue.length - 1];
       const nextVerseAfterQueue = this.getNextVerse(lastVerseInCurrentQueue);
 
       if (nextVerseAfterQueue) {
         this.currentVerseData = { ...nextVerseAfterQueue }; // Set the new current verse
-        this.updateHifzVerseQueue(); // This will rebuild hifzVerseQueue starting from new currentVerseData
-        this.hifzCurrentVerseIndex = 0; // Start at the beginning of the new queue
+        this.updateHifdhVerseQueue(); // This will rebuild HifdhVerseQueue starting from new currentVerseData
+        this.HifdhCurrentVerseIndex = 0; // Start at the beginning of the new queue
         this.currentLoopIteration = 0; // Reset loop repetitions for the new queue
 
         // Load data for the new current verse
@@ -3727,9 +3739,9 @@ async toggleComplete() {
         this.clearAnimationTimers();
         this.displayCurrentPart();      } else {
         // End of Quran or no next verse found
-        this.hifzVerseQueue = [];
-        this.displayMode = 'verse'; // Exit Hifz mode
-        this.errorMessage = this.getLocalizedErrorMessage('hifzComplete');
+        this.HifdhVerseQueue = [];
+        this.displayMode = 'verse'; // Exit Hifdh mode
+        this.errorMessage = this.getLocalizedErrorMessage('HifdhComplete');
         // Optionally, navigate to the beginning of the Quran or show a specific completion screen
         // this.selectVerse(false); 
       }
@@ -3738,10 +3750,10 @@ async toggleComplete() {
 
 },
   startCompleteHold(event) {
-        if (this.displayMode !== 'hifz') return;
+        if (this.displayMode !== 'Hifdh') return;
 
     this.completeHoldTimeout = setTimeout(() => {
-      if (this.displayMode === 'hifz') {
+      if (this.displayMode === 'Hifdh') {
         this.completeCurrentLoop();
       }
     }, 1000);
@@ -3786,17 +3798,17 @@ async loadVerseCompletion(verseUuid) {
   }
 },
 async completeCurrentLoop() { // Make async
-  if (!this.currentVerseData || this.hifzVerseQueue.length === 0) return;
+  if (!this.currentVerseData || this.HifdhVerseQueue.length === 0) return;
   this.currentLoopIteration++;
-  if (this.currentLoopIteration >= this.hifzLoopCount) {
+  if (this.currentLoopIteration >= this.HifdhLoopCount) {
     // Move to the next verse after the current queue
-    const lastVerse = this.hifzVerseQueue[this.hifzVerseQueue.length - 1];
+    const lastVerse = this.HifdhVerseQueue[this.HifdhVerseQueue.length - 1];
     const nextVerse = this.getNextVerse(lastVerse);
     if (nextVerse) {
       this.currentVerseData = { ...nextVerse };
-      this.updateHifzVerseQueue(); // Rebuild queue starting from next verse
+      this.updateHifdhVerseQueue(); // Rebuild queue starting from next verse
       this.currentLoopIteration = 0;
-   this.hifzCurrentVerseIndex = 0; // Reset index for the new queue
+   this.HifdhCurrentVerseIndex = 0; // Reset index for the new queue
 
       // Load data for the new current verse
       if (this.currentVerseData && this.currentVerseData.uuid) {
@@ -3812,13 +3824,13 @@ async completeCurrentLoop() { // Make async
       this.displayCurrentPart();
      } else {
       // End of Quran, reset to start or show completion
-      this.hifzVerseQueue = [];
+      this.HifdhVerseQueue = [];
       this.displayMode = 'verse';
-      this.errorMessage = this.getLocalizedErrorMessage('hifzComplete');
+      this.errorMessage = this.getLocalizedErrorMessage('HifdhComplete');
     }
   } else {
     // Repetitions not yet complete, just move to the next verse in the current queue.
-    await this.selectNextHifzVerse();
+    await this.selectNextHifdhVerse();
   }
   // Removed saveVerseCompletion() from here as completion status is managed by toggleComplete.
   // completeCurrentLoop is about repetition tracking and advancing the queue based on that.
@@ -3848,7 +3860,7 @@ getNextVerse(current) {
     const deltaY = this.loopSwipeStartY - currentY;
     if (Math.abs(deltaY) > 20) {
       const increment = deltaY > 0 ? 1 : -1;
-      this.hifzLoopCount = Math.max(0, Math.min(100, this.hifzLoopCount + increment));
+      this.HifdhLoopCount = Math.max(0, Math.min(100, this.HifdhLoopCount + increment));
       this.loopSwipeStartY = currentY;
       // Vibrate on change
       if (navigator.vibrate) navigator.vibrate(50);
@@ -3857,10 +3869,10 @@ getNextVerse(current) {
   endLoopSwipe() {
     this.loopSwipeStartY = null;
   },
-async selectNextHifzVerse() { // Make async
-  if (this.hifzVerseQueue.length === 0) return;
-  this.hifzCurrentVerseIndex = (this.hifzCurrentVerseIndex + 1) % this.hifzVerseQueue.length;
-  this.currentVerseData = { ...this.hifzVerseQueue[this.hifzCurrentVerseIndex] };
+async selectNextHifdhVerse() { // Make async
+  if (this.HifdhVerseQueue.length === 0) return;
+  this.HifdhCurrentVerseIndex = (this.HifdhCurrentVerseIndex + 1) % this.HifdhVerseQueue.length;
+  this.currentVerseData = { ...this.HifdhVerseQueue[this.HifdhCurrentVerseIndex] };
 
   if (this.currentVerseData && this.currentVerseData.uuid) { // Load data for new verse
       await this.loadVerseNote(this.currentVerseData.uuid);
@@ -3890,11 +3902,11 @@ async selectNextHifzVerse() { // Make async
 },
 
 async displayPreviousVerse() {
-  if (this.displayMode === 'hifz') {
-    // ... your hifz logic (unchanged) ...
-    if (this.hifzVerseQueue.length === 0) return;
-    this.hifzCurrentVerseIndex = (this.hifzCurrentVerseIndex - 1 + this.hifzVerseQueue.length) % this.hifzVerseQueue.length;
-    this.currentVerseData = { ...this.hifzVerseQueue[this.hifzCurrentVerseIndex] };
+  if (this.displayMode === 'Hifdh') {
+    // ... your Hifdh logic (unchanged) ...
+    if (this.HifdhVerseQueue.length === 0) return;
+    this.HifdhCurrentVerseIndex = (this.HifdhCurrentVerseIndex - 1 + this.HifdhVerseQueue.length) % this.HifdhVerseQueue.length;
+    this.currentVerseData = { ...this.HifdhVerseQueue[this.HifdhCurrentVerseIndex] };
     if (this.currentVerseData && this.currentVerseData.uuid) {
       await this.loadVerseNote(this.currentVerseData.uuid);
       await this.loadVerseCompletion(this.currentVerseData.uuid);
@@ -3906,7 +3918,7 @@ this.displayedWords = [];
 this.clearAnimationTimers();
 this.displayCurrentPart();
   } else {
-    // NON-HIFZ MODE (e.g., Verse, Tafseer)
+    // NON-Hifdh MODE (e.g., Verse, Tafseer)
     if (!this.currentVerseData || !this.allVerses || this.allVerses.length === 0) return;
     let prevVerse = null;
     if (this.currentVerseData.verse > 1) {
@@ -4119,7 +4131,10 @@ shareVerse() {
 
   async mounted() {
     this.currentTheme = localStorage.getItem('theme') || 'system';
-
+  if (!this.isMobile) {
+    document.addEventListener('mousemove', this.handleDesktopMouseMove);
+    this.startBottomUIFadeTimer();
+  }
     this.$indexedDB = await this.initIndexedDB();
     const db = await this.$indexedDB;
     await db.transaction('notes', 'readwrite').objectStore('notes');
@@ -4184,6 +4199,10 @@ shareVerse() {
   },
   
   beforeUnmount() {
+       window.removeEventListener('keydown', this.handleGlobalKeydown);
+ document.removeEventListener('mousemove', this.handleDesktopMouseMove);
+  if (this.bottomUIFadeTimeout) clearTimeout(this.bottomUIFadeTimeout);
+
     this.clearAnimationTimers();
     this.stopSpeechRecognition();
       document.removeEventListener('click', this.hideHighlightContextMenu);
@@ -4347,8 +4366,8 @@ html, body {
 
 .control-button {
   font-family:Arial, Helvetica, sans-serif;
-  width: 4rem; /* ~44px */
-  height: 4rem; /* ~44px */
+  width: 2.75rem; /* ~44px */
+  height: 2.75rem; /* ~44px */
   border-radius: 9999px; /* pill shape */
   display: flex;
   font-size: 12px;
@@ -4566,7 +4585,7 @@ html, body {
   gap: 1.5rem;
 }
 
-.hifz-mode .control-button {
+.Hifdh-mode .control-button {
   /* Ensure consistent styling */
 }
 .complete-active {
@@ -4921,6 +4940,12 @@ select {
 
 /* CSP-compliant styles */
 @media (max-width: 768px) {
+  .control-button {
+    width: 3.75rem; /* ~44px */
+    height: 3.75rem; /* ~44px */
+  }
+}
+@media (max-width: 768px) {
   .control-buttons-container {
     bottom: 70px;
     right: 10px;
@@ -5042,13 +5067,12 @@ select {
   /* Optional: add background, border, or padding as needed */
 }
 .sepia-theme .control-buttons-container {
-  background-color: #e6dfc9 !important;
   color: #5f4b32 !important;
 }
 .sepia-theme .control-button,
 .sepia-theme .control-button svg {
-  background-color: #e6dfc9 !important;
-  color: #5f4b32 !important;
+  background-color: #e6dfc9 ;
+  color: #5f4b32 ;
   fill: #5f4b32 !important;
   border-color: #bfb59f !important;
 }
