@@ -197,7 +197,7 @@ qaloon mushaf
     <!-- Bottom Information Display -->
     <div
       v-if="showBottomInfo && !isLoading && !errorMessage && currentVerseData"
-      class="bottom-info control-buttons-container w-auto text-sm font-amiri z-[55] fixed bottom-5 px-5 rounded-md text-center cursor-pointer"
+      class="bottom-info control-buttons-container w-auto text-sm font-amiri z-[55] fixed max-sm:bottom-16 bottom-5 px-5 rounded-md text-center cursor-pointer"
       :class="displayMode === 'full-surah' ? 'max-sm:bottom-16 bottom-5' : ''"
       :dir="currentLanguage === 'ar' ? 'rtl' : 'ltr'"
         @touchstart.stop="toggleSurahVerseMenu"
@@ -558,7 +558,7 @@ qaloon mushaf
     :class="['control-buttons-container', { 'fade-out': controlMenuFading }, `${controlMenuVisible ? '' :'max-sm:hidden'}`, displayMode === 'full-surah' ? '!bottom-0 bg-black/50' : '']"
   @mousedown.stop="showControlMenu"
   @touchstart.stop="showControlMenu"
-class="control-buttons-container  rounded-xl p-2 max-sm:scale-90 fixed max-sm:bottom-12 bottom-5 sm:right-5 flex space-x-2 z-50">
+class="control-buttons-container  rounded-xl p-2 max-sm:scale-90 fixed max-sm:bottom-0 bottom-5 sm:right-5 flex space-x-2 z-50">
       <!-- Exit Button -->
       <button
         v-if="displayMode !== 'verse'"
