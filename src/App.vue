@@ -79,7 +79,7 @@ qaloon mushaf
   </h2>
   <RecycleScroller
     :items="displayedVerses"
-    :item-size="1" 
+    :item-size="64" 
     key-field="uuid"
     class="virtual-scroller"
     :min-item-size="48"
@@ -89,7 +89,7 @@ qaloon mushaf
     <div
       :key="verse.uuid"
       :data-verse-uuid="verse.uuid"
-      class="verse-line flex items-center justify-start py-2 cursor-pointer"
+      class="verse-line flex items-center justify-start cursor-pointer"
       :dir="currentLanguage === 'ar' ? 'rtl' : 'ltr'"
     >
       <span class="verse-text text-2xl font-amiri flex-1">
@@ -97,7 +97,7 @@ qaloon mushaf
           v-for="(word, index) in verse.text.split(' ')"
           :key="`${verse.uuid}-${index}`"
           :data-word-uuid="`${verse.uuid}-${index}`"
-          class="inline-block mx-1 py-3"
+          class="inline-block mx-1"
           :class="[
             { 'highlighted': isWordHighlighted(index, verse.uuid) },
             getHighlightClass(index, verse.uuid)
@@ -105,9 +105,9 @@ qaloon mushaf
           @mousedown.stop="highlightMode ? startWordSelection($event, index, verse.uuid) : null"
           @mousemove.stop="highlightMode ? updateWordSelection($event, index, verse.uuid) : null"
           @mouseup.stop="highlightMode ? endWordSelection($event) : null"
-          @touchstart.stop="highlightMode ? startWordSelection($event, index, verse.uuid) : null"
-          @touchmove.stop="highlightMode ? updateWordSelection($event, index, verse.uuid) : null"
-          @touchend.stop="highlightMode ? endWordSelection($event) : null"
+@touchstart.stop="highlightMode ? startWordSelection($event, index, verse.uuid) : null"
+@touchmove.stop="highlightMode ? updateWordSelection($event, index, verse.uuid) : null"
+@touchend.stop="highlightMode ? endWordSelection($event) : null"
           @click.stop="highlightMode ? handleWordClick(index, verse) : null"
         >
           {{ word }}
@@ -196,7 +196,7 @@ qaloon mushaf
 
     <!-- Bottom Information Display -->
     <div
-      v-if="showBottomInfo && !isLoading && !errorMessage && currentVerseData"
+  v-if="showBottomInfo && !isLoading && !errorMessage && currentVerseData && displayMode !== 'Hifdh'"
       class="bottom-info control-buttons-container w-auto text-sm font-amiri z-[55] fixed max-sm:bottom-16 bottom-5 px-5 rounded-md text-center cursor-pointer"
       :class="displayMode === 'full-surah' ? 'max-sm:bottom-16 bottom-5' : ''"
       :dir="currentLanguage === 'ar' ? 'rtl' : 'ltr'"
@@ -214,14 +214,14 @@ qaloon mushaf
     <!-- Search Overlay -->
     <div
       v-if="showSearchOverlay"
-      class="search-overlay bg-none fixed inset-0 flex flex-col items-center justify-start sm:p-[2rem] sm:pt-8 z-50"
+      class="search-overlay bg-none fixed inset-0 flex flex-col items-center justify-start sm:p-[2rem] sm:pt-8 z-[100]"
       :class="currentTheme === 'dark' ? 'dark-theme' : 'light-theme'"
       style="background-color: transparent !important;"
             @click="closeOverlay('search')"
 
     >
       <div
-        class="search-container bg-opacity-80 p-6 rounded-lg w-full !flex !flex-col h-full max-w-2xl"
+        class="search-container bg-opacity-80 py-6 rounded-lg w-full !flex !flex-col h-full max-w-2xl"
         :class="currentTheme === 'dark' ? 'bg-black/40' : 'bg-white'"
       >
         <div class="flex items-center mb-4 max-sm:flex-col">
@@ -231,7 +231,7 @@ qaloon mushaf
             @keyup.enter="performSearch"
             type="text"
             :placeholder="currentLanguage === 'ar' ? 'ابحث في القرآن...' : 'Search in Quran...'"
-            class="flex-1 p-2 rounded-l-lg border border-gray-300 focus:outline-none search-input"
+            class="flex-1 p-2  w-[88%] rounded-l-lg border border-gray-300 focus:outline-none search-input"
             :class="[currentTheme === 'dark' ? 'bg-gray-700 text-white' : 'bg-white text-gray-800', currentLanguage === 'ar' ? 'text-right' : 'text-left']"
             ref="searchInput"
           />
@@ -258,7 +258,7 @@ qaloon mushaf
         <div v-if="isSearching" class="text-center py-4">
           {{ currentLanguage === 'ar' ? 'جاري البحث...' : 'Searching...' }}
         </div>
-        <div v-else-if="!isSearching && searchResults.length === 0 && searchQuery" class="text-center py-4">
+            <div v-else-if="!isSearching && searchResults.length === 0 && searchQuery.trim().length > 0 && !errorMessage" class="text-center py-4">
           {{ currentLanguage === 'ar' ? 'لم يتم العثور على نتائج' : 'No results found' }}
         </div>
         <div v-else class="search-results h-full overflow-y-auto">
@@ -266,10 +266,10 @@ qaloon mushaf
             v-for="result in paginatedResults"
             :key="result.uuid"
             @click.stop="selectSearchResult(result)"
-            class="search-result-item p-4 border-b cursor-pointer"
+            class="search-result-item px-12 py-6  border-b cursor-pointer"
             :class="currentTheme === 'dark' ? 'border-gray-700 hover:bg-gray-700' : 'border-gray-200 hover:bg-gray-100'"
           >
-            <p class="text-lg" :dir="currentLanguage === 'ar' ? 'rtl' : 'ltr'">
+            <p class="text-2xl leading-loose" :dir="currentLanguage === 'ar' ? 'rtl' : 'ltr'">
               {{ result.text }}
             </p>
             <p class="text-sm opacity-80">
@@ -303,7 +303,7 @@ qaloon mushaf
     <!-- Voice Search Overlay -->
     <div
       v-if="showVoiceSearchOverlay"
-      class="voice-search-overlay fixed inset-0 flex items-center justify-center z-50"
+      class="voice-search-overlay fixed inset-0 flex items-center justify-center z-[100]"
       :class="currentTheme === 'dark' ? 'dark-theme' : 'light-theme'"
       @click.stop="closeOverlay('voice')"
     >
@@ -462,12 +462,14 @@ qaloon mushaf
       v-if="showLoopsMenu"
       class="loops-overlay fixed inset-0 flex items-center justify-center z-50"
       :class="currentTheme === 'dark' ? 'dark-theme' : 'light-theme'"
+        @click.stop="showLoopsMenu = false"
+        @touchstart.stop="showLoopsMenu = false"
     >
       <div
         class="loops-container bg-opacity-80 p-6 rounded-lg"
         :class="currentTheme === 'dark' ? 'bg-gray-800' : 'bg-white'"
         @click.stop="showLoopsMenu = false"
-        @touchstart="startLoopSwipe"
+        @touchstart.stop="startLoopSwipe"
         @touchmove="handleLoopSwipe"
         @touchend="endLoopSwipe"
       >
@@ -554,7 +556,7 @@ qaloon mushaf
 
 
     <!-- Control Buttons Container -->
-    <div   v-show=" (controlMenuVisible || (showBottomUI && !isMobile)) || displayMode === 'Hifdh'"    
+    <div   v-show="(controlMenuVisible || (showBottomUI && !isMobile)) || displayMode === 'Hifdh'"    
     :class="['control-buttons-container', { 'fade-out': controlMenuFading }, `${controlMenuVisible ? '' :'max-sm:hidden'}`, displayMode === 'full-surah' ? '!bottom-0 bg-black/50' : '']"
   @mousedown.stop="showControlMenu"
   @touchstart.stop="showControlMenu"
@@ -690,31 +692,24 @@ class="control-buttons-container  rounded-xl p-2 max-sm:scale-90 fixed max-sm:bo
             v-if="showDisplayModeMenu"
             class="absolute bottom-14 left-1/2 -translate-x-1/2 flex flex-col gap-3 bg-none p-3 rounded-lg z-50"
           >
-            <button
-              v-if="currentLanguage !== 'ar'"
-              @click.stop="setDisplayMode('verse')"
-              class="control-button w-12 h-12 flex items-center justify-center text-lg font-bold hover:opacity-100"
-              :aria-label="currentLanguage === 'ar' ? 'عرض الآية' : 'Verse view'"
-            >
-              {{ currentLanguage === 'ar' ? 'آية' : 'Verse' }}
-            </button>
+      
             <button
               @click.stop="setDisplayMode('full-surah')"
-              class="control-button w-12 h-12 flex items-center justify-center text-lg font-bold hover:opacity-100"
+              class="control-button w-16 h-16 flex items-center justify-center text-lg font-bold hover:opacity-100"
               :aria-label="currentLanguage === 'ar' ? 'عرض السورة كاملة' : 'Full Surah view'"
             >
               {{ currentLanguage === 'ar' ? 'سورة' : 'Surah' }}
             </button>
             <button
               @click.stop="setDisplayMode('tafseer')"
-              class="control-button w-12 h-12 flex items-center justify-center text-lg font-bold hover:opacity-100"
+              class="control-button w-16 h-16 flex items-center justify-center text-lg font-bold hover:opacity-100"
               :aria-label="currentLanguage === 'ar' ? 'عرض التفسير' : 'Tafseer view'"
             >
               {{ currentLanguage === 'ar' ? 'تفسير' : 'Tafseer' }}
             </button>
             <button
               @click.stop="setDisplayMode('Hifdh')"
-              class="control-button w-12 h-12 flex items-center justify-center text-lg font-bold hover:opacity-100"
+              class="control-button w-16 h-16 flex items-center justify-center text-lg font-bold hover:opacity-100"
               :aria-label="currentLanguage === 'ar' ? 'وضع الحفظ' : 'Hifdh Mode'"
             >
               {{ currentLanguage === 'ar' ? 'حفظ' : 'Hifdh' }}
@@ -737,7 +732,7 @@ class="control-buttons-container  rounded-xl p-2 max-sm:scale-90 fixed max-sm:bo
               v-for="lang in otherLanguages"
               :key="lang"
               @click.stop="setLanguage(lang)"
-              class="control-button w-12 h-12 flex items-center justify-center text-lg font-bold opacity-65 hover:opacity-100"
+              class="control-button w-16 h-16 flex items-center justify-center text-lg font-bold opacity-65 hover:opacity-100"
               :aria-label="'Switch to ' + langNames[lang]"
             >
               {{ lang === 'ar' ? 'ع' : lang.toUpperCase() }}
@@ -791,11 +786,10 @@ class="control-buttons-container  rounded-xl p-2 max-sm:scale-90 fixed max-sm:bo
     </div>
     <div   
     :class="displayMode === 'full-surah' ? '!bottom-0' : ''"
-class="hamburg   !bg-none rounded-xl p-2 max-sm:scale-90 fixed max-sm:bottom-12 bottom-5 sm:right-5 flex space-x-2 z-50">
+class="hamburg   !bg-none rounded-xl p-2 max-sm:scale-90 fixed max-sm:bottom-0 bottom-5 sm:right-5 flex space-x-2 z-50">
 
     <button
-  v-if="hamburgerMenuVisible && isMobile"
-  class="fixed bottom-5 left-1/2 z-50 transform -translate-x-1/2 sepia-hamburger"
+v-if="hamburgerMenuVisible && isMobile && displayMode !== 'Hifdh'"  class="fixed bottom-5 left-1/2 z-50 transform -translate-x-1/2 sepia-hamburger"
   style="width:56px;height:56px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:2rem;box-shadow:0 2px 8px rgba(0,0,0,0.2);"
   @click="handleHamburgerClick"
 >
@@ -956,8 +950,7 @@ export default {
       // Mushaf selection
       showMushafSelection: false,
       mushafType: 'hafs', // 'hafs', 'warsh', 'qaloon'
-         controlMenuVisible: true,
-    hamburgerMenuVisible: false,
+         controlMenuVisible: false,
     controlMenuTimeoutId: null,
     controlMenuFading: false,
     fassarliMode: false,
@@ -987,8 +980,7 @@ showBottomInfo: true,
       HifdhLoopCount: 10,
       currentLoopIteration: 0, // Track current loop iteration
             activeVerseUuidForHighlighting: null,
-controlMenuVisible: true,
-hamburgerMenuVisible: false,
+hamburgerMenuVisible: true,
 controlMenuTimeoutId: null,
       completedVerses: {}, // Track comple
       SURAH_DATA,
@@ -1141,9 +1133,14 @@ controlMenuTimeoutId: null,
           this.showBottomUI = false;
         }, 3000);
       },
-    toggleHighLight() {
-      this.highlightMode = !this.highlightMode;
-    },
+toggleHighLight() {
+  this.highlightMode = !this.highlightMode;
+  if (this.displayMode === 'Hifdh' && this.highlightMode) {
+    this.pauseVerseDisplayByPause();
+  } else if (this.displayMode === 'Hifdh' && !this.highlightMode) {
+    this.resumeVerseDisplayFromPause();
+  }
+},
      scrollToTop() {
       const container = this.$refs.versesContainer;
       if (container) {
@@ -1167,6 +1164,7 @@ controlMenuTimeoutId: null,
   });
 },
     showControlMenu() {
+      if (this.displayMode === 'Hifdh') return
   this.controlMenuVisible = true;
   this.hamburgerMenuVisible = false;
   this.controlMenuFading = false;
@@ -1174,6 +1172,8 @@ controlMenuTimeoutId: null,
   
 },
 hideControlMenu() {
+      if (this.displayMode === 'Hifdh') return
+
   this.controlMenuVisible = false;
   this.showDisplayModeMenu = false;
   this.hamburgerMenuVisible = true;
@@ -1193,19 +1193,23 @@ showHamburgerMenu() {
       this.showNavigationInstructions = false;
       localStorage.setItem('hasSeenInstructions', 'true');
     },
-      focusTextarea() {
-    this.$refs.notesTextarea.focus();
-  },
+
     // Mushaf Selection
-    selectMushaf(type) {
-      this.mushafType = type;
-      localStorage.setItem('mushafType', type);
-            this.showMushafSelection = false; // Hide selection after choosing
+async selectMushaf(type) {
+  this.mushafType = type;
+  localStorage.setItem('mushafType', type);
+  this.showMushafSelection = false;
+  if (type === 'qaloon' || type === 'warsh') {
+    this.currentLanguage = 'ar';
+    localStorage.setItem('language', 'ar');
+  }
 if (!localStorage.getItem('hasSeenInstructions')) {
       console.log('Showing navigation instructions on first visit');
+      await new Promise(resolve => setTimeout(resolve, 3500)); // 3.5 second delay
+
       this.showNavigationInstructions = true;
     }
-      this.loadInitialData();
+      await this.loadInitialData();
     },
     
     async getVerseData(surah, verse) {
@@ -1573,7 +1577,8 @@ getWordHighlightColor(index, verseUuid) {
   },
 
   displayCurrentPart() {
-    if (this.isPausedByPause) return
+  if (this.isPausedByHold) return; // <--- ADD THIS LINE
+  if (this.isPausedByPause) return;
     this.clearAnimationTimers();
         this.currentPartIndex = 0
       // Reset revision highlights for the new part/verse
@@ -1624,6 +1629,9 @@ getWordHighlightColor(index, verseUuid) {
 
   displayNextPart() {
      // If there are more parts, go to the next part
+
+       if (this.isPausedByHold) return; // <--- ADD THIS LINE
+
   if (this.currentPartIndex < this.currentTextParts.length - 1) {
     this.currentPartIndex++;
     this.displayCurrentPart();
@@ -1668,6 +1676,10 @@ getWordHighlightColor(index, verseUuid) {
     
     // Fix for Tafsir Mode Navigation
     handleAppClick(event) {
+      if (this.highlightMode && this.isSelectingWords) {
+  // Prevent navigation while highlighting
+  return;
+}
        // If in full-surah mode, don't do any verse/part navigation from global clicks
       if (this.displayMode === 'full-surah') {
         // Still handle overlay closing if click is outside content
@@ -1747,6 +1759,7 @@ getWordHighlightColor(index, verseUuid) {
           this.displayPreviousPart();
         } else {
           this.displayNextPart();
+
         }
         return;
       }
@@ -1811,6 +1824,9 @@ getWordHighlightColor(index, verseUuid) {
 
   if (mode === 'Hifdh') {
     this.enterHifdhMode();
+      this.displayedWords = [];
+  this.currentTextParts = [];
+  this.$forceUpdate();
   } else if (mode === 'tafseer') {
     this.loadTafseer();
   } else if (mode === 'full-surah') {
@@ -2087,13 +2103,17 @@ getLocalizedErrorMessage(key, detail = '') {
     console.log('Shuffle mode:', this.isShuffleMode);
   },
 
-    searchPagination(direction) {
-    this.currentPage += direction;
-    if (this.currentPage < 1) this.currentPage = 1;
-    if (this.currentPage > Math.ceil(this.searchResults.length / this.resultsPerPage)) {
-      this.currentPage = Math.ceil(this.searchResults.length / this.resultsPerPage);
-    }
-  },
+searchPagination(direction) {
+  this.currentPage += direction;
+  if (this.currentPage < 1) this.currentPage = 1;
+  if (this.currentPage > Math.ceil(this.searchResults.length / this.resultsPerPage)) {
+    this.currentPage = Math.ceil(this.searchResults.length / this.resultsPerPage);
+  }
+  this.$nextTick(() => {
+    const resultsContainer = document.querySelector('.search-results');
+    if (resultsContainer) resultsContainer.scrollTop = 0;
+  });
+},
   handleResultClick(result) {
     const text = `${result.text}\n${this.currentLanguage === 'ar' ? result.surahArabicName : result.surahEnglishName} ${result.verse}`;
     navigator.clipboard.write(text)
@@ -2161,10 +2181,11 @@ startWordSelection(event, index, verseUuidParam = null) {
 
   event.preventDefault();
   this.isSelectingWords = true;
-  this.selectedWordIndices = [index]; // Store the index (relative to the verse)
-  this.activeVerseUuidForHighlighting = targetVerseUuid; // Set the active UUID
+  this.selectedWordIndices = [index];
+  this.highlightSelectionStart = index;
+  this.activeVerseUuidForHighlighting = targetVerseUuid;
   this.showHighlightMenu = false;
-  this.showHighlightContextMenu = false; // Close context menu if it was open
+  this.showHighlightContextMenu = false;
 },
 
 updateWordSelection(event, index, verseUuidParam = null) {
@@ -2174,20 +2195,14 @@ updateWordSelection(event, index, verseUuidParam = null) {
     return;
   }
 
-  const highlightEnabledModes = ['Hifdh', 'full-surah']; // Add 'verse', 'tafseer' if needed
-  if (!highlightEnabledModes.includes(this.displayMode)) {
-    return;
-  }
-
+  if (!this.isSelectingWords || this.activeVerseUuidForHighlighting !== targetVerseUuid) return;
+  const highlightEnabledModes = ['Hifdh', 'full-surah'];
+  if (!highlightEnabledModes.includes(this.displayMode)) return;
   event.preventDefault();
-  if (!this.selectedWordIndices.includes(index)) {
-    const minIndex = Math.min(...this.selectedWordIndices, index);
-    const maxIndex = Math.max(...this.selectedWordIndices, index);
-    this.selectedWordIndices = Array.from(
-      { length: maxIndex - minIndex + 1 },
-      (_, i) => minIndex + i
-    );
-  }
+  // Always select range between start and current
+  const minIndex = Math.min(this.highlightSelectionStart, index);
+  const maxIndex = Math.max(this.highlightSelectionStart, index);
+  this.selectedWordIndices = Array.from({ length: maxIndex - minIndex + 1 }, (_, i) => minIndex + i);
 },
 
 endWordSelection(event) {
@@ -2279,23 +2294,23 @@ setLanguage(lang) {
   this.showLanguageMenu = false;
   if (lang === 'ar') {
     this.showMushafSelection = true;
-        // Do not automatically load data if mushaf selection is shown
-
   } else {
     this.showMushafSelection = false;
-     // For non-Arabic, set mushafType to hafs by default if not already set
     if (this.mushafType !== 'hafs') {
-        this.mushafType = 'hafs';
-        localStorage.setItem('mushafType', 'hafs');
+      this.mushafType = 'hafs';
+      localStorage.setItem('mushafType', 'hafs');
     }
     this.loadInitialData().then(() => {
-       if (this.allVerses.length > 0 && !this.errorMessage) {
-          this.selectVerse();
-        } else if (!this.errorMessage) {
-          this.errorMessage = this.getLocalizedErrorMessage('noDataAfterLoad');
-        }
-        this.isLoading = false;
-      });
+      if (this.displayMode === 'full-surah' && this.currentVerseData) {
+        this.loadSurahVerses(this.currentVerseData.surah);
+      }
+      if (this.allVerses.length > 0 && !this.errorMessage) {
+        this.selectVerse();
+      } else if (!this.errorMessage) {
+        this.errorMessage = this.getLocalizedErrorMessage('noDataAfterLoad');
+      }
+      this.isLoading = false;
+    });
   }
 },
 async loadInitialData() {
@@ -2618,25 +2633,17 @@ performSearch() {
         this.errorMessage = this.getLocalizedErrorMessage('noResults');
       }
       // Scroll to top of results
-      this.$nextTick(() => {
-        const resultsContainer = document.querySelector('.search-results');
-        if (resultsContainer) resultsContainer.scrollTop = 0;
-      });
-    }, 300);
-  },
-  selectSearchResult(result) {
-    
-    const verse = this.allVerses.find(v => v.uuid === result.uuid);
-     if (this.displayMode === 'full-surah' && this.currentSurahData && result.surah === this.currentSurahData.id) {
-    // Same surah, just scroll to verse
-    this.showSearchOverlay = false;
-    this.$nextTick(() => {
-      const verseEl = document.querySelector(`[data-verse-uuid="${result.uuid}"]`);
-      if (verseEl) verseEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
+ this.$nextTick(() => {
+      const resultsContainer = document.querySelector('.search-results');
+      if (resultsContainer) resultsContainer.scrollTop = 0;
+      if (this.$refs.searchInput) this.$refs.searchInput.blur();
     });
-  } else {
-    // Switch to surah mode and scroll
-    this.setDisplayMode('full-surah');
+  }, 300);
+  },
+selectSearchResult(result) {
+  const verse = this.allVerses.find(v => v.uuid === result.uuid);
+  if (!verse) return;
+  if (this.displayMode === 'full-surah') {
     this.selectedSurah = result.surah;
     this.loadSurahVerses(result.surah).then(() => {
       this.showSearchOverlay = false;
@@ -2645,19 +2652,32 @@ performSearch() {
         if (verseEl) verseEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
       });
     });
+  } else if (this.displayMode === 'tafseer') {
+    this.currentVerseData = { ...verse };
+    this.loadTafseer();
+    this.showSearchOverlay = false;
+  } else if (this.displayMode === 'Hifdh') {
+    this.currentVerseData = { ...verse };
+    this.updateHifdhVerseQueue();
+    this.HifdhCurrentVerseIndex = 0;
+    this.showSearchOverlay = false;
+    this.showBottomInfo = false;
+    this.currentTextParts = this.segmentText(verse.text);
+    this.currentPartIndex = 0;
+    this.displayedWords = [];
+    this.clearAnimationTimers();
+    this.displayCurrentPart();
+  } else {
+    // Verse mode
+    this.currentVerseData = { ...verse };
+    this.currentTextParts = this.segmentText(verse.text);
+    this.currentPartIndex = 0;
+    this.displayedWords = [];
+    this.clearAnimationTimers();
+    this.displayCurrentPart();
+    this.showSearchOverlay = false;
   }
-    if (verse) {
-      this.currentVerseData = { ...verse };
-      this.currentTextParts = this.segmentText(verse.text);
-      this.currentPartIndex = 0;
-      this.displayedWords = [];
-      this.clearAnimationTimers();
-      this.displayCurrentPart();
-      this.showSearchOverlay = false;
-      this.searchQuery = '';
-      this.searchResults = [];
-    }
-  },
+},
 
 
 startVoiceSearch() {
@@ -2896,11 +2916,9 @@ stopAudioHold() {
   },
 
     focusSearchInput() {
-  this.$nextTick(() => {
-    if (this.$refs.searchInput) {
+     this.$nextTick(() => {
       this.$refs.searchInput.focus();
-    }
-  });
+    });
 },
 
 
@@ -2921,7 +2939,7 @@ stopAudioHold() {
 
 displayCurrentPart() {
     if (this.isPausedByPause) return
-
+if (this.isPausedByHold) return;
   // Clear any ongoing animations and timers
   this.clearAnimationTimers();
   
@@ -2978,6 +2996,8 @@ displayCurrentPart() {
 
 
 animateWords() {
+    if (this.isPausedByHold) return; // <--- ADD THIS LINE
+
  let wordIndex = this.displayedWords.length; // Start from where we left off
   // Do NOT clear displayedWords here!
   this.wordIntervalId = setInterval(() => {
@@ -3118,47 +3138,23 @@ togglePause() {
 },
 
 pauseVerseDisplayByPause() {
-  if (this.isLoading || this.errorMessage || !this.currentVerseData || this.isPausedByPause) {
-    return;
-  }
+  if (this.isLoading || this.errorMessage || !this.currentVerseData || this.isPausedByPause) return;
   this.isPausedByPause = true;
-  console.log('Paused by pause button');
-  if (this.wordIntervalId) {
-    clearInterval(this.wordIntervalId);
-    this.wordIntervalId = null;
-  }
   if (this.partTimeoutId) {
     const elapsedTime = Date.now() - this.partTimeoutStartTime;
     this.pausedPartRemainingTime = this.currentActivePartDuration - elapsedTime;
     if (this.pausedPartRemainingTime < 0) this.pausedPartRemainingTime = 0;
     clearTimeout(this.partTimeoutId);
     this.partTimeoutId = null;
-    console.log('Part timeout paused. Remaining:', this.pausedPartRemainingTime);
   } else {
     this.pausedPartRemainingTime = 0;
   }
+  // DO NOT clear wordIntervalId here!
 },
 
 resumeVerseDisplayFromPause() {
   if (!this.isPausedByPause) return;
-  console.log('Resuming from pause button');
   this.isPausedByPause = false;
-
-  // Resume animating remaining words if any
-  if (this.currentPartWords && this.currentPartWords.length > this.displayedWords.length) {
-    let wordIndex = this.displayedWords.length;
-    this.wordIntervalId = setInterval(() => {
-      if (wordIndex < this.currentPartWords.length) {
-        this.displayedWords.push(this.currentPartWords[wordIndex]);
-        wordIndex++;
-      } else {
-        clearInterval(this.wordIntervalId);
-        this.wordIntervalId = null;
-      }
-    }, this.WORD_ANIMATION_INTERVAL);
-  }
-
-  // Resume part timeout if remaining time exists
   if (this.pausedPartRemainingTime > 0) {
     const resumeCallback = (this.currentVerseData && this.currentTextParts.length > 0 && this.currentPartIndex < this.currentTextParts.length)
       ? this.displayNextPart
@@ -3168,31 +3164,12 @@ resumeVerseDisplayFromPause() {
   }
 },
 
-resumeVerseDisplayFromPause() {
-  if (!this.isPausedByPause) return;
-  this.isPausedByPause = false;
-  this.isResuming = true; // <-- Add this
-  if (this.currentPartWords && this.currentPartWords.length > this.displayedWords.length) {
-    this.animateWords();
-  }
-  if (this.pausedPartRemainingTime > 0) {
-    const resumeCallback = (this.currentVerseData && this.currentTextParts.length > 0 && this.currentPartIndex < this.currentTextParts.length)
-      ? this.displayNextPart
-      : this.selectVerse;
-    this.partTimeoutId = setTimeout(resumeCallback, this.pausedPartRemainingTime);
-    this.partTimeoutStartTime = Date.now();
-  }
-  this.isPausedByPause = false;
-},
 
 pauseVerseDisplayByHold() {
-  if (this.isLoading || this.errorMessage || !this.currentVerseData || this.isPausedByHold) {
-    return;
-  }
+  if (this.isLoading || this.errorMessage || !this.currentVerseData || this.isPausedByHold) return;
+  this.isPausedByHold = true;
   this.showBottomUI = false;
   this.showBottomInfo = false;
-  this.isPausedByHold = true;
-  console.log('Paused by hold');
   if (this.wordIntervalId) {
     clearInterval(this.wordIntervalId);
     this.wordIntervalId = null;
@@ -3203,15 +3180,14 @@ pauseVerseDisplayByHold() {
     if (this.pausedPartRemainingTime < 0) this.pausedPartRemainingTime = 0;
     clearTimeout(this.partTimeoutId);
     this.partTimeoutId = null;
-    console.log('Part timeout paused by hold. Remaining:', this.pausedPartRemainingTime);
   } else {
     this.pausedPartRemainingTime = 0;
   }
 },
-
 resumeVerseDisplayFromHold() {
   if (!this.isPausedByHold) return;
-  console.log('Resuming from hold');
+  this.showBottomUI = true;
+  this.showBottomInfo = true;
   if (this.currentPartWords && this.currentPartWords.length > 0 && this.displayedWords.length < this.currentPartWords.length) {
     this.animateWords();
   }
@@ -3223,12 +3199,11 @@ resumeVerseDisplayFromHold() {
     this.partTimeoutStartTime = Date.now();
   }
   this.isPausedByHold = false;
-  this.showBottomInfo = true;
 },
 
 displayCurrentPart() {
-
-    if (this.isPausedByPause) return;
+  if (this.isPausedByHold) return;
+  if (this.isPausedByPause) return;
   this.clearAnimationTimers();
 
   // Only clear displayedWords if starting a new part (not resuming)
@@ -3274,7 +3249,11 @@ displayCurrentPart() {
 
 handleAppTouchStart(event) {
   // Skip if touching inputs, buttons, or overlays
+ // Prevent hold if overlays are open
   if (
+    this.showLoopsMenu ||
+    this.showSearchOverlay ||
+    this.showVoiceSearchOverlay ||
     event.target.closest('input') ||
     event.target.closest('button') ||
     event.target.closest('.control-buttons-container') ||
@@ -3283,8 +3262,6 @@ handleAppTouchStart(event) {
   ) {
     return;
   }
-
-  // Only preventDefault if NOT in full-surah mode
   if (this.displayMode !== 'full-surah') {
     event.preventDefault();
   }
@@ -3299,17 +3276,24 @@ handleAppTouchStart(event) {
   }
   if (!this.isPausedByHold) {
     this.holdStartTimeoutId = setTimeout(() => {
-      if (this.isHoldingGlobal && !this.hasSwiped) {
+      if (
+        this.isHoldingGlobal &&
+        !this.hasSwiped &&
+        !this.showLoopsMenu &&
+        !this.showSearchOverlay &&
+        !this.showVoiceSearchOverlay
+      ) {
         this.pauseVerseDisplayByHold();
       }
     }, this.HOLD_THRESHOLD);
   }
-  console.log('Touch start at x:', this.touchStartX, 'y:', this.touchStartY, 'time:', this.touchStartTime);
 },
 
 handleAppMouseDown(event) {
-  // Skip if clicking on inputs, buttons, or overlays
   if (
+    this.showLoopsMenu ||
+    this.showSearchOverlay ||
+    this.showVoiceSearchOverlay ||
     event.target.closest('input') ||
     event.target.closest('button') ||
     event.target.closest('.control-buttons-container') ||
@@ -3318,25 +3302,36 @@ handleAppMouseDown(event) {
   ) {
     return;
   }
-
-  // Only preventDefault if NOT in full-surah mode
   if (this.displayMode !== 'full-surah') {
     event.preventDefault();
   }
-
   this.isHoldingGlobal = true;
   clearTimeout(this.holdStartTimeoutId);
   if (!this.isPausedByHold) {
     this.holdStartTimeoutId = setTimeout(() => {
-      if (this.isHoldingGlobal && !this.hasSwiped) {
+      if (
+        this.isHoldingGlobal &&
+        !this.hasSwiped &&
+        !this.showLoopsMenu &&
+        !this.showSearchOverlay &&
+        !this.showVoiceSearchOverlay
+      ) {
         this.pauseVerseDisplayByHold();
       }
     }, this.HOLD_THRESHOLD);
   }
-  console.log('Mouse down at x:', event.clientX);
 },
 handleAppMouseUp(event) {
   if (this.showNotesOverlay) {
+  return;
+}
+
+if (this.showLoopsMenu || this.showSearchOverlay || this.showVoiceSearchOverlay) {
+  this.isHoldingGlobal = false;
+  this.touchStartX = null;
+  this.touchStartY = null;
+  this.touchStartTime = null;
+  this.hasSwiped = false;
   return;
 }
     const isControlButtonClick =
@@ -3389,6 +3384,7 @@ if (this.displayMode === 'verse') {
       this.displayPreviousVerse();
     }
   }
+  
   this.isHoldingGlobal = false;
   return;
 }
@@ -3433,7 +3429,14 @@ saveLastViewed() {
   }
 },
 handleAppTouchEnd(event) {
-
+if (this.showLoopsMenu || this.showSearchOverlay || this.showVoiceSearchOverlay) {
+  this.isHoldingGlobal = false;
+  this.touchStartX = null;
+  this.touchStartY = null;
+  this.touchStartTime = null;
+  this.hasSwiped = false;
+  return;
+}
   const isControlButtonTouch =
     event.target.closest('button') ||
     event.target.closest('.control-buttons-container') ||
@@ -3531,7 +3534,7 @@ handleAppTouchEnd(event) {
           }
         }
       } else if (this.displayMode === 'verse') {
-        if (rightSideTapped) {
+        if (!rightSideTapped) {
           if (this.currentPartIndex < this.currentTextParts.length - 1) {
             console.log('Tap - Next part');
             this.displayNextPart();
@@ -3886,17 +3889,28 @@ getNextVerse(current) {
   startLoopSwipe(event) {
     this.loopSwipeStartY = event.changedTouches[0].clientY;
   },
-  handleLoopSwipe(event) {
-    const currentY = event.changedTouches[0].clientY;
-    const deltaY = this.loopSwipeStartY - currentY;
-    if (Math.abs(deltaY) > 20) {
-      const increment = deltaY > 0 ? 1 : -1;
-      this.HifdhLoopCount = Math.max(0, Math.min(100, this.HifdhLoopCount + increment));
-      this.loopSwipeStartY = currentY;
-      // Vibrate on change
-      if (navigator.vibrate) navigator.vibrate(50);
+handleLoopSwipe(event) {
+  const currentY = event.changedTouches[0].clientY;
+  const deltaY = this.loopSwipeStartY - currentY;
+  if (Math.abs(deltaY) > 20) {
+    const increment = deltaY > 0 ? 1 : -1;
+    this.HifdhLoopCount = Math.max(1, Math.min(100, this.HifdhLoopCount + increment));
+    this.loopSwipeStartY = currentY;
+    // Vibrate on change
+    if (navigator.vibrate) navigator.vibrate(50);
+    // Immediately update the queue and reset index
+    this.updateHifdhVerseQueue();
+    this.HifdhCurrentVerseIndex = 0;
+    if (this.HifdhVerseQueue.length > 0) {
+      this.currentVerseData = { ...this.HifdhVerseQueue[0] };
+      this.currentTextParts = this.segmentText(this.currentVerseData.text);
+      this.currentPartIndex = 0;
+      this.displayedWords = [];
+      this.clearAnimationTimers();
+      this.displayCurrentPart();
     }
-  },
+  }
+},
   endLoopSwipe() {
     this.loopSwipeStartY = null;
   },
@@ -4034,6 +4048,14 @@ if (this.displayMode === 'full-surah') {
 },
 
 handleAppTouchMove(event) {
+  if (this.showLoopsMenu || this.showSearchOverlay || this.showVoiceSearchOverlay) {
+  this.isHoldingGlobal = false;
+  this.touchStartX = null;
+  this.touchStartY = null;
+  this.touchStartTime = null;
+  this.hasSwiped = false;
+  return;
+}
 if (this.displayMode === 'full-surah') {
     // Only trigger swipe down if at top of scroll
     const container = this.$refs.versesContainer;
@@ -4075,6 +4097,7 @@ if (this.displayMode === 'full-surah') {
         console.log('Swipe down detected - Opening search');
         this.showVoiceSearchOverlay = false;
         this.showSearchOverlay = true;
+        this.focusSearchInput();
       }
       this.touchStartX = null;
       this.touchStartY = null;
@@ -4226,7 +4249,8 @@ shareVerse() {
   this.showControlMenu();
  document.addEventListener('mousedown', this.handleGlobalClick);
   document.addEventListener('touchstart', this.handleGlobalClick);
-  
+  this.controlMenuVisible = false;
+this.hamburgerMenuVisible = true;
   },
   
   beforeUnmount() {
@@ -4397,8 +4421,8 @@ html, body {
 
 .control-button {
   font-family:Arial, Helvetica, sans-serif;
-  width: 2.75rem; /* ~44px */
-  height: 2.75rem; /* ~44px */
+    width: 4rem; /* ~44px */
+    height: 4rem; /* ~44px */
   border-radius: 9999px; /* pill shape */
   display: flex;
   font-size: 12px;
@@ -4549,11 +4573,15 @@ html, body {
   width: 100%;
   margin-top: 2rem;
   max-height: calc(100vh - 150px);
-
+  overflow-y: auto;
+  margin-left: 0 !important;
+  margin-right: 0 !important;
+  padding-left: 0 !important;
+  padding-right: 0 !important;
 }
 
 .search-result-item {
-  padding: 1rem;
+  padding: 1rem 4rem;
   margin-bottom: 1rem;
   border-radius: 0.5rem;
 }
@@ -4948,7 +4976,12 @@ select {
   font-size: 12px;
   z-index: 100;
 }
-
+.full-surah-display, .control-buttons-container, .control-button, .verse-line, .verse-text {
+  user-select: none !important;
+  -webkit-user-select: none !important;
+  -moz-user-select: none !important;
+  -ms-user-select: none !important;
+}
 .offline-indicator.online {
   background-color: #4CAF50;
   color: white;
@@ -5122,5 +5155,19 @@ select {
 .control-buttons-container {
   opacity: 1;
   transition: opacity 0.3s;
+}
+
+.sepia-hamburger, .dark-theme .sepia-hamburger {
+  box-shadow: 0 0 16px 2px #60a5fa !important; /* light blue for dark */
+}
+.light-theme .sepia-hamburger {
+  box-shadow: 0 0 16px 2px #0f035c8d !important;
+}
+.sepia-theme .sepia-hamburger {
+  box-shadow: 0 0 16px 2px #bfa76f !important; /* sepia gold */
+}
+
+.inline-block {
+  touch-action: none;
 }
 </style>
