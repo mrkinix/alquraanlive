@@ -211,7 +211,8 @@ qaloon mushaf
       </p>
     </div>
 
-    <!-- Search Overlay -->
+<!-- Search Overlay -->
+<div v-if="showSearchOverlay" class="search-overlay ...">
     <div
       v-if="showSearchOverlay"
       class="search-overlay bg-none fixed inset-0 flex flex-col items-center justify-start sm:p-[2rem] sm:pt-8 z-[100]"
@@ -219,13 +220,10 @@ qaloon mushaf
       style="background-color: transparent !important;"
             @click="closeOverlay('search')"
 
-    >
-      <div
-        class="search-container bg-opacity-80 py-6 rounded-lg w-full !flex !flex-col h-full max-w-2xl"
-        :class="currentTheme === 'dark' ? 'bg-black/40' : 'bg-white'"
-      >
-        <div class="flex items-center mb-4 max-sm:flex-col">
-          <input
+    >    <!-- This is your input bar -->
+    <div class="flex items-center py-6 max-sm:flex-col z-[2]"
+         :class="currentTheme === 'dark' ? 'bg-black text-white' : 'bg-white text-gray-800'">
+        <input
             v-model="searchQuery"
              @click.stop
             @keyup.enter="performSearch"
@@ -255,13 +253,13 @@ qaloon mushaf
           </button>
           </div>
         </div>
-        <div v-if="isSearching" class="text-center py-4">
+        <div v-if="isSearching" class="text-center py-4 flex-1 flex items-center justify-center">
           {{ currentLanguage === 'ar' ? 'جاري البحث...' : 'Searching...' }}
         </div>
-            <div v-else-if="!isSearching && searchResults.length === 0 && searchQuery.trim().length > 0 && !errorMessage" class="text-center py-4">
+            <div v-else-if="searched && !isSearching && searchResults.length === 0 && searchQuery.trim().length > 0 && !errorMessage" class="text-center py-4 flex-1 flex items-center justify-center">
           {{ currentLanguage === 'ar' ? 'لم يتم العثور على نتائج' : 'No results found' }}
         </div>
-        <div v-else class="search-results h-full overflow-y-auto">
+        <div v-else class="search-results flex-1 overflow-y-auto">
           <div
             v-for="result in paginatedResults"
             :key="result.uuid"
@@ -298,7 +296,7 @@ qaloon mushaf
           </div>
         </div>
       </div>
-    </div>
+      </div>
 
     <!-- Voice Search Overlay -->
     <div
@@ -956,6 +954,7 @@ export default {
     fassarliMode: false,
     showBottomUI: true,
 showBottomInfo: true,
+searched: false,
       // Revision mode
       isRevisionMode: false,
       speechRecognition: null,
@@ -1498,152 +1497,122 @@ getWordHighlightColor(index, verseUuid) {
     }
     this.showHighlightContextMenu = false;
   },
-  async selectVerse(next = true) { // Make async
-    if (this.displayMode === 'Hifdh') {
-      this.selectNextHifdhVerse();
-      return;
-    }
-    if (this.isRevisionMode) {
-      this.toggleRevisionMode();
-      this.toggleRevisionMode();
-      this.displayMode = "revision"
+async selectVerse(next = true) { // Make async
+  if (this.displayMode === 'Hifdh') {
+    this.selectNextHifdhVerse();
+    return;
+  }
+  if (this.isRevisionMode) {
+    this.toggleRevisionMode(); // Stop current
+    this.toggleRevisionMode(); // Start new (will re-init)
+    this.displayMode = "revision"
+  }
 
-    }
-    this.clearAnimationTimers();
-    // Fully reset display state
-    this.displayedWords = [];
-    this.currentTextParts = [];
-    this.currentPartWords = [];
-    this.currentPartIndex = 0;
-    this.correctWords = [];
-    this.mistakeWords = [];
-
-    if (!this.allVerses || this.allVerses.length === 0) {
-      this.currentVerseData = null;
-      this.currentTextParts = [];
-      this.unreadVerses = [];
-      if (!this.isLoading && !this.errorMessage) {
-        this.errorMessage = this.getLocalizedErrorMessage('noVersesAvailable');
-      }
-      return;
-    }
-    let newIndex;
-    const previousVerseUuid = this.currentVerseData ? this.currentVerseData.uuid : null;
-
-
-    if (this.isShuffleMode) {
-      newIndex = Math.floor(Math.random() * this.allVerses.length);
-    } else if (next && this.currentVerseData) {
-      const currentSurah = this.currentVerseData.surah;
-      const currentVerseNum = this.currentVerseData.verse;
-      const surahInfo = SURAH_DATA.find(s => s.id === currentSurah);
-      if (currentVerseNum < surahInfo.verses) {
-        newIndex = this.allVerses.findIndex(verse => verse.surah === currentSurah && verse.verse === currentVerseNum + 1);
-      } else if (currentSurah < 114) {
-        newIndex = this.allVerses.findIndex(verse => verse.surah === currentSurah + 1 && verse.verse === 1);
-      } else {
-        newIndex = this.allVerses.findIndex(verse => verse.surah === 1 && verse.verse === 1);
-      }
-    } else {
-      newIndex = this.allVerses.findIndex(verse => verse.surah === 1 && verse.verse === 1);
-    }
-    if (newIndex === -1) {
-      console.error('Next verse not found, falling back to random');
-      newIndex = 1;
-    }
-    this.currentVerseData = { ...this.allVerses[newIndex] };
-    
-    // Only reset revision highlights if the verse actually changed
-    if (!previousVerseUuid || this.currentVerseData.uuid !== previousVerseUuid) {
-      this.unreadVerses = []; // Reset for the new verse
-    }
-
-    this.currentTextParts = this.segmentText(this.currentVerseData.text);
-    this.currentPartIndex = 0;
-    this.displayedWords = []; // Clear words for the new verse before displayCurrentPart
-    this.clearAnimationTimers(); // Clear timers for the old verse
-    this.errorMessage = null;
-
-    // Load associated data for the new currentVerseData
-    if (this.currentVerseData && this.currentVerseData.uuid) {
-       await this.loadVerseNote(this.currentVerseData.uuid);
-        await this.loadVerseCompletion(this.currentVerseData.uuid);
-        await this.loadVerseHighlights(this.currentVerseData.uuid);
-    }
-
-    // Now that data is loaded, display the current part
-    this.displayCurrentPart();
-    this.saveLastViewed()
-  },
-
-  displayCurrentPart() {
-  if (this.isPausedByHold) return; // <--- ADD THIS LINE
-  if (this.isPausedByPause) return;
-    this.clearAnimationTimers();
-        this.currentPartIndex = 0
-      // Reset revision highlights for the new part/verse
+  this.clearAnimationTimers();
+  // Fully reset display state
+  this.displayedWords = [];
+  this.currentTextParts = [];
+  this.currentPartWords = [];
+  this.currentPartIndex = 0;
   this.correctWords = [];
   this.mistakeWords = [];
-  this.unreadVerses = [];
-    this.displayedWords = [];
-    this.currentPartWords = [];
-    this.$forceUpdate();
-    this.$nextTick(() => {
-      if (!this.currentVerseData || this.currentPartIndex >= this.currentTextParts.length) {
-        console.log('No more parts, moving to next verse');
-        // Prevent auto-advancing in revision mode
-        if (this.displayMode !== 'revision'  && !this.isPausedByPause) {
-          this.partTimeoutId = setTimeout(() => this.selectVerse(true), this.NEXT_VERSE_DELAY);
-        }
-        return;
-      }
-      const partText = this.currentTextParts[this.currentPartIndex];
-      if (!partText || partText.trim() === '') {
-        console.warn('Empty part text, skipping to next part');
-        this.displayNextPart();
-        return;
-      }
-      this.currentPartWords = partText.split(' ').filter(word => word.trim() !== '');
-      console.log('Displaying part:', this.currentPartIndex, 'Words:', this.currentPartWords);
-      this.animateWords();
-      let currentPartDuration = this.currentAudio && this.currentAudio.duration 
-        ? this.currentAudio.duration * 1000 
-        : this.PART_DISPLAY_DURATION;
-      if (this.currentPartWords.length < (this.WORDS_PER_PART * 0.8) && this.WORDS_PER_PART > 0 && !this.currentAudio) {
-        const proportion = this.currentPartWords.length / this.WORDS_PER_PART;
-        currentPartDuration = Math.max(
-          proportion * this.PART_DISPLAY_DURATION,
-          (this.currentPartWords.length * this.WORD_ANIMATION_INTERVAL) + 1000
-        );
-      }
-      const minDurationForAnimation = (this.currentPartWords.length * this.WORD_ANIMATION_INTERVAL) + 1000;
-      currentPartDuration = Math.max(currentPartDuration, minDurationForAnimation);
-      this.currentActivePartDuration = currentPartDuration;
-      this.partTimeoutStartTime = Date.now();
-      console.log('Part duration:', currentPartDuration);
-        if (this.displayMode !== 'revision'  && !this.isPausedByPause) {
-          this.partTimeoutId = setTimeout(() => this.displayNextPart(), currentPartDuration);
-        }
-    });
-  },
 
-  displayNextPart() {
-     // If there are more parts, go to the next part
+  // When navigating to a new verse while paused by the button,
+  // reset the remaining time as it applies to the new verse/part.
+  if (this.isPausedByPause) {
+    this.pausedPartRemainingTime = 0;
+  }
 
-       if (this.isPausedByHold) return; // <--- ADD THIS LINE
+
+  if (!this.allVerses || this.allVerses.length === 0) {
+    this.currentVerseData = null;
+    this.currentTextParts = [];
+    this.unreadVerses = [];
+    if (!this.isLoading && !this.errorMessage) {
+      this.errorMessage = this.getLocalizedErrorMessage('noVersesAvailable');
+      this.isLoading = false; // Ensure loading is false if error occurs here
+    }
+    return;
+  }
+
+  let newIndex;
+  const previousVerseUuid = this.currentVerseData ? this.currentVerseData.uuid : null;
+
+  if (this.isShuffleMode) {
+    newIndex = Math.floor(Math.random() * this.allVerses.length);
+  } else if (next && this.currentVerseData) {
+    const currentSurah = this.currentVerseData.surah;
+    const currentVerseNum = this.currentVerseData.verse;
+    const surahInfo = SURAH_DATA.find(s => s.id === currentSurah);
+    if (currentVerseNum < surahInfo.verses) {
+      newIndex = this.allVerses.findIndex(verse => verse.surah === currentSurah && verse.verse === currentVerseNum + 1);
+    } else if (currentSurah < 114) {
+      newIndex = this.allVerses.findIndex(verse => verse.surah === currentSurah + 1 && verse.verse === 1);
+    } else { // Loop back to the beginning
+      newIndex = this.allVerses.findIndex(verse => verse.surah === 1 && verse.verse === 1);
+    }
+  } else { // Default to first verse if no current verse or not 'next'
+    newIndex = this.allVerses.findIndex(verse => verse.surah === 1 && verse.verse === 1);
+  }
+
+  if (newIndex === -1) { // Fallback if verse not found
+    console.error('Next verse not found, falling back to first verse of Quran.');
+    newIndex = this.allVerses.findIndex(verse => verse.surah === 1 && verse.verse === 1) || 0;
+  }
+
+  this.currentVerseData = { ...this.allVerses[newIndex] };
+  
+  // Only reset revision highlights if the verse actually changed
+  if (!previousVerseUuid || this.currentVerseData.uuid !== previousVerseUuid) {
+    this.unreadVerses = []; // Reset for the new verse
+  }
+
+  this.currentPartIndex = 0; // New verse always starts at the first part.
+  this.currentTextParts = this.segmentText(this.currentVerseData.text);
+  // displayedWords will be cleared by displayCurrentPart
+  this.errorMessage = null;
+
+  // Load associated data for the new currentVerseData
+  if (this.currentVerseData && this.currentVerseData.uuid) {
+     await this.loadVerseNote(this.currentVerseData.uuid);
+      await this.loadVerseCompletion(this.currentVerseData.uuid);
+      await this.loadVerseHighlights(this.currentVerseData.uuid);
+  }
+
+  // Now that data is loaded, display the current part
+  this.displayCurrentPart(); // This will handle clearing displayedWords and starting animation
+  this.saveLastViewed();
+},
+
+
+
+
+displayNextPart() {
+  if (this.isPausedByHold) return; // If paused by hold, do nothing.
 
   if (this.currentPartIndex < this.currentTextParts.length - 1) {
     this.currentPartIndex++;
     this.displayCurrentPart();
   } else {
-    // If at the last part, auto-advance to the next verse after a short delay
-        if (this.displayMode !== 'revision' && !this.isPausedByPause){
-    setTimeout(() => {
-      this.selectVerse(true);
-    }, 800); // 800ms pause before next verse, adjust as needed
+    // At the last part of the current verse.
+    // Auto-advance to the next verse only if not in revision mode and not paused by the button.
+    if (this.displayMode !== 'revision' && !this.isPausedByPause) {
+      this.partTimeoutId = setTimeout(() => { // Ensure partTimeoutId is set for this delay
+        // Double check isPausedByPause again, in case it was set during the NEXT_VERSE_DELAY
+        if (!this.isPausedByPause && this.displayMode !== 'revision') { // Check again before advancing
+            this.selectVerse(true);
+        }
+      }, this.NEXT_VERSE_DELAY); // Use NEXT_VERSE_DELAY
+      this.partTimeoutStartTime = Date.now(); // Record start time for this specific timeout
+      this.currentActivePartDuration = this.NEXT_VERSE_DELAY; 
     }
+    // If paused by button at the end of a verse, do nothing.
+    // User must manually navigate or unpause.
+    // When unpaused, resumeVerseDisplayFromPause will handle starting the timer for the NEXT_VERSE_DELAY.
   }
-  },
+}
+
+,
     
     // Existing methods
   async loadSurahVerses(surahId) {
@@ -2129,6 +2098,8 @@ searchPagination(direction) {
     if (type === 'search') {
       this.showSearchOverlay = false;
       this.searchQuery = '';
+      this.searched = false;
+
       this.searchResults = [];
     } else if (type === 'voice') {
       this.showVoiceSearchOverlay = false;
@@ -2629,9 +2600,8 @@ performSearch() {
           surahEnglishName: verse.surahEnglishName,
         }));
       this.isSearching = false;
-      if (this.searchResults.length === 0) {
-        this.errorMessage = this.getLocalizedErrorMessage('noResults');
-      }
+    this.searched = true;
+ 
       // Scroll to top of results
  this.$nextTick(() => {
       const resultsContainer = document.querySelector('.search-results');
@@ -2937,80 +2907,60 @@ stopAudioHold() {
       }, durationPerWord);
     },
 
-displayCurrentPart() {
-    if (this.isPausedByPause) return
-if (this.isPausedByHold) return;
-  // Clear any ongoing animations and timers
-  this.clearAnimationTimers();
-  
-    this.correctWords = [];
-  this.mistakeWords = [];
-  this.unreadVerses = [];
-    this.displayedWords = [];
-    this.currentPartWords = [];
 
-  // Clear previous words immediately
-  this.displayedWords = [];
-
-  // Force DOM update to ensure screen is cleared
-  this.$forceUpdate();
-  this.$nextTick(() => {
-    // Check if there's valid data to display
-    if ((!this.currentVerseData ||  this.currentPartIndex >= this.currentTextParts.length)
-  && (this.displayMode !== 'revision') ) {
-      console.log('No more parts, moving to next verse');
-      this.partTimeoutId = setTimeout(() => this.selectVerse(true), this.NEXT_VERSE_DELAY);
-      return;
-    }
-
-    const partText = this.currentTextParts[this.currentPartIndex];
-    this.currentPartWords = partText.split(' ').filter(word => word.trim() !== '');
-    console.log('Displaying part:', this.currentPartIndex, 'Words:', this.currentPartWords);
-
-    // Start animating words
-    this.animateWords();
-
-    // Calculate duration for this part
-    let currentPartDuration = this.PART_DISPLAY_DURATION;
-    if (this.currentPartWords.length < (this.WORDS_PER_PART * 0.8) && this.WORDS_PER_PART > 0) {
-      const proportion = this.currentPartWords.length / this.WORDS_PER_PART;
-      currentPartDuration = Math.max(
-        proportion * this.PART_DISPLAY_DURATION,
-        (this.currentPartWords.length * this.WORD_ANIMATION_INTERVAL) + 1000
-      );
-    }
-    const minDurationForAnimation = (this.currentPartWords.length * this.WORD_ANIMATION_INTERVAL) + 1000;
-    currentPartDuration = Math.max(currentPartDuration, minDurationForAnimation);
-
-    this.currentActivePartDuration = currentPartDuration;
-    this.partTimeoutStartTime = Date.now();
-    console.log('Part duration:', currentPartDuration);
-
-    // Schedule the next part
-    if (this.displayMode !== 'revision')  {  
-      this.partTimeoutId = setTimeout(() => this.displayNextPart(), currentPartDuration);
-    }
-  });
-},
 
 
 
 animateWords() {
-    if (this.isPausedByHold) return; // <--- ADD THIS LINE
+  if (this.isPausedByHold) return; // Don't animate if paused by hold
 
- let wordIndex = this.displayedWords.length; // Start from where we left off
-  // Do NOT clear displayedWords here!
+  // If paused by button, and word animation was already stopped/cleared by pauseVerseDisplayByPause,
+  // don't restart it here. resumeVerseDisplayFromPause will handle it.
+  if (this.isPausedByPause && !this.wordIntervalId) {
+      // If isPausedByPause is true, but wordIntervalId IS set, it means animateWords
+      // was called (e.g. by displayCurrentPart after a manual navigation while paused),
+      // so we should let it run to display the words, but the partTimeoutId won't be set.
+      // However, if wordIntervalId is NOT set, it means we are in a state where pause button
+      // explicitly stopped it, so don't restart it here.
+      // This check is subtle: if pause button is active, and we are here,
+      // it means a new part was loaded. We *do* want to show its words.
+      // The `pauseVerseDisplayByPause` should clear `wordIntervalId`.
+      // `resumeVerseDisplayFromPause` should restart `animateWords`.
+      // So, if `isPausedByPause` is true, `animateWords` should still run to *display* the words
+      // but the `partTimeoutId` in `displayCurrentPart` won't be set.
+      // The only time `animateWords` should NOT run if `isPausedByPause` is if `wordIntervalId` was explicitly cleared by `pauseVerseDisplayByPause`
+      // and we are not in a "fresh display" scenario.
+      // This logic is tricky. Let's simplify: animateWords will always try to run if called.
+      // The pause/resume logic will manage clearing/restarting it.
+  }
+
+  // Clear any existing word animation interval before starting a new one
+  if (this.wordIntervalId) {
+    clearInterval(this.wordIntervalId);
+    this.wordIntervalId = null;
+  }
+
+  let wordIndex = this.displayedWords.length; // Start from where we left off (usually 0 as displayedWords is cleared)
+
   this.wordIntervalId = setInterval(() => {
+    if (this.isPausedByHold || (this.isPausedByPause && !this.wordIntervalId)) {
+        // If hold is activated during animation, or pause button stops it.
+        // This check inside setInterval is a secondary safety, primary is outside.
+        clearInterval(this.wordIntervalId); // Stop this interval
+        this.wordIntervalId = null;
+        return;
+    }
+
     if (wordIndex < this.currentPartWords.length) {
       this.displayedWords.push(this.currentPartWords[wordIndex]);
       wordIndex++;
     } else {
       clearInterval(this.wordIntervalId);
-      this.wordIntervalId = null;
+      this.wordIntervalId = null; // Animation for this part is complete
     }
   }, this.WORD_ANIMATION_INTERVAL);
-
-},
+}
+,
 
 clearAnimationTimers() {
   if (this.wordIntervalId) {
@@ -3021,8 +2971,8 @@ clearAnimationTimers() {
     clearTimeout(this.partTimeoutId);
     this.partTimeoutId = null;
   }
-  console.log('Cleared animation timers');
-},
+}
+,
 
     toggleLanguage() {
       this.currentLanguage = this.currentLanguage === 'ar' ? 'en' : 'ar';
@@ -3140,6 +3090,9 @@ togglePause() {
 pauseVerseDisplayByPause() {
   if (this.isLoading || this.errorMessage || !this.currentVerseData || this.isPausedByPause) return;
   this.isPausedByPause = true;
+
+  // Clear the auto-advance timer for the current part, if it was set.
+  // This timer would have been set *after* word animation completed.
   if (this.partTimeoutId) {
     const elapsedTime = Date.now() - this.partTimeoutStartTime;
     this.pausedPartRemainingTime = this.currentActivePartDuration - elapsedTime;
@@ -3147,22 +3100,88 @@ pauseVerseDisplayByPause() {
     clearTimeout(this.partTimeoutId);
     this.partTimeoutId = null;
   } else {
+    // If no partTimeoutId, it means either:
+    // 1. Word animation is still in progress (wordIntervalId is active).
+    // 2. Word animation finished, but partTimeoutId was never set (e.g., already paused, or revision mode).
+    // 3. Part was at the very beginning.
+    // In these cases, when resumed, a full duration timer will be set.
     this.pausedPartRemainingTime = 0;
   }
-  // DO NOT clear wordIntervalId here!
-},
+
+  // DO NOT stop wordIntervalId here. Let current part's words finish animating.
+  // The displayCurrentPart method will check isPausedByPause before setting a new partTimeoutId.
+}
+
+,
 
 resumeVerseDisplayFromPause() {
   if (!this.isPausedByPause) return;
   this.isPausedByPause = false;
-  if (this.pausedPartRemainingTime > 0) {
-    const resumeCallback = (this.currentVerseData && this.currentTextParts.length > 0 && this.currentPartIndex < this.currentTextParts.length)
-      ? this.displayNextPart
-      : this.selectVerse;
-    this.partTimeoutId = setTimeout(resumeCallback, this.pausedPartRemainingTime);
+
+  // Resume word animation if it was paused and not yet complete for the current part
+  // This scenario is removed because pause button no longer stops word animation.
+  // if (!this.wordIntervalId && this.currentPartWords && this.currentPartWords.length > 0 && this.displayedWords.length < this.currentPartWords.length) {
+  //   this.animateWords();
+  // }
+
+  // If there's no current verse data or parts, or word animation is still running, nothing to do here for timers.
+  if (!this.currentVerseData || this.currentTextParts.length === 0 || this.wordIntervalId) {
+    this.pausedPartRemainingTime = 0;
+    return;
+  }
+
+  // At this point, isPausedByPause is now false, and wordIntervalId is null (current part's words are fully displayed).
+  // We need to set the auto-advance timer for the *currently displayed part*.
+  let timeoutDuration;
+  let callback;
+
+  // If currentPartIndex is out of bounds (e.g. end of verse was reached while paused)
+  if (this.currentPartIndex >= this.currentTextParts.length) {
+      callback = () => this.selectVerse(true);
+      timeoutDuration = this.NEXT_VERSE_DELAY;
+      this.currentActivePartDuration = this.NEXT_VERSE_DELAY;
+  } else {
+      // Current part is valid and fully displayed. Set its full duration timer.
+      const partText = this.currentTextParts[this.currentPartIndex];
+      const tempCurrentPartWords = partText ? partText.split(' ').filter(word => word.trim() !== '') : [];
+
+      if (tempCurrentPartWords.length === 0) { // Current part is empty
+          callback = () => this.displayNextPart();
+          timeoutDuration = 100; // Short delay
+          this.currentActivePartDuration = 100;
+      } else {
+          // Use the already calculated currentActivePartDuration for this part.
+          // If it's 0 (e.g. if displayCurrentPart wasn't called properly before pause), recalculate.
+          if (!this.currentActivePartDuration || this.currentActivePartDuration <= 0) {
+              let currentPartFullDuration = this.PART_DISPLAY_DURATION;
+              // (Recalculation logic from displayCurrentPart)
+              if (tempCurrentPartWords.length < (this.WORDS_PER_PART * 0.8) && this.WORDS_PER_PART > 0 && !this.currentAudio) { // Added !this.currentAudio
+                  const proportion = tempCurrentPartWords.length / this.WORDS_PER_PART;
+                  currentPartFullDuration = Math.max(
+                      proportion * this.PART_DISPLAY_DURATION,
+                      (tempCurrentPartWords.length * this.WORD_ANIMATION_INTERVAL) + 1000
+                  );
+              }
+              const minDurationForAnimation = (tempCurrentPartWords.length * this.WORD_ANIMATION_INTERVAL) + 1000;
+              this.currentActivePartDuration = Math.max(currentPartFullDuration, minDurationForAnimation);
+              if (this.currentAudio && this.currentAudio.duration) { // If audio, use its duration
+                  this.currentActivePartDuration = this.currentAudio.duration * 1000;
+              }
+          }
+          timeoutDuration = this.currentActivePartDuration;
+          callback = () => this.displayNextPart();
+      }
+  }
+
+  // Only set timer if not in revision mode
+  if (timeoutDuration > 0 && callback && this.displayMode !== 'revision') {
+    this.partTimeoutId = setTimeout(callback, timeoutDuration);
     this.partTimeoutStartTime = Date.now();
   }
-},
+  this.pausedPartRemainingTime = 0; // Always consume/reset
+}
+
+,
 
 
 pauseVerseDisplayByHold() {
@@ -3170,10 +3189,14 @@ pauseVerseDisplayByHold() {
   this.isPausedByHold = true;
   this.showBottomUI = false;
   this.showBottomInfo = false;
+
+  // Pause word animation
   if (this.wordIntervalId) {
     clearInterval(this.wordIntervalId);
-    this.wordIntervalId = null;
+    this.wordIntervalId = null; // Mark as paused by hold
   }
+
+  // Pause part auto-advance timer
   if (this.partTimeoutId) {
     const elapsedTime = Date.now() - this.partTimeoutStartTime;
     this.pausedPartRemainingTime = this.currentActivePartDuration - elapsedTime;
@@ -3181,70 +3204,163 @@ pauseVerseDisplayByHold() {
     clearTimeout(this.partTimeoutId);
     this.partTimeoutId = null;
   } else {
-    this.pausedPartRemainingTime = 0;
+     // If no partTimeoutId, it might be because the part was fully displayed and waiting for NEXT_VERSE_DELAY,
+    // or it was at the very beginning (word animation might be running).
+    // If currentActivePartDuration and partTimeoutStartTime are set (meaning part timer context exists), calculate remaining.
+    if (this.currentActivePartDuration > 0 && this.partTimeoutStartTime > 0) {
+        const elapsedTime = Date.now() - this.partTimeoutStartTime;
+        this.pausedPartRemainingTime = this.currentActivePartDuration - elapsedTime;
+        if (this.pausedPartRemainingTime < 0) this.pausedPartRemainingTime = 0;
+    } else {
+        // If word animation is running, the "remaining time" for the part is effectively its full duration
+        // minus whatever word animation has already shown. But for simplicity, if no part timer, assume 0.
+        this.pausedPartRemainingTime = 0; 
+    }
   }
-},
+}
+
+,
 resumeVerseDisplayFromHold() {
-  if (!this.isPausedByHold) return;
+  if (!this.isPausedByHold) return; // Already resumed or was never paused by hold
+  this.isPausedByHold = false; // CRITICAL: Set this immediately to prevent re-entry
+
   this.showBottomUI = true;
   this.showBottomInfo = true;
-  if (this.currentPartWords && this.currentPartWords.length > 0 && this.displayedWords.length < this.currentPartWords.length) {
-    this.animateWords();
-  }
-  if (this.pausedPartRemainingTime > 0) {
-    const resumeCallback = (this.currentVerseData && this.currentTextParts.length > 0 && this.currentPartIndex < this.currentTextParts.length)
-      ? this.displayNextPart
-      : this.selectVerse;
-    this.partTimeoutId = setTimeout(resumeCallback, this.pausedPartRemainingTime);
-    this.partTimeoutStartTime = Date.now();
-  }
-  this.isPausedByHold = false;
-},
 
-displayCurrentPart() {
-  if (this.isPausedByHold) return;
-  if (this.isPausedByPause) return;
-  this.clearAnimationTimers();
-
-  // Only clear displayedWords if starting a new part (not resuming)
-  if (!this.isResuming) {
-    this.displayedWords = [];
-  }
-  this.currentPartWords = [];
-  this.correctWords = [];
-  this.mistakeWords = [];
-  this.unreadVerses = [];
-  this.$forceUpdate();
-  this.clearAnimationTimers();
-  this.correctWords = [];
-  this.mistakeWords = [];
-  this.unreadVerses = [];
-    this.displayedWords = [];
+  // Ensure currentPartWords is valid
+  if (this.currentVerseData && this.currentTextParts.length > 0 && this.currentPartIndex < this.currentTextParts.length) {
+    const partText = this.currentTextParts[this.currentPartIndex];
+    if (!this.currentPartWords || this.currentPartWords.length === 0) { 
+        this.currentPartWords = partText ? partText.split(' ').filter(word => word.trim() !== '') : [];
+    }
+  } else {
     this.currentPartWords = [];
-    this.$forceUpdate();
+  }
 
-  if (!this.isPausedByPause && (!this.currentVerseData || this.currentPartIndex >= this.currentTextParts.length)) {
-    this.displayedWords = [];
-    this.partTimeoutId = setTimeout(this.selectVerse, this.NEXT_VERSE_DELAY);
+  // 1. Resume word animation if it was paused mid-way
+  if (!this.wordIntervalId && this.currentPartWords.length > 0 && this.displayedWords.length < this.currentPartWords.length) {
+    this.animateWords(); // animateWords will set wordIntervalId
+  }
+
+  // 2. Resume part timer
+  if (!this.currentVerseData || this.currentTextParts.length === 0) {
+    this.pausedPartRemainingTime = 0;
     return;
   }
 
-  const partText = this.currentTextParts[this.currentPartIndex];
-  this.currentPartWords = partText.split(' ').filter(word => word.trim() !== '');
-  this.displayedWords = [];
-  this.animateWords();
+  let timeoutDuration;
+  let callback;
 
-  let currentPartDuration = this.PART_DISPLAY_DURATION;
-  if (this.currentPartWords.length < (this.WORDS_PER_PART * 0.8) && this.WORDS_PER_PART > 0) {
-    const proportion = this.currentPartWords.length / this.WORDS_PER_PART;
-    currentPartDuration = Math.max(proportion * this.PART_DISPLAY_DURATION, (this.currentPartWords.length * this.WORD_ANIMATION_INTERVAL) + 1000);
+  if (this.pausedPartRemainingTime > 0) { // Timer was paused mid-way
+    timeoutDuration = this.pausedPartRemainingTime;
+    // Check if the part was the last one of the verse AND words were fully displayed
+    if (this.currentPartIndex >= this.currentTextParts.length - 1 && 
+        (this.displayedWords.length >= this.currentPartWords.length || this.currentPartWords.length === 0) ) {
+      callback = () => this.selectVerse(true);
+    } else {
+      callback = () => this.displayNextPart();
+    }
+  } else { // pausedPartRemainingTime is 0 (hold was at start/end of part, or very short)
+    if (this.currentPartIndex >= this.currentTextParts.length) { // Beyond last part (e.g. end of verse)
+      callback = () => this.selectVerse(true);
+      timeoutDuration = this.NEXT_VERSE_DELAY;
+      this.currentActivePartDuration = this.NEXT_VERSE_DELAY;
+    } else {
+      // Current part is valid.
+      // If word animation is complete for this part, or part is empty
+      if ( (this.currentPartWords.length > 0 && this.displayedWords.length >= this.currentPartWords.length) || this.currentPartWords.length === 0 ) {
+        // Part was already complete, or is empty. Schedule next action with its original full duration.
+        timeoutDuration = this.currentActivePartDuration > 0 ? this.currentActivePartDuration : this.PART_DISPLAY_DURATION;
+        if (this.currentPartIndex < this.currentTextParts.length - 1) {
+          callback = () => this.displayNextPart();
+        } else { // Last part of the verse
+          callback = () => this.selectVerse(true);
+          // If it was the last part, the duration should be NEXT_VERSE_DELAY if currentActivePartDuration was for this part.
+          // However, if currentActivePartDuration was already NEXT_VERSE_DELAY, use that.
+          if (this.currentActivePartDuration !== this.NEXT_VERSE_DELAY) {
+             // This implies the part itself had a duration, and now we are moving to next verse.
+             // The callback is selectVerse, so the timeout should be for that transition.
+             // This case is tricky. If part was complete, and it's the last, then NEXT_VERSE_DELAY.
+             timeoutDuration = this.NEXT_VERSE_DELAY;
+          }
+        }
+      } else if (this.currentPartWords.length > 0) {
+        // Part not complete, word animation is running (or will be started by animateWords above).
+        // Set the part timer for its full original duration.
+        timeoutDuration = this.currentActivePartDuration > 0 ? this.currentActivePartDuration : this.PART_DISPLAY_DURATION;
+        callback = () => this.displayNextPart();
+      }
+    }
   }
-  const minDurationForAnimation = (this.currentPartWords.length * this.WORD_ANIMATION_INTERVAL) + 1000;
-  currentPartDuration = Math.max(currentPartDuration, minDurationForAnimation);
 
-  this.currentActivePartDuration = currentPartDuration;
-  this.partTimeoutStartTime = Date.now();
-  this.partTimeoutId = setTimeout(this.displayNextPart, currentPartDuration);
+  // Also check !this.isPausedByPause because hold might be released while pause button is active
+  if (timeoutDuration > 0 && callback && this.displayMode !== 'revision' && !this.isPausedByPause) {
+    this.partTimeoutId = setTimeout(callback, timeoutDuration);
+    this.partTimeoutStartTime = Date.now();
+  }
+  this.pausedPartRemainingTime = 0; // Always consume
+}
+
+,
+
+displayCurrentPart() {
+  if (this.isPausedByHold) return; // If paused by hold, do nothing until resumed.
+
+  this.clearAnimationTimers(); // Clear any existing timers and word animations
+
+  // Reset words for the new part
+  this.displayedWords = [];
+  this.currentPartWords = [];
+  this.correctWords = []; // For revision mode
+  this.mistakeWords = []; // For revision mode
+  this.unreadVerses = []; // For revision mode
+  
+  this.$forceUpdate(); // Ensure UI clears immediately
+
+  this.$nextTick(() => {
+    if (!this.currentVerseData || this.currentTextParts.length === 0 || this.currentPartIndex >= this.currentTextParts.length) {
+      // End of verse or no parts
+      if (this.displayMode !== 'revision' && !this.isPausedByPause) { // Only auto-advance if not paused by button
+        this.partTimeoutId = setTimeout(() => this.selectVerse(true), this.NEXT_VERSE_DELAY);
+      }
+      return;
+    }
+
+    const partText = this.currentTextParts[this.currentPartIndex];
+    if (!partText || partText.trim() === '') {
+      // Empty part, try to advance (only if not paused by button)
+      if (this.displayMode !== 'revision' && !this.isPausedByPause) {
+        this.displayNextPart();
+      }
+      return;
+    }
+
+    this.currentPartWords = partText.split(' ').filter(word => word.trim() !== '');
+    this.animateWords(); // Start word-by-word animation
+
+    // Calculate duration for this part
+    let currentPartDuration = this.currentAudio && this.currentAudio.duration 
+      ? this.currentAudio.duration * 1000 
+      : this.PART_DISPLAY_DURATION;
+
+    if (this.currentPartWords.length < (this.WORDS_PER_PART * 0.8) && this.WORDS_PER_PART > 0 && !this.currentAudio) {
+      const proportion = this.currentPartWords.length / this.WORDS_PER_PART;
+      currentPartDuration = Math.max(
+        proportion * this.PART_DISPLAY_DURATION,
+        (this.currentPartWords.length * this.WORD_ANIMATION_INTERVAL) + 1000
+      );
+    }
+    const minDurationForAnimation = (this.currentPartWords.length * this.WORD_ANIMATION_INTERVAL) + 1000;
+    currentPartDuration = Math.max(currentPartDuration, minDurationForAnimation);
+
+    this.currentActivePartDuration = currentPartDuration;
+    this.partTimeoutStartTime = Date.now();
+
+    // Schedule next part/verse *only if not paused by the pause button*
+    if (this.displayMode !== 'revision' && !this.isPausedByPause) {
+      this.partTimeoutId = setTimeout(() => this.displayNextPart(), currentPartDuration);
+    }
+  });
 },
 
 handleAppTouchStart(event) {
@@ -3307,115 +3423,94 @@ handleAppMouseDown(event) {
   }
   this.isHoldingGlobal = true;
   clearTimeout(this.holdStartTimeoutId);
-  if (!this.isPausedByHold) {
-    this.holdStartTimeoutId = setTimeout(() => {
+  if (!this.isPausedByHold) { // Only set up a new hold if not already in a hold-paused state
+    this.holdStartTimeoutId = setTimeout(() => { // Timer to initiate the hold
       if (
-        this.isHoldingGlobal &&
+        this.isHoldingGlobal && // Still holding down
         !this.hasSwiped &&
         !this.showLoopsMenu &&
-        !this.showSearchOverlay &&
+        !this.showSearchOverlay && // Check overlays again
         !this.showVoiceSearchOverlay
       ) {
         this.pauseVerseDisplayByHold();
       }
     }, this.HOLD_THRESHOLD);
   }
-},
+}
+,
 handleAppMouseUp(event) {
-  if (this.showNotesOverlay) {
-  return;
-}
+  // 1. Handle specific overlay/UI element interactions that might consume the event
+  // or where navigation is not intended.
+  if (this.showNotesOverlay && this.$refs.notesTextarea && this.$refs.notesTextarea.contains(event.target)) {
+    // Allow interaction with textarea within notes overlay, don't proceed to navigation.
+  } else if (this.showNotesOverlay || this.showLoopsMenu || this.showSearchOverlay || this.showVoiceSearchOverlay || this.showSurahVerseMenu || this.showHighlightMenu || this.showHighlightContextMenu) {
+    clearTimeout(this.holdStartTimeoutId);
+    this.isHoldingGlobal = false; // Reset hold state if an overlay was interacted with
+    return;
+  }
 
-if (this.showLoopsMenu || this.showSearchOverlay || this.showVoiceSearchOverlay) {
-  this.isHoldingGlobal = false;
-  this.touchStartX = null;
-  this.touchStartY = null;
-  this.touchStartTime = null;
-  this.hasSwiped = false;
-  return;
-}
-    const isControlButtonClick =
+  const isInteractiveElementClick =
     event.target.closest('button') ||
     event.target.closest('.control-buttons-container') ||
-    event.target.closest('.notes-overlay') ||
-    event.target.closest('.loops-overlay') ||
+    event.target.closest('.notes-overlay .notes-container button') || // More specific for buttons inside notes
+    event.target.closest('.loops-overlay .loops-container') || // Interaction with loop menu content
     event.target.closest('.highlight-menu') ||
     event.target.closest('.highlight-context-menu') ||
-    event.target.closest('.search-overlay') ||
-    event.target.closest('.voice-search-overlay') ||
-    event.target.closest('.surah-verse-overlay');
+    event.target.closest('.search-overlay .search-container') || // Interaction with search content
+    event.target.closest('.voice-search-overlay .voice-search-container') || // Interaction with voice search content
+    event.target.closest('.surah-verse-overlay .surah-verse-container'); // Interaction with surah/verse select content
 
+  // 2. Clear the timer that *starts* the hold, as mouse is now up.
   clearTimeout(this.holdStartTimeoutId);
 
-  // Prevent navigation if clicking on any button or overlay
-  if (isControlButtonClick) {
+  // 3. If isPausedByHold is true, this mouseup is the release of the hold.
+  if (this.isPausedByHold) { // Check this first. hasSwiped and isInteractiveElementClick are less relevant if already paused by hold.
+    this.resumeVerseDisplayFromHold();
+    // isPausedByHold is reset inside resumeVerseDisplayFromHold.
     this.isHoldingGlobal = false;
     return;
   }
 
+  // 4. Else (normal click, not a release from an active hold-pause state)
+  if (isInteractiveElementClick) {
+    this.isHoldingGlobal = false; // Click was on a UI element, not for navigation
+    return;
+  }
 
-    // If in full-surah mode, don't do any verse/part navigation from global clicks
-if (this.displayMode === 'full-surah') {
+  if (this.displayMode === 'full-surah') {
+    this.isHoldingGlobal = false; // No click navigation in full-surah
+    return;
+  }
 
-  this.isHoldingGlobal = false;
-  return;
-}
+  // At this point, it's a click on the main content area for navigation
+  // (and not a release from hold-to-pause, and not on an interactive UI element)
+  // isHoldingGlobal means mousedown happened on app container and wasn't a hold that got paused.
+  if (this.isHoldingGlobal && !this.hasSwiped) { 
+    if (this.displayMode === 'verse' || this.displayMode === 'tafseer') {
+      const clickX = event.clientX;
+      const screenWidth = window.innerWidth;
 
-
-if (this.displayMode === 'verse') {
-  const x = event.clientX || (event.changedTouches && event.changedTouches[0].clientX);
-  const screenWidth = window.innerWidth;
-  const isArabic = this.currentLanguage === 'ar';
-
-  // For Arabic: right side = previous, left side = next
-  // For non-Arabic: right side = next, left side = previous
-  if (( x > screenWidth / 2)) {
-    // Next part/verse
-    if (this.currentPartIndex < this.currentTextParts.length - 1) {
-      this.displayNextPart();
-    } else {
-      this.selectVerse(true);
+      if (clickX < screenWidth / 2) { // left half
+        if (this.currentPartIndex < this.currentTextParts.length - 1) {
+          this.displayNextPart();
+        } else {
+          this.selectVerse(true);
+        }
+      } else { // Left half
+        if (this.currentPartIndex > 0) {
+          this.displayPreviousPart();
+        } else {
+          this.displayPreviousVerse();
+        }
+      }
     }
-  } else {
-    // Previous part/verse
-    if (this.currentPartIndex > 0) {
-      this.displayPreviousPart();
-    } else {
-      this.displayPreviousVerse();
-    }
   }
-  
-  this.isHoldingGlobal = false;
-  return;
-}
 
-
-  if (this.isHoldingGlobal && !isControlButtonClick) {
-
-    const clickX = event.clientX;
-    const screenWidth = window.innerWidth;
-    const isArabic = this.currentLanguage === 'ar';
-if ((clickX > screenWidth / 2)) {
-  if (this.currentPartIndex < this.currentTextParts.length - 1) {
-    console.log('Mouse up - Next part');
-    this.displayNextPart();
-  } else {
-    console.log('Mouse up - Next verse');
-    this.selectVerse(true);
-  }
-} else {
-  if (this.currentPartIndex > 0) {
-    console.log('Mouse up - Previous part');
-    this.displayPreviousPart();
-  } else {
-    console.log('Mouse up - Previous verse');
-    this.displayPreviousVerse();
-  }
-}
-  }
+  // 5. Reset interaction state
   this.isHoldingGlobal = false;
   console.log('Mouse up at x:', event.clientX);
-},
+}
+,
 // Save last viewed verse and surah to localStorage
 saveLastViewed() {
   if (this.currentVerseData) {
@@ -3429,29 +3524,33 @@ saveLastViewed() {
   }
 },
 handleAppTouchEnd(event) {
-if (this.showLoopsMenu || this.showSearchOverlay || this.showVoiceSearchOverlay) {
-  this.isHoldingGlobal = false;
-  this.touchStartX = null;
-  this.touchStartY = null;
-  this.touchStartTime = null;
-  this.hasSwiped = false;
-  return;
-}
-  const isControlButtonTouch =
+  // 1. Handle specific overlay/UI element interactions
+  if (this.showNotesOverlay && this.$refs.notesTextarea && this.$refs.notesTextarea.contains(event.target)) {
+    // Allow interaction
+  } else if (this.showNotesOverlay || this.showLoopsMenu || this.showSearchOverlay || this.showVoiceSearchOverlay || this.showSurahVerseMenu || this.showHighlightMenu || this.showHighlightContextMenu) {
+    clearTimeout(this.holdStartTimeoutId);
+    this.isHoldingGlobal = false;
+    this.touchStartX = null; this.touchStartY = null; this.touchStartTime = null; this.hasSwiped = false;
+    return;
+  }
+
+  const isInteractiveElementTouch =
     event.target.closest('button') ||
     event.target.closest('.control-buttons-container') ||
-    event.target.closest('.notes-overlay') ||
-    event.target.closest('.loops-overlay') ||
+    event.target.closest('.notes-overlay .notes-container button') ||
+    event.target.closest('.loops-overlay .loops-container') ||
     event.target.closest('.highlight-menu') ||
     event.target.closest('.highlight-context-menu') ||
-    event.target.closest('.search-overlay') ||
-    event.target.closest('.voice-search-overlay') ||
-    event.target.closest('.surah-verse-overlay');
+    event.target.closest('.search-overlay .search-container') ||
+    event.target.closest('.voice-search-overlay .voice-search-container') ||
+    event.target.closest('.surah-verse-overlay .surah-verse-container');
 
+  // 2. Clear the timer that *starts* the hold, as touch has ended.
   clearTimeout(this.holdStartTimeoutId);
 
-  // Prevent navigation if tapping on any button or overlay
-  if (isControlButtonTouch) {
+  // 3. If isPausedByHold is true, this touchend is the release of the hold.
+  if (this.isPausedByHold) { // Check this first.
+    this.resumeVerseDisplayFromHold();
     this.isHoldingGlobal = false;
     this.touchStartX = null;
     this.touchStartY = null;
@@ -3460,108 +3559,81 @@ if (this.showLoopsMenu || this.showSearchOverlay || this.showVoiceSearchOverlay)
     return;
   }
 
-  // Full-surah navigation for mobile
+  // 4. Else (normal tap, not a release from an active hold-pause state)
+  if (isInteractiveElementTouch) {
+    this.isHoldingGlobal = false;
+    this.touchStartX = null; this.touchStartY = null; this.touchStartTime = null; this.hasSwiped = false;
+    return;
+  }
+
   if (this.displayMode === 'full-surah') {
     if (this.wasScrolling) {
-      // Don't navigate if user was scrolling
-      this.isHoldingGlobal = false;
-      this.touchStartX = null;
-      this.touchStartY = null;
-      this.touchStartTime = null;
-      this.hasSwiped = false;
       this.wasScrolling = false;
+      this.isHoldingGlobal = false;
+      this.touchStartX = null; this.touchStartY = null; this.touchStartTime = null; this.hasSwiped = false;
       return;
     }
-
     this.isHoldingGlobal = false;
-    this.touchStartX = null;
-    this.touchStartY = null;
-    this.touchStartTime = null;
-    this.hasSwiped = false;
-        this.wasScrolling = false;
-
+    this.touchStartX = null; this.touchStartY = null; this.touchStartTime = null; this.hasSwiped = false;
     return;
   }
-  if (this.isPausedByHold && !this.hasSwiped) {
-    if (!isControlButtonTouch) {
-      this.resumeVerseDisplayFromHold();
-    }
-    this.isHoldingGlobal = false;
-    this.touchStartX = null;
-    this.touchStartY = null;
-    this.touchStartTime = null;
-    this.hasSwiped = false;
-    return;
-  }
-  if (this.isHoldingGlobal && !isControlButtonTouch && this.touchStartTime !== null && !this.hasSwiped) { // Check touchStartTime instead of touchStartY
-  
+  // isHoldingGlobal means touchstart happened on app container and wasn't a hold that got paused.
+  if (this.isHoldingGlobal && this.touchStartTime !== null && !this.hasSwiped) { 
     if (event.changedTouches.length > 0) {
       const touchX = event.changedTouches[0].clientX;
       const screenWidth = window.innerWidth;
       const isArabic = this.currentLanguage === 'ar';
       const currentTime = Date.now();
       const isDoubleTap = currentTime - this.lastTapTime < this.DOUBLE_TAP_THRESHOLD;
-      const rightSideTapped = (touchX > screenWidth / 2 && !isArabic) || (touchX <= screenWidth / 2 && isArabic);
+      
+      // Determine if action is "next" or "previous" based on tap side and language
+      let actionIsNext = false;
+      let actionIsPrevious = false;
+      if (isArabic) { // RTL
+        if (touchX >= screenWidth / 2) actionIsNext = true; // Left side for next
+        else actionIsPrevious = true; // Right side for previous
+      } else { // LTR
+        if (touchX < screenWidth / 2) actionIsNext = true; // Right side for next
+        else actionIsPrevious = true; // Left side for previous
+      }
 
       if (this.displayMode === 'tafseer') {
         if (isDoubleTap) {
-          if (rightSideTapped) {
-            console.log('Double tap - Next Surah');
-            this.selectVerse(true);
-            this.loadTafseer();
-          } else {
-            console.log('Double tap - Previous Surah');
-            this.displayPreviousVerse();
-            this.loadTafseer();
+          if (actionIsNext) {
+            this.selectVerse(true); this.loadTafseer();
+          } else if (actionIsPrevious) {
+            this.displayPreviousVerse(); this.loadTafseer();
           }
         } else {
-          if (rightSideTapped) {
-            console.log('Single tap - Next Tafseer part');
-            this.displayNextPart(); // Corrected
-          } else {
-            console.log('Single tap - Previous Tafseer part');
-            this.displayPreviousPart(); // Corrected
-          }
+          if (actionIsNext) this.displayNextPart();
+          else if (actionIsPrevious) this.displayPreviousPart();
         }
       } else if (this.displayMode === 'Hifdh') {
         if (!this.isSelectingWords) {
-          if (rightSideTapped) {
-            console.log('Tap - Next Hifdh verse');
-            this.selectNextHifdhVerse(); // Corrected
-          } else {
-            console.log('Tap - Previous Hifdh verse');
-            this.displayPreviousVerse(); // Corrected
-          }
+          if (actionIsNext) this.selectNextHifdhVerse();
+          else if (actionIsPrevious) this.displayPreviousVerse();
         }
       } else if (this.displayMode === 'verse') {
-        if (!rightSideTapped) {
-          if (this.currentPartIndex < this.currentTextParts.length - 1) {
-            console.log('Tap - Next part');
-            this.displayNextPart();
-          } else {
-            console.log('Tap - Next verse');
-            this.selectVerse(true);
-          }
-        } else {
-          if (this.currentPartIndex > 0) {
-            console.log('Tap - Previous part');
-            this.displayPreviousPart();
-          } else {
-            console.log('Tap - Previous verse');
-            this.displayPreviousVerse();
-          }
+        if (actionIsNext) {
+          if (this.currentPartIndex < this.currentTextParts.length - 1) this.displayNextPart();
+          else this.selectVerse(true);
+        } else if (actionIsPrevious) {
+          if (this.currentPartIndex > 0) this.displayPreviousPart();
+          else this.displayPreviousVerse();
         }
       }
-
       this.lastTapTime = currentTime;
     }
   }
+
+  // 5. Reset interaction state
   this.isHoldingGlobal = false;
   this.touchStartX = null;
   this.touchStartY = null;
   this.touchStartTime = null;
   this.hasSwiped = false;
-},
+}
+,
 
 
 async enterHifdhMode() { // Make async
@@ -4135,11 +4207,18 @@ handleAppMouseLeave() {
   }
 },
 displayPreviousPart() {
+  if (this.isPausedByHold) return; // If paused by hold, do nothing.
+
   if (this.currentPartIndex > 0) {
     this.currentPartIndex--;
     this.displayCurrentPart();
+  } else {
+    // At the first part of a verse, trying to go previous.
+    // This will call displayPreviousVerse, which handles setting up the new verse and calling displayCurrentPart.
+    this.displayPreviousVerse();
   }
-},
+}
+,
  handleGlobalClick(e) {
     // If not clicking inside the control menu, hide it
      if (this.showHighlightMenu && !e.target.closest('.highlight-menu')) {
@@ -4548,7 +4627,6 @@ html, body {
   width: 100%;
   max-width: 800px;
   display: flex;
-  gap: 1rem;
 }
 
 .search-input {
@@ -4571,8 +4649,7 @@ html, body {
 
 .search-results {
   width: 100%;
-  margin-top: 2rem;
-  max-height: calc(100vh - 150px);
+  position: absolute;
   overflow-y: auto;
   margin-left: 0 !important;
   margin-right: 0 !important;
@@ -4584,6 +4661,10 @@ html, body {
   padding: 1rem 4rem;
   margin-bottom: 1rem;
   border-radius: 0.5rem;
+}
+
+.search-result-item:first-child {
+  padding-top: 10rem;
 }
 
 .search-result-item.dark-theme {
