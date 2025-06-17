@@ -67,8 +67,9 @@ qaloon mushaf
   class="full-surah-display text-justify sm:px-[16.66%] sm:text-xl leading-relaxed select-none"
   :key="currentSurahData.id"
   ref="versesContainer"
+  @scroll="handleFullSurahScroll"
 >
-  <h2 class="surah-title-header font-amiri cursor-pointer"
+  <h2 class="surah-title-header font-amiri cursor-pointer mb-24"
       @touchstart.stop="toggleSurahVerseMenu"
       @touchend.stop="toggleSurahVerseMenu"
       @click.stop="toggleSurahVerseMenu"
@@ -77,67 +78,58 @@ qaloon mushaf
       {{ currentLanguage === 'ar' ? currentSurahData.arabicName : currentSurahData.englishName }}
     </span>
   </h2>
-  <RecycleScroller
-    :items="displayedVerses"
-    :item-size="64" 
-    key-field="uuid"
-    class="virtual-scroller"
-    :min-item-size="48"
-    :buffer="8"
-    v-slot="{ item: verse }"
+  <div
+    v-for="verse in visibleSurahVerses"
+    :key="verse.uuid"
+    :data-verse-uuid="verse.uuid"
+    class="verse-line flex items-center justify-start cursor-pointer py-6"
+    :dir="currentLanguage === 'ar' ? 'rtl' : 'ltr'"
   >
-    <div
-      :key="verse.uuid"
-      :data-verse-uuid="verse.uuid"
-      class="verse-line flex items-center justify-start cursor-pointer"
-      :dir="currentLanguage === 'ar' ? 'rtl' : 'ltr'"
-    >
-      <span class="verse-text text-2xl font-amiri flex-1">
-        <span
-          v-for="(word, index) in verse.text.split(' ')"
-          :key="`${verse.uuid}-${index}`"
-          :data-word-uuid="`${verse.uuid}-${index}`"
-          class="inline-block mx-1"
-          :class="[
-            { 'highlighted': isWordHighlighted(index, verse.uuid) },
-            getHighlightClass(index, verse.uuid)
-          ]"
-          @mousedown.stop="highlightMode ? startWordSelection($event, index, verse.uuid) : null"
-          @mousemove.stop="highlightMode ? updateWordSelection($event, index, verse.uuid) : null"
-          @mouseup.stop="highlightMode ? endWordSelection($event) : null"
-@touchstart.stop="highlightMode ? startWordSelection($event, index, verse.uuid) : null"
-@touchmove.stop="highlightMode ? updateWordSelection($event, index, verse.uuid) : null"
-@touchend.stop="highlightMode ? endWordSelection($event) : null"
-          @click.stop="highlightMode ? handleWordClick(index, verse) : null"
-        >
-          {{ word }}
-        </span>
-        <!-- Verse Number Decoration -->
-        <svg
-          @click.stop.prevent="openVerseNote(verse)"
-          @touchend.stop
-          width="26"
-          height="26"
-          viewBox="0 0 26 26"
-          class="verse-number-svg ml-2 decorative-number cursor-pointer inline-block align-middle"
-          xmlns="http://www.w3.org/2000/svg"
-        >
-          <circle cx="13" cy="13" r="11.5" stroke="currentColor" stroke-width="1.5" fill="transparent" />
-          <text
-            x="50%"
-            y="50%"
-            dominant-baseline="middle"
-            text-anchor="middle"
-            fill="currentColor"
-            class="font-amiri"
-            style="font-size: 11px;"
-          >
-            {{ verse.verse }}
-          </text>
-        </svg>
+    <span class="verse-text text-2xl font-amiri flex-1">
+      <span
+        v-for="(word, index) in verse.text.split(' ')"
+        :key="`${verse.uuid}-${index}`"
+        :data-word-uuid="`${verse.uuid}-${index}`"
+        class="inline-block mx-1 pb-7"
+        :class="[
+          { 'highlighted': isWordHighlighted(index, verse.uuid) },
+          getHighlightClass(index, verse.uuid)
+        ]"
+        @mousedown.stop="highlightMode ? startWordSelection($event, index, verse.uuid) : null"
+        @mousemove.stop="highlightMode ? updateWordSelection($event, index, verse.uuid) : null"
+        @mouseup.stop="highlightMode ? endWordSelection($event) : null"
+        @touchstart.stop="highlightMode ? startWordSelection($event, index, verse.uuid) : null"
+        @touchmove.stop="highlightMode ? updateWordSelection($event, index, verse.uuid) : null"
+        @touchend.stop="highlightMode ? endWordSelection($event) : null"
+        @click.stop="highlightMode ? handleWordClick(index, verse) : null"
+      >
+        {{ word }}
       </span>
-    </div>
-  </RecycleScroller>
+      <!-- Verse Number Decoration -->
+      <svg
+        @click.stop.prevent="openVerseNote(verse)"
+        @touchend.stop
+        width="26"
+        height="26"
+        viewBox="0 0 26 26"
+        class="verse-number-svg ml-2 mr-1 decorative-number cursor-pointer inline-block align-middle"
+        xmlns="http://www.w3.org/2000/svg"
+      >
+        <circle cx="13" cy="13" r="11.5" stroke="currentColor" stroke-width="1.5" fill="transparent" />
+        <text
+          x="50%"
+          y="50%"
+          dominant-baseline="middle"
+          text-anchor="middle"
+          fill="currentColor"
+          class="font-amiri"
+          style="font-size: 11px;"
+        >
+          {{ verse.verse }}
+        </text>
+      </svg>
+    </span>
+  </div>
 </div>
   
     <transition v-if="displayMode !== 'full-surah'" name="fade" mode="out-in" class="main-content-transition select-none">
@@ -211,8 +203,7 @@ qaloon mushaf
       </p>
     </div>
 
-<!-- Search Overlay -->
-<div v-if="showSearchOverlay" class="search-overlay ...">
+    <!-- Search Overlay -->
     <div
       v-if="showSearchOverlay"
       class="search-overlay bg-none fixed inset-0 flex flex-col items-center justify-start sm:p-[2rem] sm:pt-8 z-[100]"
@@ -220,10 +211,14 @@ qaloon mushaf
       style="background-color: transparent !important;"
             @click="closeOverlay('search')"
 
-    >    <!-- This is your input bar -->
-    <div class="flex items-center py-6 max-sm:flex-col z-[2]"
-         :class="currentTheme === 'dark' ? 'bg-black text-white' : 'bg-white text-gray-800'">
-        <input
+    >
+      <div
+        class="search-container bg-opacity-80 rounded-lg w-full !flex !flex-col h-full max-w-2xl"
+        :class="currentTheme === 'dark' ? 'bg-black/40' : 'bg-white'"
+      >
+        <div class="flex items-center  py-6  max-sm:flex-col z-[99]"
+        :class="currentTheme === 'dark' ? 'bg-black text-white' : 'bg-white text-gray-800'">
+          <input
             v-model="searchQuery"
              @click.stop
             @keyup.enter="performSearch"
@@ -253,13 +248,13 @@ qaloon mushaf
           </button>
           </div>
         </div>
-        <div v-if="isSearching" class="text-center py-4 flex-1 flex items-center justify-center">
+        <div v-if="isSearching" class="text-center py-4">
           {{ currentLanguage === 'ar' ? 'جاري البحث...' : 'Searching...' }}
         </div>
-            <div v-else-if="searched && !isSearching && searchResults.length === 0 && searchQuery.trim().length > 0 && !errorMessage" class="text-center py-4 flex-1 flex items-center justify-center">
+            <div v-else-if="searched && !isSearching && searchResults.length === 0 && searchQuery.trim().length > 0 && !errorMessage" class="text-center py-4">
           {{ currentLanguage === 'ar' ? 'لم يتم العثور على نتائج' : 'No results found' }}
         </div>
-        <div v-else class="search-results flex-1 overflow-y-auto">
+        <div v-else class="search-results h-full overflow-y-auto">
           <div
             v-for="result in paginatedResults"
             :key="result.uuid"
@@ -296,7 +291,7 @@ qaloon mushaf
           </div>
         </div>
       </div>
-      </div>
+    </div>
 
     <!-- Voice Search Overlay -->
     <div
@@ -955,6 +950,9 @@ export default {
     showBottomUI: true,
 showBottomInfo: true,
 searched: false,
+currentPage: 1,
+    fullSurahWindowStart: 0,
+    fullSurahWindowSize: 15,
       // Revision mode
       isRevisionMode: false,
       speechRecognition: null,
@@ -1073,6 +1071,12 @@ controlMenuTimeoutId: null,
   },
   
   computed: {
+
+   visibleSurahVerses() {
+    if (!this.displayedVerses) return [];
+    // Always slice from 0
+    return this.displayedVerses.slice(0, this.fullSurahWindowSize);
+  },
     paginatedResults() {
             if (!this.searchResults) return [];
 
@@ -1120,6 +1124,31 @@ controlMenuTimeoutId: null,
   },
 
   methods: {
+    
+// Replace your handleFullSurahScroll with this version:
+handleFullSurahScroll() {
+  const container = this.$refs.versesContainer;
+  if (!container) return;
+
+  const scrollTop = container.scrollTop;
+  const clientHeight = container.clientHeight;
+  const scrollHeight = container.scrollHeight;
+  const totalVerses = this.displayedVerses.length;
+
+  // Check if we're near the bottom (last 20% of scroll area)
+  const scrollBottom = scrollTop + clientHeight;
+  const isNearBottom = scrollBottom > (scrollHeight * 0.8);
+
+  // Only load more if we're near the bottom AND not already showing all verses
+  if (isNearBottom && this.fullSurahWindowSize < totalVerses) {
+    const newSize = Math.min(this.fullSurahWindowSize + 20, totalVerses);
+    if (newSize !== this.fullSurahWindowSize) {
+      this.fullSurahWindowSize = newSize;
+      // Optionally, force update if needed: this.$forceUpdate();
+      console.log(`Loading more verses, new size: ${newSize}`);
+    }
+  }
+},
            handleDesktopMouseMove() {
         if (this.isMobile) return;
         this.showBottomUI = true;
@@ -2510,9 +2539,40 @@ removeTashkeel(text) {
 },
 
 handleAppTouchMove(event) {
-if (this.displayMode === 'full-surah') {
-    // Only trigger swipe down if at top of scroll
+ if (this.displayMode === 'full-surah' && !this.highlightMode) {
     const container = this.$refs.versesContainer;
+    if (!container) return;
+    if (event.changedTouches.length > 0) {
+      const touchX = event.changedTouches[0].clientX;
+      const deltaX = touchX - this.touchStartX;
+      const absDeltaX = Math.abs(deltaX);
+      if (absDeltaX > 60 && absDeltaX > Math.abs(event.changedTouches[0].clientY - this.touchStartY)) {
+        // Prevent repeated triggers
+        if (this.hasSwiped) return;
+        this.hasSwiped = true;
+        if (deltaX > 0) {
+          // Swipe right: Next Surah
+          const currentIndex = this.SURAH_DATA.findIndex(s => s.id === this.currentSurahData.id);
+          if (currentIndex < this.SURAH_DATA.length - 1) {
+            const nextSurahId = this.SURAH_DATA[currentIndex + 1].id;
+            this.loadSurahVerses(nextSurahId);
+            this.selectedSurah = nextSurahId;
+            this.$nextTick(() => this.scrollToTop());
+          }
+        } else {
+          // Swipe left: Previous Surah
+          const currentIndex = this.SURAH_DATA.findIndex(s => s.id === this.currentSurahData.id);
+          if (currentIndex > 0) {
+            const prevSurahId = this.SURAH_DATA[currentIndex - 1].id;
+            this.loadSurahVerses(prevSurahId);
+            this.selectedSurah = prevSurahId;
+            this.$nextTick(() => this.scrollToTop());
+          }
+        }
+        return;
+      }
+    }
+    // ...existing vertical swipe/search logic...
     if (container && container.scrollTop === 0) {
       const touchY = event.changedTouches[0].clientY;
       const deltaY = touchY - this.touchStartY;
