@@ -1,4 +1,4 @@
-<!-- @todo 
+ <!-- @todo 
 * full surah mode; add highlight btn
 notes: click not touchstart
 qaloon mushaf
@@ -9,9 +9,14 @@ qaloon mushaf
 
 
 <template>
-  <fassarli v-if="fassarliMode" @close="fassarliMode = false" class="z-[9999999] fixed w-full h-full" />
-  <instructions @click="closeInstructions" v-if="showNavigationInstructions" />
-  <div
+  <fassarli
+    v-if="fassarliMode"
+     @close="fassarliMode = false"
+
+    :verse="selectedVerse"
+    :surah="currentVerseData ? currentVerseData.surah : 1"
+    class="z-[9999999] fixed w-full h-full"
+  />  <div
     class="app-container overflow-hidden"
     :class="[currentTheme === 'dark' ? 'dark-theme' : currentTheme === 'sepia' ? 'sepia-theme' : 'light-theme']"
     @mousedown="handleAppMouseDown"
@@ -101,7 +106,7 @@ qaloon mushaf
         @touchstart.stop="highlightMode ? startWordSelection($event, index, verse.uuid) : null"
         @touchmove.stop="highlightMode ? updateWordSelection($event, index, verse.uuid) : null"
         @touchend.stop="highlightMode ? endWordSelection($event) : null"
-        @click.stop="highlightMode ? handleWordClick(index, verse) : null"
+        @click.stop="highlightMode ? handleWordClick(index, verse) : handleVerseClick(verse.verse, lastSurahId)"
       >
         {{ word }}
       </span>
@@ -1135,7 +1140,12 @@ controlMenuTimeoutId: null,
   },
 
   methods: {
-    
+    handleVerseClick(verse, surah) {
+this.selectedSurah = surah
+this.selectedVerse= verse
+this.fassarliMode = true
+this.$forceUpdate()
+},
 // Replace your handleFullSurahScroll with this version:
 handleFullSurahScroll() {
   const container = this.$refs.versesContainer;
@@ -4307,6 +4317,10 @@ shareVerse() {
   },
 
   async mounted() {
+
+window.addEventListener('dblclick', (e) => {
+    e.preventDefault();
+  }, { passive: false });
     this.currentTheme = localStorage.getItem('theme') || 'system';
   if (!this.isMobile) {
     document.addEventListener('mousemove', this.handleDesktopMouseMove);

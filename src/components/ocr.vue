@@ -1,558 +1,512 @@
 <template>
- <div class="container">
-        <div class="page" ref="page">
-            <div class="lines">
-                <div class="line"></div>
-                <div class="line"></div>
-                <div class="line"></div>
-                <div class="line"></div>
-                <div class="line"></div>
-                <div class="line"></div>
-                <div class="line"></div>
-                <div class="line"></div>
-                <div class="line"></div>
-                <div class="line"></div>
-            </div>
-            <div class="page-number">٣٤٦</div>
-        </div>
-        
-        <div class="phone" ref="phone">
-            <div class="status-bar"></div>
-            <div class="camera-app-top-overlay"></div>
-            <div class="focus-zone">
-                <div class="focus-line"></div>
-                <div class="focus-line"></div>
-            </div>
-            <div class="screen">
-                  <div class="camera-app-bottom-overlay" ref="cameraAppBottomOverlay">
-                    <div class="camera-button button-press" ref="cameraBtn"></div>
-                      </div>
-            </div>
-                <div class="flash" ref="flash">
-                <svg class="moon-icon" ref="moonIcon" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24">
-                   <g fill="none" stroke="currentColor" stroke-dasharray="4" stroke-dashoffset="4" stroke-linecap="round" stroke-linejoin="round" stroke-width="1">
-                        <path d="M13 4h1.5M13 4h-1.5M13 4v1.5M13 4v-1.5">
-                            <animate id="lineMdMoonAltLoop0" fill="freeze" attributeName="stroke-dashoffset" begin="0.7s;lineMdMoonAltLoop0.begin+6s" dur="0.4s" values="4;0"/>
-                            <animate fill="freeze" attributeName="stroke-dashoffset" begin="lineMdMoonAltLoop0.begin+2s;lineMdMoonAltLoop0.begin+4s" dur="0.4s" values="4;0"/>
-                            <animate fill="freeze" attributeName="stroke-dashoffset" begin="lineMdMoonAltLoop0.begin+1.2s;lineMdMoonAltLoop0.begin+3.2s;lineMdMoonAltLoop0.begin+5.2s" dur="0.4s" values="0;4"/>
-                            <set fill="freeze" attributeName="d" begin="lineMdMoonAltLoop0.begin+1.8s" to="M12 5h1.5M12 5h-1.5M12 5v1.5M12 5v-1.5"/>
-                            <set fill="freeze" attributeName="d" begin="lineMdMoonAltLoop0.begin+3.8s" to="M12 4h1.5M12 4h-1.5M12 4v1.5M12 4v-1.5"/>
-                            <set fill="freeze" attributeName="d" begin="lineMdMoonAltLoop0.begin+5.8s" to="M13 4h1.5M13 4h-1.5M13 4v1.5M13 4v-1.5"/>
-                        </path>
-                        <path d="M19 11h1.5M19 11h-1.5M19 11v1.5M19 11v-1.5">
-                            <animate id="lineMdMoonAltLoop1" fill="freeze" attributeName="stroke-dashoffset" begin="1.1s;lineMdMoonAltLoop1.begin+6s" dur="0.4s" values="4;0"/>
-                            <animate fill="freeze" attributeName="stroke-dashoffset" begin="lineMdMoonAltLoop1.begin+2s;lineMdMoonAltLoop1.begin+4s" dur="0.4s" values="4;0"/>
-                            <animate fill="freeze" attributeName="stroke-dashoffset" begin="lineMdMoonAltLoop1.begin+1.2s;lineMdMoonAltLoop1.begin+3.2s;lineMdMoonAltLoop1.begin+5.2s" dur="0.4s" values="0;4"/>
-                            <set fill="freeze" attributeName="d" begin="lineMdMoonAltLoop1.begin+1.8s" to="M17 11h1.5M17 11h-1.5M17 11v1.5M17 11v-1.5"/>
-                            <set fill="freeze" attributeName="d" begin="lineMdMoonAltLoop1.begin+3.8s" to="M18 12h1.5M18 12h-1.5M18 12v1.5M18 12v-1.5"/>
-                            <set fill="freeze" attributeName="d" begin="lineMdMoonAltLoop1.begin+5.8s" to="M19 11h1.5M19 11h-1.5M19 11v1.5M19 11v-1.5"/>
-                        </path>
-                        <path d="M19 4h1.5M19 4h-1.5M19 4v1.5M19 4v-1.5">
-                            <animate id="lineMdMoonAltLoop2" fill="freeze" attributeName="stroke-dashoffset" begin="2s;lineMdMoonAltLoop2.begin+6s" dur="0.4s" values="4;0"/>
-                            <animate fill="freeze" attributeName="stroke-dashoffset" begin="lineMdMoonAltLoop2.begin+2s" dur="0.4s" values="4;0"/>
-                            <animate fill="freeze" attributeName="stroke-dashoffset" begin="lineMdMoonAltLoop2.begin+1.2s;lineMdMoonAltLoop2.begin+3.2s" dur="0.4s" values="0;4"/>
-                            <set fill="freeze" attributeName="d" begin="lineMdMoonAltLoop2.begin+1.8s" to="M20 5h1.5M20 5h-1.5M20 5v1.5M20 5v-1.5"/>
-                            <set fill="freeze" attributeName="d" begin="lineMdMoonAltLoop2.begin+5.8s" to="M19 4h1.5M19 4h-1.5M19 4v1.5M19 4v-1.5"/>
-                        </path>
-                    </g>
-                    <path fill="none" stroke="currentColor" stroke-dasharray="56" stroke-dashoffset="56" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 6 C7 12.08 11.92 17 18 17 C18.53 17 19.05 16.96 19.56 16.89 C17.95 19.36 15.17 21 12 21 C7.03 21 3 16.97 3 12 C3 8.83 4.64 6.05 7.11 4.44 C7.04 4.95 7 5.47 7 6 Z">
-                        <animate fill="freeze" attributeName="stroke-dashoffset" dur="0.6s" values="56;0"/>
-                    </path>
-                </svg>
-                
-                <div class="arabic-text" ref="arabicText">
-                    <div class="surah-name">سورة المؤمنون</div>
-                    <div class="page-info">صفحة 346</div>
-                    <div class="instruction">اختر الآية للبحث عن تفسيرها</div>
-                    
-                    <div class="verse-buttons" ref="buttonsContainer">
-                        <!-- Verse buttons will be added by JavaScript -->
-                    </div>
-                </div>
-            </div>
-        </div>
+  <div :class="['min-h-screen flex flex-col', theme === 'dark' ? 'bg-gray-900 text-white' : theme === 'sepia' ? 'bg-sepia-100 text-sepia-900' : 'bg-white text-gray-900']">
+    <!-- Camera View -->
+    <div v-if="!capturedImage && !verseSelection" class="relative flex-1">
+      <video ref="video" autoplay playsinline muted :class="['w-full h-full object-cover', { 'invert': isInverted }]"></video>
+      <div class="absolute inset-0 flex justify-center items-center">
+        <div class="w-[250px] h-[50px] bg-transparent border-2 border-red-500"></div>
+      </div>
+      
+         <button @click="closeFassarliMode" class=" absolute top-4 right-4 p-2 rounded bg-red-500 text-white hover:bg-red-600">
+          ✕ Close
+        </button>
+      <button @click="captureImage" class="absolute bottom-8 left-1/2 transform -translate-x-1/2 w-16 h-16 bg-white rounded-full flex items-center justify-center shadow-md hover:shadow-lg">
+        <svg class="w-8 h-8" fill="none" stroke="black" viewBox="0 0 24 24">
+          <circle cx="12" cy="12" r="10" stroke-width="1.5"/>
+        </svg>
+      </button>
     </div>
-</template>
-<script>
-export default {
-  name: 'QuranAnimation',
-  mounted() {
-    this.createVerseButtons();
-    this.$nextTick(() => {
-      this._setTimeout(this.runAnimationSequence, 500); 
-    }); 
-  },
-  data() {
-    return {
-      animationTimeoutIds: [], // Store all timeout IDs
-    };
-  },
-  beforeUnmount() {
-    this._clearAllAnimationTimeouts(); 
-    console.log("OCR Animation: Cleared animation timeouts before unmount.");
-  },
-  methods: {
-    // Corrected helper to manage one-off timeouts
-    _setTimeout(callback, delay) {
-      // In Vue 3, this.$el is a good indicator of mounted status within methods.
-      // this._isMounted is also available.
-      if (!this || !this.$el) { 
-        console.warn("OCR Animation: _setTimeout called on unmounted or not-yet-mounted component.");
-        return null; 
-      }
-      const id = setTimeout(() => {
-        if (!this || !this.$el) { // Check again before executing callback
-          this.animationTimeoutIds = this.animationTimeoutIds.filter(tid => tid !== id);
-          return;
-        }
-        callback();
-        this.animationTimeoutIds = this.animationTimeoutIds.filter(tid => tid !== id);
-      }, delay);
-      this.animationTimeoutIds.push(id);
-      return id;
-    },
 
-    // Promisified wait helper for async/await sequences
-    _wait(delay) {
-      return new Promise((resolve) => {
-        let timeoutId;
-        const operation = () => {
-          this.animationTimeoutIds = this.animationTimeoutIds.filter(tid => tid !== timeoutId);
-          resolve();
-        };
-        if (!this || !this.$el) { // If component is unmounted, resolve immediately
-          resolve();
-          return;
-        }
-        timeoutId = setTimeout(operation, delay);
-        this.animationTimeoutIds.push(timeoutId);
-      });
-    },
-       createVerseButtons() {
-        const buttonsContainer = this.$refs.buttonsContainer;
-        if (!buttonsContainer) return;
+    <!-- Verse Selection Overlay -->
+    <div v-if="verseSelection" class="fixed inset-0 flex flex-col items-center justify-center gap-4 bg-opacity-90" :class="theme === 'dark' ? 'bg-gray-900' : theme === 'sepia' ? 'bg-sepia-100' : 'bg-white'">
+      <h2 class="text-2xl font-semibold mb-4">Select a Verse (Page {{ pageNumber }})</h2>
+      <div class="flex gap-4 flex-wrap justify-center">
+        <button
+          v-for="verse in verseRange"
+          :key="verse"
+          @click="selectVerse(verse)"
+          class="w-12 h-12 rounded-full bg-blue-500 text-white flex items-center justify-center shadow-md hover:bg-blue-600"
+        >
+          {{ verse }}
+        </button>
+      </div>
+      <button @click="resetCamera" class="mt-4 text-blue-500 underline">Back to Camera</button>
+    </div>
 
-        // Clear existing buttons if any (e.g., on hot reload)
-        buttonsContainer.innerHTML = ''; 
-
-        for (let i = 60; i <= 74; i++) {
-            const button = document.createElement('div');
-            button.className = 'verse-button';
-            button.textContent = i;
-            buttonsContainer.appendChild(button);
-        }
-    },
-    async runAnimationSequence() {
-      // Guard against running if component is unmounted
-      if (!this || !this.$el) {
-        console.warn("OCR Animation: runAnimationSequence called but component is unmounted or $el not available.");
-        this._clearAllAnimationTimeouts();
-        return;
-      }
-
-      let { 
-        page: pageEl, // Added for completeness, though not directly animated in this sequence
-        flash: flashEl, 
-        moonIcon: moonIconEl, 
-        arabicText: arabicTextEl, 
-        buttonsContainer: verseButtonsEl, 
-        phone: phoneEl,
-        cameraBtn: cameraBtnEl 
-
-      } = this.$refs;
-
-      // Critical ref check
-      if (!phoneEl || !phoneEl.style) {
-        console.error("OCR Animation: Phone element ref is not valid or missing style property.");
-        return;
-      }
- 
-      // Helper to safely access refs, providing a dummy style object if ref is missing
-      const safeRef = (el) => (el && el.style ? el : { style: {} });
-
-      flashEl = safeRef(flashEl);
-      moonIconEl = safeRef(moonIconEl);
-      arabicTextEl = safeRef(arabicTextEl);
-      verseButtonsEl = safeRef(verseButtonsEl);
-      cameraBtnEl = safeRef(cameraBtnEl);
-
-      // Reset animations safely
-      [phoneEl, cameraBtnEl, flashEl, moonIconEl, arabicTextEl, verseButtonsEl].forEach(el => {
-        el.style.animation = 'none'; // el.style is guaranteed by safeRef or phoneEl check
-      });
-
-      // Force reflow to ensure reset is applied before new animations start
-      void phoneEl.offsetHeight; 
-      // You can add for other elements if needed: void cameraBtnEl.offsetHeight; etc.
-
-      // Set initial states
-      phoneEl.style.bottom = '-500px';
-      // phoneEl.style.position = 'absolute'; // Already set in CSS, usually not needed here
-
-      try {
-        // Start animations sequentially
-        phoneEl.style.animation = 'rise-up 2s forwards';
-        await this._wait(2000);
-        if (!this || !this.$el) return;
-
-        cameraBtnEl.style.animation = 'button-press 1.4s forwards';
-        await this._wait(1400);
-        if (!this || !this.$el) return;
-
-        flashEl.style.animation = 'fade-in 0.5s forwards';
-        await this._wait(500);
-        if (!this || !this.$el) return;
-
-        moonIconEl.style.animation = 'fade-in 0.5s forwards';
-        await this._wait(1000); // Original delay before next moon icon animation
-        if (!this || !this.$el) return;
-
-        moonIconEl.style.animation = 'fade-out 0.5s forwards';
-        await this._wait(500);
-        if (!this || !this.$el) return;
-
-        arabicTextEl.style.animation = 'fade-in 0.5s forwards';
-        verseButtonsEl.style.animation = 'fade-in 0.5s forwards';
-        await this._wait(2000); // Original delay before next text animation
-        if (!this || !this.$el) return;
-
-        arabicTextEl.style.animation = 'fade-out 0.5s forwards';
-        verseButtonsEl.style.animation = 'fade-out 0.5s forwards';
-        await this._wait(1000); // Original delay before phone fall
-        if (!this || !this.$el) return;
-
-        phoneEl.style.animation = 'fall-down 2s forwards';
-        await this._wait(2000); // Wait for fall-down to complete
-        if (!this || !this.$el) return;
-
-        // Loop: Restart animation after a short delay (200ms, based on original logic)
-        await this._wait(200);
-        if (this && this.$el) { // Check if still mounted before looping
-            console.log("OCR Animation: Restarting sequence.");
-            this.runAnimationSequence(); // Call directly to loop
-        }
-      } catch (error) {
-        console.error("OCR Animation: Error during animation sequence:", error);
-        this._clearAllAnimationTimeouts(); // Clean up if an error occurs
-      }
-    },
-       _clearAllAnimationTimeouts() {
-      this.animationTimeoutIds.forEach(id => clearTimeout(id));
-      this.animationTimeoutIds = [];
+    <!-- Fullscreen Results Overlay -->
+    <div v-if="capturedImage && !verseSelection" class="fixed inset-0 overflow-y-auto p-6 flex flex-col" :class="theme === 'dark' ? 'bg-gray-900' : theme === 'sepia' ? 'bg-sepia-100' : 'bg-white'">
+      <!-- Theme Toggle -->
+      <div class="flex justify-end mb-4">
    
+
+             <!-- Close Button -->
+      <div class="flex justify-start mb-4">
+        <button @click="closeFassarliMode" class="p-2 rounded bg-red-500 text-white hover:bg-red-600">
+          ✕ Close
+        </button>
+      </div>
+      </div>
+
+
+
+      <!-- Verse Display -->
+      <div v-if="verseData" class="mb-6">
+        <h2 class="text-2xl font-semibold mb-2 text-right leading-relaxed">{{ verseData.surahName }} ({{ verseData.surahTransliteration }}) - آية {{ verseData.verseId }}</h2>
+        <p class="text-xl mb-4 text-right leading-relaxed font-arabic">{{ verseData.verseText }}</p>
+        <button @click="toggleAudio" class="flex items-center gap-2 p-2 rounded bg-blue-500 text-white hover:bg-blue-600">
+          <svg v-if="!isPlaying" class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z"/>
+          </svg>
+          <svg v-else class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+          </svg>
+          <span>{{ isPlaying ? 'إيقاف' : 'تشغيل' }}</span>
+        </button>
+      </div>
+
+      <!-- Separator -->
+      <hr class="my-4 border-t" :class="theme === 'dark' ? 'border-gray-600' : 'border-gray-300'">
+
+      <!-- Tafsir Section -->
+      <div v-if="tafsirData?.length" class="flex-1 space-y-4">
+        <draggable
+          v-model="tafsirData"
+          item-key="edition.identifier"
+          @end="saveTafsirOrder"
+          :delay="200"
+          :delay-on-touch-only="true"
+          :move="checkMove"
+          class="space-y-4"
+        >
+          <template #item="{ element: tafsir }">
+            <div
+              class="border rounded-lg p-4"
+              :class="theme === 'dark' ? 'border-gray-600' : 'border-gray-300'"
+            >
+              <div class="flex justify-between items-center cursor-pointer" @click="toggleTafsir(tafsir.edition.identifier)">
+                <h3 class="text-lg font-medium text-right">
+                  {{ tafsir.edition.name }} ({{ tafsir.edition.englishName }})
+                </h3>
+                <span>{{ tafsirCollapseStates[tafsir.edition.identifier] ? '➕' : '➖' }}</span>
+              </div>
+              <p
+                v-if="!tafsirCollapseStates[tafsir.edition.identifier]"
+                class="mt-2 text-right text-lg leading-relaxed font-arabic"
+              >
+                {{ tafsir.text }}
+              </p>
+            </div>
+          </template>
+        </draggable>
+      </div>
+
+      <!-- Fallback when no tafsir data -->
+      <div v-else-if="tafsirData" class="text-center py-8 text-gray-500">
+        No tafsir data available for this verse
+      </div>
+
+      <!-- New Picture Button -->
+      <button @click="resetCamera" class="fixed bottom-4 right-4 w-12 h-12 bg-blue-500 text-white rounded-full flex items-center justify-center shadow-md hover:shadow-lg">
+        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 9a2 2 0 012-2h3l3-3h4l3 3h3a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z"/>
+          <circle cx="12" cy="13" r="3"/>
+        </svg>
+      </button>
+    </div>
+  </div>
+</template>
+
+<script setup>
+import { ref, onMounted, onUnmounted } from 'vue';
+import draggable from 'vuedraggable';
+import Tesseract from 'tesseract.js'
+import { surah } from './data.js';
+import { quranPageVerses } from './info.js';
+
+// State
+const video = ref(null);
+const capturedImage = ref(null);
+const verseData = ref(null);
+const tafsirData = ref([]);
+const matches = ref([]);
+const isPlaying = ref(false);
+const audio = ref(new Audio());
+const theme = ref(localStorage.getItem('theme') || 'system');
+const tafsirCollapseStates = ref(JSON.parse(localStorage.getItem('tafsirCollapseStatesById') || '{}'));
+const text = ref('');
+const loading = ref(false);
+const isInverted = ref(false);
+const verseSelection = ref(false);
+const verseRange = ref([]);
+const pageNumber = ref(null);
+
+const tafsirEditions = [
+  'ar.muyassar',
+  'ar.jalalayn',
+  'ar.qurtubi',
+  'ar.miqbas',
+  'ar.waseet',
+  'ar.baghawi'
+];
+// Define emits
+const emit = defineEmits(['close']);
+
+const closeFassarliMode = () => {
+  emit('close');
+};
+// Initialize camera
+const initCamera = async () => {
+  try {
+    if (video.value?.srcObject) {
+      video.value.srcObject.getTracks().forEach(track => track.stop());
     }
+
+    const constraints = [
+      { video: { facingMode: 'environment', width: { ideal: 1280 }, height: { ideal: 720 } } },
+      { video: { facingMode: 'environment' } },
+      { video: true },
+    ];
+
+    for (const constraint of constraints) {
+      try {
+        const stream = await navigator.mediaDevices.getUserMedia(constraint);
+        if (video.value) {
+          video.value.srcObject = stream;
+          await video.value.play();
+        }
+        return;
+      } catch {
+        continue;
+      }
+    }
+
+    alert('Camera not accessible. Please ensure camera permissions are granted and the app is served over HTTPS.');
+  } catch (err) {
+    console.error('initCamera error:', err);
+    alert('Camera error: ' + err.message);
+  }
+};
+
+// Capture and crop image
+const captureImage = async () => {
+  if (!video.value) return;
+  loading.value = true;
+
+  try {
+    const canvas = document.createElement('canvas');
+    canvas.width = video.value.videoWidth;
+    canvas.height = video.value.videoHeight;
+    const ctx = canvas.getContext('2d');
+
+    if (video.value.readyState >= HTMLMediaElement.HAVE_CURRENT_DATA) {
+      ctx.drawImage(video.value, 0, 0, canvas.width, canvas.height);
+
+      if (isInverted.value) {
+        const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+        const data = imageData.data;
+        for (let i = 0; i < data.length; i += 4) {
+          data[i] = 255 - data[i]; // R
+          data[i + 1] = 255 - data[i + 1]; // G
+          data[i + 2] = 255 - data[i + 2]; // B
+        }
+        ctx.putImageData(imageData, 0, 0);
+      }
+
+      // Define the capture area (5x larger than before)
+      const captureWidth = 250; // 50px * 5
+      const captureHeight = 50; // 10px * 5
+      const centerX = canvas.width / 2;
+      const centerY = canvas.height / 2;
+      
+      // Calculate the crop area
+      const cropX = centerX - (captureWidth / 2);
+      const cropY = centerY - (captureHeight / 2);
+      
+      // Create a new canvas for the cropped image
+      const cropCanvas = document.createElement('canvas');
+      cropCanvas.width = captureWidth;
+      cropCanvas.height = captureHeight;
+      const cropCtx = cropCanvas.getContext('2d');
+      
+      // Draw the cropped area
+      cropCtx.drawImage(
+        canvas,
+        cropX, cropY, captureWidth, captureHeight,
+        0, 0, captureWidth, captureHeight
+      );
+
+      capturedImage.value = cropCanvas.toDataURL('image/jpeg', 0.9);
+      await handleCapture(cropCanvas);
+    } else {
+      console.warn('Video not ready for capture');
+      setTimeout(captureImage, 100);
+    }
+  } catch (err) {
+    console.error('Capture error:', err);
+    alert('Failed to capture image: ' + err.message);
+  } finally {
+    loading.value = false;
+  }
+};
+
+// Fetch a specific verse from Quran API
+async function fetchVerse(surahId, verseId) {
+  try {
+    const response = await fetch(`https://api.alquran.cloud/v1/ayah/${surahId}:${verseId}`);
+    const data = await response.json();
+    if (data.status === 'OK') {
+      verseData.value = {
+        surahId,
+        surahName: data.data.surah.name,
+        surahTransliteration: data.data.surah.englishName,
+        verseId,
+        verseText: data.data.text,
+      };
+      await fetchTafsir(surahId, verseId);
+    } else {
+      alert('Failed to fetch verse data.');
+    }
+  } catch (err) {
+    console.error('Verse fetch error:', err);
+    alert('Failed to fetch verse: ' + err.message);
   }
 }
+
+// Fetch tafsir
+const fetchTafsir = async (surah, verse) => {
+  tafsirData.value = [];
+  try {
+    const promises = tafsirEditions.map(edition =>
+      fetch(`https://api.alquran.cloud/v1/ayah/${surah}:${verse}/${edition}`)
+        .then(res => res.json())
+        .catch(() => null)
+    );
+    const results = await Promise.all(promises);
+ let fetchedTafsirs = results.filter(r => r?.status === 'OK').map(r => r.data);
+
+    if (fetchedTafsirs.length > 0) {
+      const savedOrderIdentifiers = JSON.parse(localStorage.getItem('tafsirOrderByIdentifiers') || 'null');
+      if (savedOrderIdentifiers && Array.isArray(savedOrderIdentifiers)) {
+        const tafsirMap = new Map(fetchedTafsirs.map(t => [t.edition.identifier, t]));
+        const orderedTafsirs = [];
+        savedOrderIdentifiers.forEach(id => {
+          if (tafsirMap.has(id)) {
+            orderedTafsirs.push(tafsirMap.get(id));
+            tafsirMap.delete(id);
+          }
+        });
+        orderedTafsirs.push(...tafsirMap.values()); // Add any new/unsorted tafsirs
+        tafsirData.value = orderedTafsirs;
+      } else {
+        tafsirData.value = fetchedTafsirs;
+      }
+
+      // Initialize or confirm collapse states for all tafsirs
+      let statesChanged = false;
+      tafsirData.value.forEach(tafsir => {
+        const identifier = tafsir.edition.identifier;
+        if (tafsirCollapseStates.value[identifier] === undefined) {
+          tafsirCollapseStates.value[identifier] = true; // Default to collapsed
+          statesChanged = true;
+        }
+      });
+   if (statesChanged) {
+        localStorage.setItem('tafsirCollapseStatesById', JSON.stringify(tafsirCollapseStates.value));
+      }    }
+  } catch (err) {
+    console.error('Tafsir fetch error:', err);
+  }
+};
+
+// Save tafsir order
+const saveTafsirOrder = () => {
+  if (tafsirData.value?.length) {
+  const order = tafsirData.value.map(tafsir => tafsir.edition.identifier);
+    localStorage.setItem('tafsirOrderByIdentifiers', JSON.stringify(order));
+    localStorage.setItem('tafsirCollapseStatesById', JSON.stringify(tafsirCollapseStates.value));
+   }
+};
+
+// Audio playback
+const toggleAudio = async () => {
+  if (!verseData.value) return;
+  if (isPlaying.value) {
+    audio.value.pause();
+    isPlaying.value = false;
+    return;
+  }
+
+  try {
+    const response = await fetch(`https://api.alquran.cloud/v1/ayah/${verseData.value.surahId}:${verseData.value.verseId}/ar.minshawi`);
+    const data = await response.json();
+    if (data.status === 'OK') {
+      audio.value.src = data.data.audio;
+      audio.value.play();
+      isPlaying.value = true;
+      audio.value.onended = () => {
+        isPlaying.value = false;
+      };
+    }
+  } catch (err) {
+    console.error('Audio API error:', err);
+    alert('Failed to load audio.');
+  }
+};
+
+// Theme management
+const saveTheme = () => {
+  localStorage.setItem('theme', theme.value);
+};
+
+// Tafsir collapse and order
+const toggleTafsir = (identifier) => {
+  tafsirCollapseStates.value[identifier] = !tafsirCollapseStates.value[identifier];
+  localStorage.setItem('tafsirCollapseStatesById', JSON.stringify(tafsirCollapseStates.value));
+};
+
+// Toggle invert
+const toggleInvert = () => {
+  isInverted.value = !isInverted.value;
+};
+
+// Reset camera
+const resetCamera = async () => {
+  capturedImage.value = null;
+  verseData.value = null;
+  tafsirData.value = [];
+  isPlaying.value = false;
+  audio.value.pause();
+  audio.value.src = '';
+  text.value = '';
+  loading.value = false;
+  verseSelection.value = false;
+  await initCamera();
+};
+
+async function handleCapture(canvas) {
+  loading.value = true;
+  text.value = '';
+  matches.value = [];
+
+  try {
+    const imageDataUrl = canvas.toDataURL('image/jpeg', 0.9);
+
+    const { data: { text: result } } = await Tesseract.recognize(imageDataUrl, 'eng', {
+      tessedit_char_whitelist: '٠١٢٣٤٥٦٧٨٩0123456789',
+      tessedit_do_invert: true,
+      preserve_interword_spaces: 1,
+      logger: m => console.log(m),
+    });
+
+    text.value = result;
+
+    const arabicNumbers = result.match(/[٠١٢٣٤٥٦٧٨٩]+/g)?.join('') || '';
+    const westernNumbers = result.match(/[0-9]+/g)?.join('') || '';
+
+    const numberMap = {
+      '٠': '0', '١': '1', '٢': '2', '٣': '3', '٤': '4',
+      '٥': '5', '٦': '6', '٧': '7', '٨': '8', '٩': '9'
+    };
+    const detectedNumber = arabicNumbers
+      ? arabicNumbers.replace(/[٠١٢٣٤٥٦٧٨٩]/g, d => numberMap[d])
+      : westernNumbers;
+
+    text.value = detectedNumber;
+
+    if (detectedNumber) {
+      pageNumber.value = parseInt(detectedNumber);
+      if (pageNumber.value >= 1 && pageNumber.value <= 604) {
+        const [firstVerse, lastVerse] = quranPageVerses[pageNumber.value - 1] || [1, 1];
+        verseRange.value = Array.from({ length: lastVerse - firstVerse + 1 }, (_, i) => firstVerse + i);
+        verseSelection.value = true;
+      } else {
+        alert('Invalid page number. Please try again.');
+      }
+    } else {
+      alert('No valid number detected. Please try again with a clearer image.');
+    }
+  } catch (err) {
+    console.error('OCR error:', err);
+    alert('OCR error: ' + err.message);
+  } finally {
+    loading.value = false;
+  }
+}
+
+// Determine Surah from page number
+function getSurahFromPage(page) {
+  for (let i = 0; i < surah.length; i++) {
+    if (page <= surah[i]) {
+      return i + 1; // Surah numbers are 1-based
+    }
+  }
+  return 2; // Default to Surah 2 if not found
+}
+
+// Select verse from range
+async function selectVerse(verseId) {
+  verseSelection.value = false;
+  const surahId = getSurahFromPage(pageNumber.value);
+  await fetchVerse(surahId, verseId);
+}
+
+// Check if a tafsir item can be moved (dragged)
+const checkMove = (evt) => {
+    const identifier = evt.draggedContext.element.edition.identifier;
+
+  // Allow dragging only if the tafsir item is collapsed
+  return tafsirCollapseStates.value[identifier];
+};
+onMounted(async () => {
+  if (theme.value === 'system') {
+    const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+    theme.value = prefersDark ? 'dark' : 'light';
+  }
+  await initCamera();
+});
+
+onUnmounted(async () => {
+  if (video.value && video.value.srcObject) {
+    video.value.srcObject.getTracks().forEach(track => track.stop());
+  }
+  audio.value.pause();
+});
 </script>
 
+<style>
+.bg-sepia-100 { background-color: #f4ecd8; }
+.text-sepia-900 { color: #5c4b38; }
+.bg-sepia-200 { background-color: #e6d8b5; }
 
-    <style scoped>
-        body {
-        
+@font-face {
+  font-family: 'Amiri Quran';
+  src: url('https://cdn.jsdelivr.net/npm/amiri@0.117/AmiriQuran-Regular.woff2') format('woff2');
+}
+.font-arabic {
+  font-family: 'Amiri Quran', serif;
+  font-size: 1.5rem;
+  line-height: 2.5rem;
+}
 
-        }
-        
-        .container {
-            position: fixed;
-            width: 100vw;
-        margin: 0;
-            background: rgba(0, 0, 0, 0.855);
-            backdrop-filter: blur(15px); 
-            overflow: hidden;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            height: 100vh;
-            font-family: Arial, sans-serif;
-        }
-        
-        /* Page styling */
-        .page {
-            position: fixed;
-            width: 80%;
-            height: 90%;
-            background: #F4EBD0;
-            border: 1px solid #ddd;
-            border-radius: 8px;
-            top: 5%;
-            left: 50%;
-            transform: translate(-50%, -50%);
-            overflow: hidden;
-        }
-        
-      
-        
-       
-        
-        .page-number {
-            position: absolute;
-            bottom: 20px;
-            right: calc(50% - 1.25ch);
-            font-size: 21px;
-            color: #666;
-        }
-        
-        /* Phone styling */
-        .phone {
-            position: absolute;
-            width: 250px;
-            height: 450px;
-            border-radius: 30px;
-            bottom: -500px;
-            left: 50%;
-            transform: translateX(-50%);
-            border: 4px solid #333;
-            box-shadow: 0 0 20px rgba(0,0,0,0.5);
-            animation: rise-up 2s forwards 0.5s;
-        }
-        
-        .phone::before {
-            content: '';
-            position: absolute;
-            top: 10px;
-            left: 50%;
-            transform: translateX(-50%);
-            width: 60px;
-            height: 8px;
-            background: #222;
-            border-radius: 4px;
-        }
-        
-        .phone::after {
-            content: '';
-            position: absolute;
-            bottom: 10px;
-            left: 50%;
-            transform: translateX(-50%);
-            width: 120px;
-            height: 8px;
-            background: #222;
-            border-radius: 4px;
-        }
-        
-        .screen {
-            position: absolute;
-            top: 30px;
-            left: 10px;
-            right: 10px;
-            bottom: 30px;
-            border-radius: 5px;
-            overflow: hidden;
-            background: rgba(255,255,255,0.1);
-        }
-        
-        /* Focus zone lines */
-        .focus-zone {
-            position: absolute;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%);
-            width: 40%;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            z-index: 2;
-        }
-        
-        .focus-line {
-            width: 100%;
-            height: 1px;
-            background: rgba(51, 64, 111, 0.452);
-            margin: 15% 0;
-            box-shadow: 0 0 5px rgba(255,255,255,0.5);
-        }
-        
-        .camera-button {
-            width: 60px;
-            height: 60px;
-            background: rgba(255,255,255,0.2);
-            border-radius: 50%;
-            border: 3px solid rgba(255,255,255,0.5);
-            position: relative;
-        }
-        
-        .camera-button::after {
-            content: '';
-            position: absolute;
-            top: 5px;
-            left: 5px;
-            right: 5px;
-            bottom: 5px;
-            background: rgba(255,255,255,0.5);
-            border-radius: 50%;
-            border: 2px solid rgba(255,255,255,0.7);
-        }
-        
-        /* Status bar */
-        .status-bar {
-            position: absolute;
-            z-index: 9;
-            top: 0;
-            left: 0;
-            border-radius: 25px 25px 0 0;
-            right: 0;
-            height: 30px;
-            background: rgba(0,0,0,0.5);
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            color: white;
-            font-size: 12px;
-        }
-        
-        /* Camera app overlays */
-        .camera-app-top-overlay {
-            position: absolute;
-            top: 30px;
-            left: 0;
-            right: 0;
-            height: 50px;
-            background: rgba(0,0,0,0.3);
-            display: flex;
-            justify-content: space-between;
-            padding: 0 15px;
-            align-items: center;
-            z-index: 1;
-        }
-        
-        .camera-app-bottom-overlay {
-            position: absolute;
-            bottom: 0;
-            left: 0;
-            right: 0;
-            height: 100px;
-            background: rgba(0,0,0,0.3);
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            z-index: 1;
-        }
-        
-        /* Flash effect */
-        .flash {
-            position: absolute;
-            top: 0;
-            left: 0;
-            right: 0;
-            bottom: 0;
-            background: #F4EBD0;
-            opacity: 0;
-            z-index: 8;
-            display: flex;
-            flex-direction: column;
-            justify-content: center;
-            align-items: center;
-            border-radius: 30px;
-        }
-        
-        .flash::before {
-            content: '';
-            position: absolute;
-            top: 10px;
-            left: 50%;
-            transform: translateX(-50%);
-            width: 60px;
-            height: 8px;
-            background: #222;
-            border-radius: 4px;
-        }
-        
-        .flash::after {
-            content: '';
-            position: absolute;
-            bottom: 10px;
-            left: 50%;
-            transform: translateX(-50%);
-            width: 120px;
-            height: 8px;
-            background: #222;
-            border-radius: 4px;
-        }
-        
-        /* Moon icon */
-        .moon-icon {
-            width: 80px;
-            height: 80px;
-            color: #5E3C16;
-            opacity: 0;
-        }
-        
-        /* Arabic text */
-        .arabic-text {
-            color: #5E3C16;
-            text-align: center;
-            width: 100%;
-            opacity: 0;
-            position: absolute;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%);
-        }
-        
-        .surah-name {
-            font-size: 22px;
-            font-weight: bold;
-            margin-bottom: 10px;
-        }
-        
-        .page-info {
-            font-size: 18px;
-            margin-bottom: 20px;
-        }
-        
-        .instruction {
-            font-size: 16px;
-            margin-bottom: 30px;
-        }
-        
-        /* Verse buttons */
-        .verse-buttons {
-            display: flex;
-            flex-wrap: wrap;
-            align-items: center;
-            justify-content: center;
-            gap: 8px;
-            max-width: 100%;
-            opacity: 0;
-        }
-            /* Add this new rule to reset the background */
-        .flash.reset-bg {
-            background: transparent;
-        }
-        .verse-button {
-            width: 40px;
-            height: 40px;
-            border-radius: 50%;
-            background: #5E3C16;
-            color: #F4EBD0;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            font-size: 16px;
-        }
-        
-        /* Animations */
-        @keyframes rise-up {
-            to { bottom: calc(50% - 195px); }
-        }
-        
-        @keyframes fall-down {
-                        from { bottom: calc(50% - 225px); }
-            to { bottom: -500px; }
-            
-        }
-        
-        @keyframes button-press {
-            0% { transform: scale(1); }
-            50% { transform: scale(0.88); }
-            100% { transform: scale(1); }
-        }
-        
-        @keyframes fade-in {
-            to { opacity: 1; }
-        }
-        
-        @keyframes fade-out {
-            to { opacity: 0; }
-        }
-    </style>
+.invert {
+  filter: invert(1);
+}
+
+video {
+  object-fit: cover;
+  width: 100%;
+  height: 100%;
+}
+
+@supports (-webkit-touch-callout: none) {
+  video {
+    position: absolute;
+    top: 0;
+    left: 0;
+  }
+}
+
+.backdrop-blur-sm {
+  backdrop-filter: blur(4px);
+}
+</style>
