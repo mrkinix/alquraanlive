@@ -13,7 +13,7 @@ export default defineConfig({
 
       // Configuration for the Web App Manifest
       manifest: {
-        name: 'alQuraan.live', // Full name of your app
+        name: 'alQuraan', // Full name of your app
         short_name: 'alQuraan', // Short name for the homescreen icon
         description: 'القرآن الكريم', // Description of your app
         theme_color: '#000013', // Theme color for the browser UI
