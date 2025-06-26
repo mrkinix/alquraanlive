@@ -12,6 +12,7 @@ qaloon mushaf
   <fassarli
     v-if="fassarliMode"
      @close="fassarliMode = false"
+  @choose-tafsir="openTafsirMode"
 
     :verse="selectedVerse"
     :surah="currentVerseData ? currentVerseData.surah : 1"
@@ -955,6 +956,7 @@ export default {
   },
   data() {
     return {
+      
       // Mushaf selection
       showMushafSelection: false,
       mushafType: 'hafs', // 'hafs', 'warsh', 'qaloon'
@@ -1140,6 +1142,57 @@ controlMenuTimeoutId: null,
   },
 
   methods: {
+    async startDeepgramRecognition() {
+  try {
+    this.isListening = true;
+    this.recognizedText = '';
+    this.deepgramStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+    this.deepgramRecorder = new MediaRecorder(this.deepgramStream);
+    let audioChunks = [];
+
+    this.deepgramRecorder.ondataavailable = event => {
+      audioChunks.push(event.data);
+    };
+
+    this.deepgramRecorder.onstop = async () => {
+      this.isListening = false;
+      if (this.deepgramStream) {
+        this.deepgramStream.getTracks().forEach(track => track.stop());
+      }
+      const audioBlob = new Blob(audioChunks, { type: 'audio/wav' });
+
+      const response = await fetch('https://api.deepgram.com/v1/listen', {
+        method: 'POST',
+        headers: {
+          'Authorization': 'Token c82459e149416df0b4825d5f1c797942b6c001ab',
+          'Content-Type': 'audio/wav',
+          'Accept': 'application/json'
+        },
+        body: audioBlob
+      });
+      const data = await response.json();
+      this.recognizedText = data.results?.channels?.[0]?.alternatives?.[0]?.transcript || '';
+      this.$nextTick(() => this.matchRecitedText(this.recognizedText));
+    };
+
+    this.deepgramRecorder.start();
+    setTimeout(() => {
+      if (this.deepgramRecorder && this.deepgramRecorder.state === 'recording') {
+        this.deepgramRecorder.stop();
+      }
+    }, 5000); // Record for 5 seconds
+  } catch (e) {
+    this.isListening = false;
+    this.errorMessage = "Microphone access denied or not available.";
+  }
+},
+     openTafsirMode(tafsirIdentifier) {
+    this.fassarliMode = false;
+    this.displayMode = 'tafseer';
+    this.selectedTafsirIdentifier = tafsirIdentifier;
+    // Now call your loadTafseer with the chosen tafsir identifier
+    this.loadTafseer(this.selectedSurah, this.selectedVerse, tafsirIdentifier);
+  },
     handleVerseClick(verse, surah) {
 this.selectedSurah = surah
 this.selectedVerse= verse
@@ -1314,18 +1367,18 @@ if (!localStorage.getItem('hasSeenInstructions')) {
       this.$forceUpdate()
     },
     
-    initSpeechRecognition() {
-            this.correctWords = [];
-      this.mistakeWords = [];
-      this.unreadVerses = [];
-      this.$forceUpdate()
-      const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-      if (!SpeechRecognition) {
-        this.errorMessage = this.getLocalizedErrorMessage('voiceSearchNotSupported');
-        return;
-      }
-      
-      this.speechRecognition = new SpeechRecognition();
+initSpeechRecognition() {
+  this.correctWords = [];
+  this.mistakeWords = [];
+  this.unreadVerses = [];
+  this.$forceUpdate();
+  const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+  if (!SpeechRecognition) {
+    // Fallback to Deepgram
+    this.startDeepgramRecognition();
+    return;
+  }
+    this.speechRecognition = new SpeechRecognition();
       this.speechRecognition.lang = 'ar-SA';
       this.speechRecognition.continuous = true;
       this.speechRecognition.interimResults = true;
@@ -1342,8 +1395,7 @@ if (!localStorage.getItem('hasSeenInstructions')) {
         console.error('Speech recognition error', event.error);
       };
       
-      this.speechRecognition.start();
-    },
+      this.speechRecognition.start();},
     
     stopSpeechRecognition() {
       if (this.speechRecognition) {
@@ -1399,65 +1451,115 @@ removeCharacters(inputTextString) { // Renamed parameter for clarity
   return currentString; // Return the single cleaned string
 },
 async matchRecitedText(transcript) {
-  // Early exit if busy or no verse data
   if (this.isTransitioning || !this.currentVerseData?.text) return;
 
- // Clear highlights specific to the current part before new matching
+  // Always reset highlights for new part
   this.correctWords = [];
   this.mistakeWords = [];
   this.unreadVerses = [];
+  await this.$nextTick();
 
-  await this.$nextTick(); // Ensure UI updates
+  const verseText = this.processArabicText(this.currentVerseData.text);
+  const verseParts = this.segmentText(verseText);
+  const currentPart = verseParts[this.currentPartIndex] || '';
+  const verseWords = currentPart.split(' ').filter(word => word.trim());
+  const recitedWords = this.processArabicText(transcript)
+    .split(' ')
+    .filter((word, i, arr) => word && (i === 0 || word !== arr[i - 1]));
 
+  let correct = [];
+  let mistakes = [];
+  let unread = [];
+  let pointer = 0;
+  let vibrated = false;
 
-  try {
-    // Process current verse text
-    const verseText = this.processArabicText(this.currentVerseData.text);
-    const verseParts = this.segmentText(verseText);
-    const currentPart = verseParts[this.currentPartIndex] || '';
-    const verseWords = currentPart.split(' ').filter(word => word.trim());
-    
-    // Process recited words (with duplicate removal)
-    const recitedWords = this.processArabicText(transcript)
-      .split(' ')
-      .filter((word, i, arr) => word && (i === 0 || word !== arr[i - 1]));
+  // Helper: Remove tashkeel and normalize
+  const norm = w => this.removeTashkeel(w).toLowerCase();
 
-    // Reset matching state for current verse
-    const matchState = {
-      currentPosition: 0,
-      correct: [],
-      mistakes: [],
-      unread: []
-    };
+  let i = 0;
+  while (i < recitedWords.length && pointer < verseWords.length) {
+    const recited = norm(recitedWords[i]);
+    const current = norm(verseWords[pointer]);
 
-    // Match each recited word
-    for (const recitedWord of recitedWords) {
-      await this.matchWord(recitedWord, verseWords, matchState);
+    // Direct match
+    if (ratio(current, recited, { ignoreCase: true }) >= 70) {
+      correct.push(pointer);
+      pointer++;
+      i++;
+      continue;
     }
 
-    // Update remaining words as unread
-    matchState.unread = Array.from(
-      { length: verseWords.length - matchState.currentPosition },
-      (_, i) => matchState.currentPosition + i // These are indices relative to verseWords (current part)
+    // Look ahead: If recited word matches a later verse word (skip)
+    let found = false;
+    for (let lookahead = pointer + 1; lookahead < verseWords.length; lookahead++) {
+      if (ratio(norm(verseWords[lookahead]), recited, { ignoreCase: true }) >= 70) {
+        // Mark skipped words as mistakes
+        for (let skip = pointer; skip < lookahead; skip++) {
+          mistakes.push(skip);
+          vibrated = true;
+        }
+        correct.push(lookahead);
+        pointer = lookahead + 1;
+        i++;
+        found = true;
+        break;
+      }
+    }
+    if (found) continue;
+
+    // Look back: If recited word matches a previous verse word, jump back and remove highlights after that word
+    const prevIdx = correct.findIndex(idx =>
+      ratio(norm(verseWords[idx]), recited, { ignoreCase: true }) >= 70
     );
-
-    // Apply highlights
-    this.correctWords = matchState.correct;
-    this.mistakeWords = matchState.mistakes;
-    this.unreadVerses = matchState.unread;
-
-    // Only progress if current part is fully processed
-    if (matchState.currentPosition >= verseWords.length) {
-        this.clearAllHighlights();
-            this.correctWords = [];
-    this.mistakeWords = [];
-    this.unreadVerses = [];
-  await this.$nextTick(); // Ensure UI updates
-      await this.safeProgress(verseParts);
-              this.clearAllHighlights();
-  await this.$nextTick(); // Ensure UI updates
+    if (prevIdx !== -1 && prevIdx < pointer - 1) {
+      // Remove highlights after prevIdx
+      correct = correct.filter(idx => idx <= prevIdx);
+      mistakes = mistakes.filter(idx => idx <= prevIdx);
+      pointer = prevIdx + 1;
+      i++;
+      continue;
     }
-  } finally {
+
+    // No match: mark as mistake, vibrate
+    mistakes.push(pointer);
+    vibrated = true;
+    pointer++;
+    i++;
+  }
+
+  // Mark remaining as unread
+  for (let j = 0; j < verseWords.length; j++) {
+    if (!correct.includes(j) && !mistakes.includes(j)) unread.push(j);
+  }
+
+  this.correctWords = correct;
+  this.mistakeWords = mistakes;
+  this.unreadVerses = unread;
+
+  // Vibrate on mistake
+  if (vibrated && window.navigator && window.navigator.vibrate) {
+    window.navigator.vibrate(120);
+  }
+
+  // Advance to next part if all words are attempted (correct or mistake)
+  if (
+    (correct.length + mistakes.length === verseWords.length) &&
+    verseWords.length > 0 &&
+    !this.isTransitioning
+  ) {
+    this.isTransitioning = true;
+    setTimeout(() => {
+      this.correctWords = [];
+      this.mistakeWords = [];
+      this.unreadVerses = [];
+      if (this.currentPartIndex < verseParts.length - 1) {
+        this.currentPartIndex++;
+        this.displayCurrentPart();
+      } else {
+        this.selectVerse(true);
+      }
+      this.isTransitioning = false;
+    }, 500);
   }
 },
 
@@ -1601,6 +1703,9 @@ async selectVerse(next = true) { // Make async
   }
   if (this.isRevisionMode) {
     this.displayMode = "revision"
+      this.correctWords = [];
+  this.mistakeWords = [];
+  this.unreadVerses = [];
   }
     this.clearAnimationTimers();
 
@@ -1677,10 +1782,15 @@ this.unreadVerses = [];
       await this.loadVerseCompletion(this.currentVerseData.uuid);
       await this.loadVerseHighlights(this.currentVerseData.uuid);
   }
-
+  this.correctWords = [];
+  this.mistakeWords = [];
+  this.unreadVerses = [];
   // Now that data is loaded, display the current part
   this.displayCurrentPart(); // This will handle clearing displayedWords and starting animation
   this.saveLastViewed();
+    this.correctWords = [];
+  this.mistakeWords = [];
+  this.unreadVerses = [];
 },
 
 
@@ -1885,18 +1995,24 @@ displayNextPart() {
     },
     
     // Add Full Surah Mode to UI
-    setDisplayMode(mode) {
+   setDisplayMode(mode) {
   this.displayMode = mode;
   this.clearAnimationTimers();
   this.showDisplayModeMenu = false;
 
   if (mode === 'Hifdh') {
     this.enterHifdhMode();
-      this.displayedWords = [];
-  this.currentTextParts = [];
-  this.$forceUpdate();
+    this.displayedWords = [];
+    this.currentTextParts = [];
+    this.$forceUpdate();
   } else if (mode === 'tafseer') {
-    this.loadTafseer();
+    // Open fassarli overlay for current verse
+    this.fassarliMode = true;
+    // Optionally, set selectedVerse and selectedSurah if needed
+    this.selectedVerse = this.currentVerseData ? this.currentVerseData.verse : 1;
+    // If you want to ensure surah is set:
+    // this.selectedSurah = this.currentVerseData ? this.currentVerseData.surah : 1;
+    return; // Don't run the rest of the code for tafseer mode
   } else if (mode === 'full-surah') {
     if (this.currentVerseData && this.currentVerseData.surah) {
       this.loadSurahVerses(this.currentVerseData.surah);
@@ -2313,19 +2429,24 @@ selectInitialLanguage(lang) {
   this.currentLanguage = lang;
   localStorage.setItem('language', lang);
   this.showLanguageSelection = false;
-  if (lang == "ar")   this.showMushafSelection = true;
-    else if (!localStorage.getItem('hasSeenInstructions')) {
-      console.log('Showing navigation instructions on first visit');
+ if (lang === "ar") {
+    this.showMushafSelection = true;
+    // For Arabic, we wait for the user to select a Mushaf type.
+    // Data loading will be triggered by the selectMushaf() method.
+  } else {
+    // For other languages, we can proceed with loading the default (Hafs) data.
+    if (!localStorage.getItem('hasSeenInstructions')) {
+          console.log('Showing navigation instructions on first visit');
       this.showNavigationInstructions = true;
     }
-  this.loadInitialData().then(() => {
-    if (this.allVerses.length > 0 && !this.errorMessage) {
-      this.selectVerse();
-    } else if (!this.errorMessage) {
-      this.errorMessage = this.getLocalizedErrorMessage('noDataAfterLoad');
-      this.isLoading = false;
-    }
-  });
+this.loadInitialData().then(() => {
+      if (this.allVerses.length > 0 && !this.errorMessage) {
+        this.selectVerse();
+      } else if (!this.errorMessage) {
+        this.errorMessage = this.getLocalizedErrorMessage('noDataAfterLoad');
+      }
+    });
+  }
 
 },
 
@@ -3375,11 +3496,26 @@ displayCurrentPart() {
   this.correctWords = [];
   this.mistakeWords = [];
   this.unreadVerses = [];
+    this.correctWords = [];
+  this.mistakeWords = [];
+  this.unreadVerses = [];
+  this.displayedWords = [];
+  this.currentPartWords = [];
 
   this.$nextTick(() => {
     if (!this.currentVerseData || this.currentTextParts.length === 0 || this.currentPartIndex >= this.currentTextParts.length) {
       if (this.displayMode !== 'revision' && !this.isPausedByPause) {
+          this.correctWords = [];
+  this.mistakeWords = [];
+  this.unreadVerses = [];
+  this.displayedWords = [];
+  this.currentPartWords = [];
         this.partTimeoutId = setTimeout(() => this.selectVerse(true), this.NEXT_VERSE_DELAY);
+          this.correctWords = [];
+  this.mistakeWords = [];
+  this.unreadVerses = [];
+  this.displayedWords = [];
+  this.currentPartWords = [];
       }
       return;
     }
@@ -4406,6 +4542,10 @@ this.hamburgerMenuVisible = true;
 </script>
 
 <style >
+
+html, body, #app, .app-container {
+  touch-action: manipulation;
+}
 /* Existing styles... */
 :root {
   --text-color-dark: #e5e7eb; /* gray-200 */

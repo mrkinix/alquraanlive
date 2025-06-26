@@ -122,18 +122,12 @@ workbox: {
   ],
   server: {
     proxy: {
-      '/api': {
-        target: 'https://api.alquran.cloud',
+      // Proxy requests from /api/tafseer to the target API
+      '/api/tafseer': {
+        target: 'http://api.quran-tafseer.com', // Keep as http as per your previous clarification
         changeOrigin: true,
-        rewrite: (path) => path.replace(/^\/api/, ''),
-        secure: false
+        rewrite: (path) => path.replace(/^\/api\/tafseer/, '/tafseer'),
       },
-      '/audio': {
-        target: 'https://quranapi.pages.dev',
-        changeOrigin: true,
-        rewrite: (path) => path.replace(/^\/audio/, '/api'),
-        secure: false
-      }
     }
   }
 })

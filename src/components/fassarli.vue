@@ -39,35 +39,54 @@
 
       <!-- Tafsir Section -->
       <div v-if="tafsirData?.length" class="flex-1 space-y-4">
-        <draggable
-          v-model="tafsirData"
-          item-key="edition.identifier"
-          @end="saveTafsirOrder"
-          :delay="200"
-          :delay-on-touch-only="true"
-          :move="checkMove"
-          class="space-y-4"
-        >
-          <template #item="{ element: tafsir }">
-            <div
-              class="border rounded-lg p-4"
-              :class="theme === 'dark' ? 'border-gray-600' : 'border-gray-300'"
-            >
-              <div class="flex justify-between items-center cursor-pointer" @click="toggleTafsir(tafsir.edition.identifier)">
-                <h3 class="text-lg font-medium text-right">
-                  {{ tafsir.edition.name }} ({{ tafsir.edition.englishName }})
-                </h3>
-                <span>{{ tafsirCollapseStates[tafsir.edition.identifier] ? '➕' : '➖' }}</span>
-              </div>
-              <p
-                v-if="!tafsirCollapseStates[tafsir.edition.identifier]"
-                class="mt-2 text-right text-lg leading-relaxed font-arabic"
-              >
-                {{ tafsir.text }}
-              </p>
-            </div>
-          </template>
-        </draggable>
+<draggable
+  v-model="tafsirData"
+  item-key="edition.identifier"
+  @end="saveTafsirOrder"
+  :delay="200"
+  :delay-on-touch-only="true"
+  :move="checkMove"
+  class="space-y-4"
+>
+  <template #item="{ element: tafsir }">
+    <div
+      class="border rounded-lg p-4"
+      :class="theme === 'dark' ? 'border-gray-600' : 'border-gray-300'"
+    >
+      <div class="flex justify-between items-center cursor-pointer" @click="toggleTafsir(tafsir.edition.identifier)">
+        <h3 class="text-lg font-medium text-right flex items-center gap-2">
+          {{ tafsir.edition.name }} ({{ tafsir.edition.englishName }})
+          <button
+     @click.stop="chooseTafsir(tafsir)"
+  class="ml-2 p-1 rounded hover:bg-gray-200"
+
+            :title="`عرض ${tafsir.edition.name}`"
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 15 15"><path fill="currentColor" fill-rule="evenodd" d="M4.2 1h-.023c-.308 0-.573 0-.79.02a1.5 1.5 0 0 0-.67.201a1.5 1.5 0 0 0-.496.495a1.5 1.5 0 0 0-.2.67C2 2.604 2 2.87 2 3.177v8.646c0 .308 0 .573.02.79c.023.231.071.459.201.67a1.5 1.5 0 0 0 .495.496c.212.13.44.178.67.2c.218.021.483.021.791.021h6.646c.308 0 .573 0 .79-.02c.231-.023.459-.071.67-.201a1.5 1.5 0 0 0 .496-.495c.13-.212.178-.44.2-.67c.021-.218.021-.483.021-.791V3.177c0-.308 0-.573-.02-.79a1.5 1.5 0 0 0-.201-.67a1.5 1.5 0 0 0-.495-.496a1.5 1.5 0 0 0-.67-.2A9 9 0 0 0 10.823 1zm-.961 1.074c.028-.018.085-.043.242-.058C3.645 2.001 3.863 2 4.2 2h6.6c.337 0 .555 0 .72.016c.156.015.213.04.241.058a.5.5 0 0 1 .165.165c.018.028.043.085.058.242c.015.164.016.382.016.719v8.6c0 .337 0 .555-.016.72c-.015.156-.04.213-.058.241a.5.5 0 0 1-.165.165c-.028.018-.085.043-.242.058A9 9 0 0 1 10.8 13H4.2c-.337 0-.555 0-.72-.016c-.156-.015-.213-.04-.241-.058a.5.5 0 0 1-.165-.165c-.018-.028-.043-.085-.058-.242A9 9 0 0 1 3 11.8V3.2c0-.337 0-.555.016-.72c.015-.156.04-.213.058-.241a.5.5 0 0 1 .165-.165M5 10a.5.5 0 0 0 0 1h3a.5.5 0 0 0 0-1zm-.5-2.5A.5.5 0 0 1 5 7h5a.5.5 0 0 1 0 1H5a.5.5 0 0 1-.5-.5M5 4a.5.5 0 0 0 0 1h5a.5.5 0 0 0 0-1z" clip-rule="evenodd"/></svg>
+          </button>
+        </h3>
+        <span>{{ tafsirCollapseStates[tafsir.edition.identifier] ? '➕' : '➖' }}</span>
+      </div>
+      <p
+        v-if="!tafsirCollapseStates[tafsir.edition.identifier]"
+        class="mt-2 text-right text-lg leading-relaxed font-arabic"
+      >
+        {{ tafsir.text }}
+      </p>
+    </div>
+  </template>
+</draggable>
+
+<!-- Modal or overlay for selected tafsir book -->
+<div v-if="selectedTafsir" class="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-60">
+  <div class="bg-white dark:bg-gray-900 rounded-lg shadow-lg max-w-2xl w-full p-6 relative">
+    <button @click="closeTafsirBook" class="absolute top-2 left-2 p-2 rounded bg-red-500 text-white hover:bg-red-600">✕</button>
+    <h2 class="text-xl font-bold mb-4 text-right">{{ selectedTafsir.edition.name }}</h2>
+    <div class="text-right text-lg leading-relaxed font-arabic whitespace-pre-line">
+      {{ selectedTafsir.text }}
+    </div>
+  </div>
+</div>
       </div>
 
       <!-- Fallback when no tafsir data -->
@@ -84,7 +103,6 @@
 import { ref, onMounted, onUnmounted } from 'vue';
 import draggable from 'vuedraggable';
 import { surah } from './data.js';
-const emit = defineEmits(['close']);
 const props = defineProps({ surah: Number, verse: Number }); // <--- Accept as props
 
 const verseData = ref(null);
@@ -98,8 +116,19 @@ const tafsirEditions = [
   'ar.muyassar', 'ar.jalalayn', 'ar.qurtubi', 'ar.miqbas', 'ar.waseet', 'ar.baghawi'
 ];
 
+const emit = defineEmits(['close', 'choose-tafsir']);
+
+
 const closeFassarliMode = () => emit('close');
 
+const selectedTafsir = ref(null);
+
+function showTafsirBook(tafsir) {
+  selectedTafsir.value = tafsir;
+}
+function closeTafsirBook() {
+  selectedTafsir.value = null;
+}
 
 // Fetch a specific verse from Quran API
 async function fetchVerse(surahId, verseId) {
@@ -125,17 +154,46 @@ async function fetchVerse(surahId, verseId) {
 }
 
 // Fetch tafsir
+// Fetch tafsir
 const fetchTafsir = async (surah, verse) => {
   tafsirData.value = [];
   try {
-    const promises = tafsirEditions.map(edition =>
+    // 1. Fetch from alquran.cloud
+    const cloudPromises = tafsirEditions.map(edition =>
       fetch(`https://api.alquran.cloud/v1/ayah/${surah}:${verse}/${edition}`)
         .then(res => res.json())
         .catch(() => null)
     );
-    const results = await Promise.all(promises);
- let fetchedTafsirs = results.filter(r => r?.status === 'OK').map(r => r.data);
 
+    // 2. Fetch from quran-tafseer.com (السعدي: id=3, ابن كثير: id=4)
+    const extraTafsirIds = [
+      { id: 3, name: "تفسير السعدي" },
+      { id: 4, name: "تفسير ابن كثير" }
+    ];
+    const extraPromises = extraTafsirIds.map(t => // Use the proxy path
+      fetch(`/api/tafseer/${t.id}/${surah}/${verse}`)
+        .then(res => res.ok ? res.json() : null)
+        .then(data => data && {
+          text: data.text,
+          edition: {
+            identifier: `qtafsir-${t.id}`,
+            name: t.name,
+            englishName: t.name,
+            language: 'ar'
+          }
+        })
+        .catch(() => null)
+    );
+
+    // 3. Wait for all
+    const results = await Promise.all([...cloudPromises, ...extraPromises]);
+
+    // 4. Normalize and filter
+    let fetchedTafsirs = results
+      .filter(r => r && (r.status === 'OK' || r.text))
+      .map(r => r.status === 'OK' ? r.data : r);
+
+    // 5. Order and store
     if (fetchedTafsirs.length > 0) {
       const savedOrderIdentifiers = JSON.parse(localStorage.getItem('tafsirOrderByIdentifiers') || 'null');
       if (savedOrderIdentifiers && Array.isArray(savedOrderIdentifiers)) {
@@ -162,13 +220,21 @@ const fetchTafsir = async (surah, verse) => {
           statesChanged = true;
         }
       });
-   if (statesChanged) {
+      if (statesChanged) {
         localStorage.setItem('tafsirCollapseStatesById', JSON.stringify(tafsirCollapseStates.value));
-      }    }
+      }
+    }
   } catch (err) {
     console.error('Tafsir fetch error:', err);
   }
 };
+
+
+
+function chooseTafsir(tafsir) {
+  emit('choose-tafsir', tafsir.edition.identifier);
+  emit('close');
+}
 
 // Save tafsir order
 const saveTafsirOrder = () => {
