@@ -1142,7 +1142,7 @@ controlMenuTimeoutId: null,
   },
 
   methods: {
-    async startDeepgramRecognition() {
+async startDeepgramRecognition() {
   try {
     this.isListening = true;
     this.recognizedText = '';
@@ -1161,6 +1161,7 @@ controlMenuTimeoutId: null,
       }
       const audioBlob = new Blob(audioChunks, { type: 'audio/wav' });
 
+      // Deepgram autodetects language by default
       const response = await fetch('https://api.deepgram.com/v1/listen', {
         method: 'POST',
         headers: {
@@ -1171,6 +1172,7 @@ controlMenuTimeoutId: null,
         body: audioBlob
       });
       const data = await response.json();
+      console.log('Deepgram response:', data); // <-- Add this line
       this.recognizedText = data.results?.channels?.[0]?.alternatives?.[0]?.transcript || '';
       this.$nextTick(() => this.matchRecitedText(this.recognizedText));
     };
@@ -1184,6 +1186,7 @@ controlMenuTimeoutId: null,
   } catch (e) {
     this.isListening = false;
     this.errorMessage = "Microphone access denied or not available.";
+    console.error('Deepgram mic error:', e); // <-- Add this line
   }
 },
      openTafsirMode(tafsirIdentifier) {
@@ -1727,6 +1730,16 @@ this.unreadVerses = [];
     this.pausedPartRemainingTime = 0;
   }
 
+   if (!this.currentVerseData || !this.currentVerseData.surah || !this.currentVerseData.verse) {
+    const firstVerse = this.allVerses && this.allVerses.length > 0 ? this.allVerses[0] : null;
+    if (firstVerse) {
+      this.currentVerseData = { ...firstVerse };
+    } else {
+      this.errorMessage = this.getLocalizedErrorMessage('noVersesAvailable');
+      return;
+    }
+  }
+
 
   if (!this.allVerses || this.allVerses.length === 0) {
     this.currentVerseData = null;
@@ -1748,13 +1761,17 @@ this.unreadVerses = [];
     const currentSurah = this.currentVerseData.surah;
     const currentVerseNum = this.currentVerseData.verse;
     const surahInfo = SURAH_DATA.find(s => s.id === currentSurah);
-    if (currentVerseNum < surahInfo.verses) {
-      newIndex = this.allVerses.findIndex(verse => verse.surah === currentSurah && verse.verse === currentVerseNum + 1);
-    } else if (currentSurah < 114) {
-      newIndex = this.allVerses.findIndex(verse => verse.surah === currentSurah + 1 && verse.verse === 1);
-    } else { // Loop back to the beginning
-      newIndex = this.allVerses.findIndex(verse => verse.surah === 1 && verse.verse === 1);
-    }
+if (!surahInfo) {
+  console.error('Surah info not found for surah:', currentSurah);
+  // Fallback: go to first verse of Quran or handle as needed
+  newIndex = this.allVerses.findIndex(verse => verse.surah === 1 && verse.verse === 1);
+} else if (currentVerseNum < surahInfo.verses) {
+  newIndex = this.allVerses.findIndex(verse => verse.surah === currentSurah && verse.verse === currentVerseNum + 1);
+} else if (currentSurah < 114) {
+  newIndex = this.allVerses.findIndex(verse => verse.surah === currentSurah + 1 && verse.verse === 1);
+} else {
+  newIndex = this.allVerses.findIndex(verse => verse.surah === 1 && verse.verse === 1);
+}
   } else { // Default to first verse if no current verse or not 'next'
     newIndex = this.allVerses.findIndex(verse => verse.surah === 1 && verse.verse === 1);
   }
@@ -2425,28 +2442,24 @@ endWordSelection(event) {
 },
 
 
+
 selectInitialLanguage(lang) {
   this.currentLanguage = lang;
   localStorage.setItem('language', lang);
   this.showLanguageSelection = false;
- if (lang === "ar") {
-    this.showMushafSelection = true;
-    // For Arabic, we wait for the user to select a Mushaf type.
-    // Data loading will be triggered by the selectMushaf() method.
-  } else {
-    // For other languages, we can proceed with loading the default (Hafs) data.
-    if (!localStorage.getItem('hasSeenInstructions')) {
-          console.log('Showing navigation instructions on first visit');
+  if (lang == "ar")   this.showMushafSelection = true;
+    else if (!localStorage.getItem('hasSeenInstructions')) {
+      console.log('Showing navigation instructions on first visit');
       this.showNavigationInstructions = true;
     }
-this.loadInitialData().then(() => {
-      if (this.allVerses.length > 0 && !this.errorMessage) {
-        this.selectVerse();
-      } else if (!this.errorMessage) {
-        this.errorMessage = this.getLocalizedErrorMessage('noDataAfterLoad');
-      }
-    });
-  }
+  this.loadInitialData().then(() => {
+    if (this.allVerses.length > 0 && !this.errorMessage) {
+      this.selectVerse();
+    } else if (!this.errorMessage) {
+      this.errorMessage = this.getLocalizedErrorMessage('noDataAfterLoad');
+      this.isLoading = false;
+    }
+  });
 
 },
 
