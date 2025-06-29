@@ -1,37 +1,50 @@
 <template>
   <div :class="['min-h-screen flex flex-col', theme === 'dark' ? 'bg-gray-900 text-white' : theme === 'sepia' ? 'bg-sepia-100 text-sepia-900' : 'bg-white text-gray-900']">
-
-
-  
     <!-- Fullscreen Results Overlay -->
     <div v-if="!verseSelection" class="fixed inset-0 overflow-y-auto p-6 flex flex-col" :class="theme === 'dark' ? 'bg-gray-900' : theme === 'sepia' ? 'bg-sepia-100' : 'bg-white'">
-      <!-- Theme Toggle -->
-      <div class="flex justify-end mb-4">
-   
-
-             <!-- Close Button -->
-      <div class="flex justify-start mb-4">
+      <!-- Header with controls -->
+      <div class="flex items-end justify-end mb-4">
+        <!-- Close Button -->
         <button @click="closeFassarliMode" class="p-2 rounded bg-red-500 text-white hover:bg-red-600">
           ✕ Close
         </button>
       </div>
-      </div>
-
-
 
       <!-- Verse Display -->
-      <div v-if="verseData" class="mb-6">
+      <div v-if="verseData" class="mb-6 ">
         <h2 class="text-2xl font-semibold mb-2 text-right leading-relaxed">{{ verseData.surahName }} ({{ verseData.surahTransliteration }}) - آية {{ verseData.verseId }}</h2>
-        <p class="text-xl mb-4 text-right leading-relaxed font-arabic">{{ verseData.verseText }}</p>
-        <button @click="toggleAudio" class="flex items-center gap-2 p-2 rounded bg-blue-500 text-white hover:bg-blue-600">
-          <svg v-if="!isPlaying" class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z"/>
-          </svg>
-          <svg v-else class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
-          </svg>
-          <span>{{ isPlaying ? 'إيقاف' : 'تشغيل' }}</span>
-        </button>
+        <p class="text-xl mb-4 text-right leading-relaxed font-arabic" :style="{ fontSize: fontSize + 'rem' }">{{ verseData.verseText }}</p>
+
+        <div class="mb-6 flex flex-row gap-2">
+          <button @click="toggleAudio" class="flex items-center gap-2 p-2 rounded bg-blue-500 text-white hover:bg-blue-600">
+            <svg v-if="!isPlaying" class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z"/>
+            </svg>
+            <svg v-else class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+            </svg>
+            <span>{{ isPlaying ? 'إيقاف' : 'تشغيل' }}</span>
+          </button>
+          
+          <!-- Copy Verse Button -->
+          <button @click="copyVerse" class="flex items-center gap-2 p-2 rounded bg-green-500 text-white hover:bg-green-600">
+            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M6 11c0-2.828 0-4.243.879-5.121C7.757 5 9.172 5 12 5h3c2.828 0 4.243 0 5.121.879C21 6.757 21 8.172 21 11v5c0 2.828 0 4.243-.879 5.121C19.243 22 17.828 22 15 22h-3c-2.828 0-4.243 0-5.121-.879C6 20.243 6 18.828 6 16z"/>
+              <path d="M6 19a3 3 0 0 1-3-3v-6c0-3.771 0-5.657 1.172-6.828S7.229 2 11 2h4a3 3 0 0 1 3 3" opacity="0.5"/>
+            </svg>
+            <span>نسخ الآية</span>
+          </button>
+          
+          <!-- Font size controls -->
+          <div class="flex items-center gap-2">
+            <button @click="decreaseFontSize" class="p-2 rounded bg-gray-500 text-white hover:bg-gray-600" title="Decrease font size">
+              <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 20 20"><path fill="currentColor" d="M12 16h-1.05a.44.44 0 0 1-.29-.09a.6.6 0 0 1-.17-.22l-.7-1.84H6.2l-.7 1.84a.56.56 0 0 1-.16.21a.43.43 0 0 1-.29.1H4l3.31-8.35h1.38zm-2.57-3.13L8.28 9.82a9 9 0 0 1-.28-.9q-.06.27-.14.5l-.14.4l-1.15 3zM15 6l3-4h-6z"/></svg>
+            </button>
+            <button @click="increaseFontSize" class="p-2 rounded bg-gray-500 text-white hover:bg-gray-600" title="Increase font size">
+              <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 20 20"><path fill="currentColor" d="M14 18h-1.57a.66.66 0 0 1-.44-.13a.9.9 0 0 1-.25-.34l-1-2.77H5.3l-1 2.77a.8.8 0 0 1-.24.32a.65.65 0 0 1-.44.15H2L7 5.47h2zm-3.85-4.7L8.42 8.72A13 13 0 0 1 8 7.37q-.1.41-.21.75t-.21.6L5.85 13.3zM15 2l3 4h-6z"/></svg>
+            </button>
+          </div>
+        </div>
       </div>
 
       <!-- Separator -->
@@ -39,65 +52,89 @@
 
       <!-- Tafsir Section -->
       <div v-if="tafsirData?.length" class="flex-1 space-y-4">
-<draggable
-  v-model="tafsirData"
-  item-key="edition.identifier"
-  @end="saveTafsirOrder"
-  :delay="200"
-  :delay-on-touch-only="true"
-  :move="checkMove"
-  class="space-y-4"
->
-  <template #item="{ element: tafsir }">
-    <div
-      class="border rounded-lg p-4"
-      :class="theme === 'dark' ? 'border-gray-600' : 'border-gray-300'"
-    >
-      <div class="flex justify-between items-center cursor-pointer" @click="toggleTafsir(tafsir.edition.identifier)">
-        <h3 class="text-lg font-medium text-right flex items-center gap-2">
-          {{ tafsir.edition.name }} ({{ tafsir.edition.englishName }})
-          <button
-     @click.stop="chooseTafsir(tafsir)"
-  class="ml-2 p-1 rounded hover:bg-gray-200"
+        <draggable
+          v-model="tafsirData"
+          item-key="edition.identifier"
+          @end="saveTafsirOrder"
+          :delay="200"
+          :delay-on-touch-only="true"
+          :move="checkMove"
+          class="space-y-4"
+        >
+          <template #item="{ element: tafsir }">
+            <div
+              class="border rounded-lg p-4"
+              :class="theme === 'dark' ? 'border-gray-600' : 'border-gray-300'"
+            >
+              <div class="flex justify-between items-center cursor-pointer" @click="toggleTafsir(tafsir.edition.identifier)">
+                <h3 class="text-lg font-medium text-right flex items-center gap-2">
+                  {{ tafsir.edition.name }} ({{ tafsir.edition.englishName }})
+                </h3>
+                <div class="flex items-center gap-2">
+                  <button @click.stop="copyTafsir(tafsir)" class="p-1 rounded hover:bg-gray-200 dark:hover:bg-gray-700">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                      <path d="M6 11c0-2.828 0-4.243.879-5.121C7.757 5 9.172 5 12 5h3c2.828 0 4.243 0 5.121.879C21 6.757 21 8.172 21 11v5c0 2.828 0 4.243-.879 5.121C19.243 22 17.828 22 15 22h-3c-2.828 0-4.243 0-5.121-.879C6 20.243 6 18.828 6 16z"/>
+                      <path d="M6 19a3 3 0 0 1-3-3v-6c0-3.771 0-5.657 1.172-6.828S7.229 2 11 2h4a3 3 0 0 1 3 3" opacity="0.5"/>
+                    </svg>
+                  </button>
+                  <span>{{ tafsirCollapseStates[tafsir.edition.identifier] ? '➕' : '➖' }}</span>
+                </div>
+              </div>
+              <p
+                v-if="!tafsirCollapseStates[tafsir.edition.identifier]"
+                class="mt-2 text-right text-lg leading-relaxed font-arabic"
+                :style="{ fontSize: fontSize + 'rem' }"
+              >
+                {{ tafsir.text }}
+              </p>
+            </div>
+          </template>
+        </draggable>
 
-            :title="`عرض ${tafsir.edition.name}`"
-          >
-            <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 15 15"><path fill="currentColor" fill-rule="evenodd" d="M4.2 1h-.023c-.308 0-.573 0-.79.02a1.5 1.5 0 0 0-.67.201a1.5 1.5 0 0 0-.496.495a1.5 1.5 0 0 0-.2.67C2 2.604 2 2.87 2 3.177v8.646c0 .308 0 .573.02.79c.023.231.071.459.201.67a1.5 1.5 0 0 0 .495.496c.212.13.44.178.67.2c.218.021.483.021.791.021h6.646c.308 0 .573 0 .79-.02c.231-.023.459-.071.67-.201a1.5 1.5 0 0 0 .496-.495c.13-.212.178-.44.2-.67c.021-.218.021-.483.021-.791V3.177c0-.308 0-.573-.02-.79a1.5 1.5 0 0 0-.201-.67a1.5 1.5 0 0 0-.495-.496a1.5 1.5 0 0 0-.67-.2A9 9 0 0 0 10.823 1zm-.961 1.074c.028-.018.085-.043.242-.058C3.645 2.001 3.863 2 4.2 2h6.6c.337 0 .555 0 .72.016c.156.015.213.04.241.058a.5.5 0 0 1 .165.165c.018.028.043.085.058.242c.015.164.016.382.016.719v8.6c0 .337 0 .555-.016.72c-.015.156-.04.213-.058.241a.5.5 0 0 1-.165.165c-.028.018-.085.043-.242.058A9 9 0 0 1 10.8 13H4.2c-.337 0-.555 0-.72-.016c-.156-.015-.213-.04-.241-.058a.5.5 0 0 1-.165-.165c-.018-.028-.043-.085-.058-.242A9 9 0 0 1 3 11.8V3.2c0-.337 0-.555.016-.72c.015-.156.04-.213.058-.241a.5.5 0 0 1 .165-.165M5 10a.5.5 0 0 0 0 1h3a.5.5 0 0 0 0-1zm-.5-2.5A.5.5 0 0 1 5 7h5a.5.5 0 0 1 0 1H5a.5.5 0 0 1-.5-.5M5 4a.5.5 0 0 0 0 1h5a.5.5 0 0 0 0-1z" clip-rule="evenodd"/></svg>
-          </button>
-        </h3>
-        <span>{{ tafsirCollapseStates[tafsir.edition.identifier] ? '➕' : '➖' }}</span>
-      </div>
-      <p
-        v-if="!tafsirCollapseStates[tafsir.edition.identifier]"
-        class="mt-2 text-right text-lg leading-relaxed font-arabic"
-      >
-        {{ tafsir.text }}
-      </p>
-    </div>
-  </template>
-</draggable>
-
-<!-- Modal or overlay for selected tafsir book -->
-<div v-if="selectedTafsir" class="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-60">
-  <div class="bg-white dark:bg-gray-900 rounded-lg shadow-lg max-w-2xl w-full p-6 relative">
-    <button @click="closeTafsirBook" class="absolute top-2 left-2 p-2 rounded bg-red-500 text-white hover:bg-red-600">✕</button>
-    <h2 class="text-xl font-bold mb-4 text-right">{{ selectedTafsir.edition.name }}</h2>
-    <div class="text-right text-lg leading-relaxed font-arabic whitespace-pre-line">
-      {{ selectedTafsir.text }}
-    </div>
-  </div>
-</div>
+        <!-- Modal or overlay for selected tafsir book -->
+        <div v-if="selectedTafsir" class="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-60">
+          <div class="bg-white dark:bg-gray-900 rounded-lg shadow-lg max-w-2xl w-full p-6 relative">
+            <button @click="closeTafsirBook" class="absolute top-2 left-2 p-2 rounded bg-red-500 text-white hover:bg-red-600">✕</button>
+            <div class="flex justify-between items-center mb-4">
+              <h2 class="text-xl font-bold text-right">{{ selectedTafsir.edition.name }}</h2>
+              <button @click="copyTafsir(selectedTafsir)" class="p-2 rounded bg-blue-500 text-white hover:bg-blue-600 flex items-center gap-1">
+                <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <path d="M6 11c0-2.828 0-4.243.879-5.121C7.757 5 9.172 5 12 5h3c2.828 0 4.243 0 5.121.879C21 6.757 21 8.172 21 11v5c0 2.828 0 4.243-.879 5.121C19.243 22 17.828 22 15 22h-3c-2.828 0-4.243 0-5.121-.879C6 20.243 6 18.828 6 16z"/>
+                  <path d="M6 19a3 3 0 0 1-3-3v-6c0-3.771 0-5.657 1.172-6.828S7.229 2 11 2h4a3 3 0 0 1 3 3" opacity="0.5"/>
+                </svg>
+                نسخ
+              </button>
+            </div>
+            <div class="text-right text-lg leading-relaxed font-arabic whitespace-pre-line">
+              {{ selectedTafsir.text }}
+            </div>
+          </div>
+        </div>
       </div>
 
       <!-- Fallback when no tafsir data -->
       <div v-else-if="tafsirData" class="text-center py-8 text-gray-500">
-        No tafsir data available for this verse
+        Loading...
       </div>
-
-     
     </div>
+    <transition name="slide-up">
+  <div
+    v-if="showCopiedOverlay"
+    :class="[
+      'fixed left-1/2 transform -translate-x-1/2 mb-8 px-6 py-3 rounded-lg shadow-lg text-white font-bold text-lg z-[999999]',
+      theme === 'dark' ? 'bg-green-700' : 'bg-green-600',
+      $i18n && $i18n.locale === 'ar' ? 'rtl' : 'ltr'
+    ]"
+    style="bottom: 0; min-width: 180px; text-align: center;"
+    dir="auto"
+  >
+    {{ theme === 'ar' || ($i18n && $i18n.locale === 'ar') ? 'تم النسخ' : 'Copied!' }}
+  </div>
+</transition>
   </div>
 </template>
+
+
 
 <script setup>
 import { ref, onMounted, onUnmounted } from 'vue';
@@ -110,8 +147,18 @@ const tafsirData = ref([]);
 const isPlaying = ref(false);
 const audio = ref(new Audio());
 const theme = ref(localStorage.getItem('theme') || 'system');
+const fontSize = ref(parseFloat(localStorage.getItem('tafsirFontSize')) || 1.5);
 const tafsirCollapseStates = ref(JSON.parse(localStorage.getItem('tafsirCollapseStatesById') || '{}'));
+const showCopiedOverlay = ref(false);
+let copiedOverlayTimeout = null;
 
+function showCopiedMessage() {
+  showCopiedOverlay.value = true;
+  if (copiedOverlayTimeout) clearTimeout(copiedOverlayTimeout);
+  copiedOverlayTimeout = setTimeout(() => {
+    showCopiedOverlay.value = false;
+  }, 1200);
+}
 const tafsirEditions = [
   'ar.muyassar', 'ar.jalalayn', 'ar.qurtubi', 'ar.miqbas', 'ar.waseet', 'ar.baghawi'
 ];
@@ -130,6 +177,16 @@ function closeTafsirBook() {
   selectedTafsir.value = null;
 }
 
+function increaseFontSize() {
+  fontSize.value = Math.min(fontSize.value + 0.1, 3.0); // Max size 3rem
+  localStorage.setItem('tafsirFontSize', fontSize.value);
+}
+
+function decreaseFontSize() {
+  fontSize.value = Math.max(fontSize.value - 0.1, 1.0); // Min size 1rem
+  localStorage.setItem('tafsirFontSize', fontSize.value);
+}
+
 // Fetch a specific verse from Quran API
 async function fetchVerse(surahId, verseId) {
   try {
@@ -145,11 +202,9 @@ async function fetchVerse(surahId, verseId) {
       };
       await fetchTafsir(surahId, verseId);
     } else {
-      alert('Failed to fetch verse data.');
     }
   } catch (err) {
     console.error('Verse fetch error:', err);
-    alert('Failed to fetch verse: ' + err.message);
   }
 }
 
@@ -230,6 +285,28 @@ const fetchTafsir = async (surah, verse) => {
 };
 
 
+const copyVerse = () => {
+  if (!verseData.value) return;
+  const textToCopy = `${verseData.value.verseText}\n${verseData.value.surahName} (${verseData.value.surahTransliteration}) - آية ${verseData.value.verseId}`;
+  navigator.clipboard.writeText(textToCopy)
+    .then(() => {
+      showCopiedMessage();
+    })
+    .catch(err => {
+      console.error('Failed to copy verse: ', err);
+    });
+};
+const copyTafsir = (tafsir) => {
+  if (!tafsir) return;
+  const textToCopy = `${tafsir.text}\n\n[${tafsir.edition.name}]`;
+  navigator.clipboard.writeText(textToCopy)
+    .then(() => {
+      showCopiedMessage();
+    })
+    .catch(err => {
+      console.error('Failed to copy tafsir: ', err);
+    });
+};
 
 function chooseTafsir(tafsir) {
   emit('choose-tafsir', tafsir.edition.identifier);
@@ -267,7 +344,6 @@ const toggleAudio = async () => {
     }
   } catch (err) {
     console.error('Audio API error:', err);
-    alert('Failed to load audio.');
   }
 };
 
@@ -295,6 +371,10 @@ onMounted(async () => {
   if (theme.value === 'system') {
     const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
     theme.value = prefersDark ? 'dark' : 'light';
+  }
+  const savedFontSize = localStorage.getItem('tafsirFontSize');
+  if (savedFontSize) {
+    fontSize.value = parseFloat(savedFontSize);
   }
   // Fetch verse and tafsir using props
   if (props.surah && props.verse) {
@@ -342,5 +422,17 @@ video {
 
 .backdrop-blur-sm {
   backdrop-filter: blur(4px);
+}
+
+.slide-up-enter-active, .slide-up-leave-active {
+  transition: all 0.3s cubic-bezier(.4,2,.6,1);
+}
+.slide-up-enter-from, .slide-up-leave-to {
+  opacity: 0;
+  transform: translate(-50%, 100%);
+}
+.slide-up-enter-to, .slide-up-leave-from {
+  opacity: 1;
+  transform: translate(-50%, 0);
 }
 </style>

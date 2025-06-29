@@ -11,7 +11,7 @@ qaloon mushaf
 <template>
   <fassarli
     v-if="fassarliMode"
-     @close="fassarliMode = false"
+     @close="closeFassarli"
   @choose-tafsir="openTafsirMode"
 
     :verse="selectedVerse"
@@ -66,7 +66,18 @@ qaloon mushaf
         </div>
       </div>
     </div>
-
+<div
+  v-if="displayMode === 'Hifdh'"
+  class="fixed inset-y-0 left-0 w-1/2 z-[999998]"
+  style="pointer-events: auto;"
+  @click="selectVerse(false)"
+></div>
+<div
+  v-if="displayMode === 'Hifdh'"
+  class="fixed inset-y-0 right-0 w-1/2 z-[999998]"
+  style="pointer-events: auto;"
+  @click="selectVerse(true)"
+></div>
     <!-- Full Surah Display -->
 <div
   v-if="displayMode === 'full-surah' && currentSurahData"
@@ -137,6 +148,8 @@ qaloon mushaf
     </span>
   </div>
 </div>
+
+
   
  <!-- verse Display -->
     <transition v-if="displayMode !== 'full-surah'" name="fade" mode="out-in" class="main-content-transition select-none">
@@ -353,6 +366,7 @@ qaloon mushaf
       >
         {{ lang === 'ar' ? 'العربية' : langNames[lang] }}
       </button>
+
     </div>
 
     <!-- Surah and Verse Selection Overlay -->
@@ -559,8 +573,8 @@ qaloon mushaf
     <div   v-if="(controlMenuVisible ||  (showBottomUI && !isMobile )) || displayMode === 'Hifdh' || displayMode === 'revision'"    
     :class="['control-buttons-container', { 'fade-out': controlMenuFading }, `${controlMenuVisible ? '' :'max-sm:hidden'}`, displayMode === 'full-surah' ? '!bottom-0 bg-black/50' : '']"
   @mousedown.stop="showControlMenu"
-  @touchstart.stop="showControlMenu"
-class="control-buttons-container  rounded-xl p-2 max-sm:scale-90 fixed max-sm:bottom-0 bottom-5 sm:right-5 flex space-x-2 z-50">
+  @touchstart.stop="showControlMenu" style="pointer-events: auto;"
+class="control-buttons-container  rounded-xl p-2 max-sm:scale-90 fixed max-sm:bottom-0 bottom-5 sm:right-5 flex space-x-2 z-[999999]">
       <!-- Exit Button -->
       <button
         v-if="displayMode !== 'verse'"
@@ -736,6 +750,13 @@ class="control-buttons-container  rounded-xl p-2 max-sm:scale-90 fixed max-sm:bo
             v-if="showLanguageMenu"
             class="absolute bottom-14 left-1/2 -translate-x-1/2 flex flex-col gap-3 bg-none p-3 rounded-lg z-50"
           >
+                 <button
+              @click.stop="changeMushaf"
+              v-if="currentLanguage === 'ar'"
+              class="control-button w-16 h-16 flex items-center justify-center text-lg font-bold opacity-65 hover:opacity-100"
+              >
+              ع
+              </button>
             <button
               v-for="lang in otherLanguages"
               :key="lang"
@@ -745,6 +766,7 @@ class="control-buttons-container  rounded-xl p-2 max-sm:scale-90 fixed max-sm:bo
             >
               {{ lang === 'ar' ? 'ع' : lang.toUpperCase() }}
             </button>
+     
           </div>
         </transition>
       </div>
@@ -974,6 +996,9 @@ currentPage: 1,
       // Revision mode
       isRevisionMode: false,
       speechRecognition: null,
+      deepgramSocket: null,
+      deepgramStream: null,
+      deepgramRecorder: null,
       recognizedText: '',
       correctWords: [],
       mistakeWords: [],
@@ -1089,7 +1114,11 @@ controlMenuTimeoutId: null,
   },
   
   computed: {
-
+    changeMushaf() {
+      this.showLanguageMenu = false;
+      this.showMushafSelection = true
+      console.log(this.showMushafSelection)
+    },
    visibleSurahVerses() {
     if (!this.displayedVerses) return [];
     // Always slice from 0
@@ -1142,52 +1171,56 @@ controlMenuTimeoutId: null,
   },
 
   methods: {
-async startDeepgramRecognition() {
+async startDeepgramStreaming() {
   try {
-    this.isListening = true;
     this.recognizedText = '';
     this.deepgramStream = await navigator.mediaDevices.getUserMedia({ audio: true });
-    this.deepgramRecorder = new MediaRecorder(this.deepgramStream);
-    let audioChunks = [];
+    this.deepgramRecorder = new MediaRecorder(this.deepgramStream, { mimeType: 'audio/webm' });
 
-    this.deepgramRecorder.ondataavailable = event => {
-      audioChunks.push(event.data);
-    };
+    const DEEPGRAM_API_KEY = 'c82459e149416df0b4825d5f1c797942b6c001ab';
+    const socketUrl = `wss://api.deepgram.com/v1/listen?language=ar&model=whisper-large&interim_results=true&punctuate=false&key=${DEEPGRAM_API_KEY}`;
+    this.deepgramSocket = new WebSocket(socketUrl);
 
-    this.deepgramRecorder.onstop = async () => {
-      this.isListening = false;
-      if (this.deepgramStream) {
-        this.deepgramStream.getTracks().forEach(track => track.stop());
-      }
-      const audioBlob = new Blob(audioChunks, { type: 'audio/wav' });
-
-      // Deepgram autodetects language by default
-      const response = await fetch('https://api.deepgram.com/v1/listen', {
-        method: 'POST',
-        headers: {
-          'Authorization': 'Token c82459e149416df0b4825d5f1c797942b6c001ab',
-          'Content-Type': 'audio/wav',
-          'Accept': 'application/json'
-        },
-        body: audioBlob
+    this.deepgramSocket.onopen = () => {
+      console.log('Deepgram WebSocket connected.');
+      this.deepgramRecorder.addEventListener('dataavailable', event => {
+        if (event.data.size > 0 && this.deepgramSocket.readyState === WebSocket.OPEN) {
+          this.deepgramSocket.send(event.data);
+        }
       });
-      const data = await response.json();
-      console.log('Deepgram response:', data); // <-- Add this line
-      this.recognizedText = data.results?.channels?.[0]?.alternatives?.[0]?.transcript || '';
-      this.$nextTick(() => this.matchRecitedText(this.recognizedText));
+      this.deepgramRecorder.start(250); // Send data every 250ms
     };
 
-    this.deepgramRecorder.start();
-    setTimeout(() => {
-      if (this.deepgramRecorder && this.deepgramRecorder.state === 'recording') {
-        this.deepgramRecorder.stop();
+    this.deepgramSocket.onmessage = (message) => {
+      const data = JSON.parse(message.data);
+      if (data.channel && data.channel.alternatives[0].transcript) {
+        const transcript = data.channel.alternatives[0].transcript;
+        this.recognizedText = transcript;
+        this.matchRecitedText(transcript);
       }
-    }, 5000); // Record for 5 seconds
+    };
+
+    this.deepgramSocket.onclose = () => {
+      console.log('Deepgram WebSocket closed.');
+      this.stopDeepgramStreaming();
+    };
+
+    this.deepgramSocket.onerror = (error) => {
+      console.error('Deepgram WebSocket error:', error);
+      this.stopDeepgramStreaming();
+    };
   } catch (e) {
-    this.isListening = false;
     this.errorMessage = "Microphone access denied or not available.";
-    console.error('Deepgram mic error:', e); // <-- Add this line
+    console.error('Error starting Deepgram streaming:', e);
   }
+},
+stopDeepgramStreaming() {
+  if (this.deepgramRecorder && this.deepgramRecorder.state === 'recording') this.deepgramRecorder.stop();
+  if (this.deepgramStream) this.deepgramStream.getTracks().forEach(track => track.stop());
+  if (this.deepgramSocket && this.deepgramSocket.readyState === WebSocket.OPEN) this.deepgramSocket.close();
+  this.deepgramRecorder = null;
+  this.deepgramStream = null;
+  this.deepgramSocket = null;
 },
      openTafsirMode(tafsirIdentifier) {
     this.fassarliMode = false;
@@ -1378,7 +1411,7 @@ initSpeechRecognition() {
   const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
   if (!SpeechRecognition) {
     // Fallback to Deepgram
-    this.startDeepgramRecognition();
+    this.startDeepgramStreaming();
     return;
   }
     this.speechRecognition = new SpeechRecognition();
@@ -1404,6 +1437,9 @@ initSpeechRecognition() {
       if (this.speechRecognition) {
         this.speechRecognition.stop();
         this.speechRecognition = null;
+      }
+      if (this.deepgramSocket) {
+        this.stopDeepgramStreaming();
       }
       this.recognizedText = '';
       this.correctWords = [];
@@ -1704,6 +1740,13 @@ async selectVerse(next = true) { // Make async
     this.selectNextHifdhVerse();
     return;
   }
+  if (this.displayMode === 'revision') {
+  this.displayedWords = [];
+  this.currentPartWords = [];
+  this.correctWords = [];
+  this.mistakeWords = [];
+  this.unreadVerses = [];
+}
   if (this.isRevisionMode) {
     this.displayMode = "revision"
       this.correctWords = [];
@@ -1836,9 +1879,7 @@ displayNextPart() {
     // User must manually navigate or unpause.
     // When unpaused, resumeVerseDisplayFromPause will handle starting the timer for the NEXT_VERSE_DELAY.
   }
-}
-
-,
+},
     
     // Existing methods
   async loadSurahVerses(surahId) {
@@ -2447,8 +2488,7 @@ selectInitialLanguage(lang) {
   this.currentLanguage = lang;
   localStorage.setItem('language', lang);
   this.showLanguageSelection = false;
-  if (lang == "ar")   this.showMushafSelection = true;
-    else if (!localStorage.getItem('hasSeenInstructions')) {
+  if (!localStorage.getItem('hasSeenInstructions')) {
       console.log('Showing navigation instructions on first visit');
       this.showNavigationInstructions = true;
     }
@@ -2466,32 +2506,42 @@ selectInitialLanguage(lang) {
 toggleLanguageMenu() {
   this.showLanguageMenu = !this.showLanguageMenu;
 },
- async loadLocalMushafJson(type) {
-    let url = '';
-    if (type === 'warsh') url = '/warsh.json';
-    else if (type === 'qaloon') url = '/qaloon.json';
-    else return [];
+async loadLocalMushafJson(type) {
+    const validTypes = ['warsh', 'qaloon'];
+    if (!validTypes.includes(type)) return [];
+    
     try {
-      const response = await fetch(url);
-      if (!response.ok) throw new Error('Failed to load ' + url);
-      const data = await response.json();
-      // Normalize structure if needed
-      return data.map(aya => ({
-        uuid: `${aya.sura_no}:${aya.aya_no}-ar-${type}`,
-        surah: aya.sura_no,
-        verse: aya.aya_no,
-        verseKey: `${aya.sura_no}:${aya.aya_no}`,
-        text: aya.aya_text.replace(/[\uFBC0-\uFC63]/g, ''),
-        surahArabicName: aya.sura_name_ar?.trim() || '',
-        surahEnglishName: aya.sura_name_en || '',
-        audio: null,
-        language: 'ar',
-      }));
+        const response = await fetch(`/${type}.json`);
+        if (!response.ok) throw new Error(`HTTP ${response.status} loading ${type}`);
+        
+        const data = await response.json();
+        if (!Array.isArray(data)) throw new Error('Invalid data format');
+        
+        return data.map(aya => {
+            // Validate required fields
+            if (!aya.sura_no || !aya.aya_no || !aya.aya_text) {
+                console.warn('Invalid ayah data:', aya);
+                return null;
+            }
+            return {
+                uuid: `${aya.sura_no}:${aya.aya_no}-ar-${type}`,
+                surah: parseInt(aya.sura_no),
+                verse: parseInt(aya.aya_no),
+                verseKey: `${aya.sura_no}:${aya.aya_no}`,
+                text: String(aya.aya_text).replace(/[\uFBC0-\uFC63]/g, ''),
+                surahArabicName: aya.sura_name_ar?.trim() || '',
+                surahEnglishName: aya.sura_name_en || '',
+                audio: null,
+                language: 'ar',
+            };
+        }).filter(Boolean); // Remove null entries
+        
     } catch (e) {
-      this.errorMessage = this.getLocalizedErrorMessage('loadError', e.message);
-      return [];
+        console.error(`Failed to load ${type} mushaf:`, e);
+        this.errorMessage = `Failed to load ${type} data: ${e.message}`;
+        return [];
     }
-  },
+},
 setLanguage(lang) {
   this.currentLanguage = lang;
   localStorage.setItem('language', lang);
@@ -2500,10 +2550,8 @@ setLanguage(lang) {
     this.showMushafSelection = true;
   } else {
     this.showMushafSelection = false;
-    if (this.mushafType !== 'hafs') {
-      this.mushafType = 'hafs';
-      localStorage.setItem('mushafType', 'hafs');
-    }
+    this.mushafType = 'hafs'; // <-- Force Hafs for non-Arabic
+    localStorage.setItem('mushafType', 'hafs');
     this.loadInitialData().then(() => {
       if (this.displayMode === 'full-surah' && this.currentVerseData) {
         this.loadSurahVerses(this.currentVerseData.surah);
@@ -2518,6 +2566,9 @@ setLanguage(lang) {
   }
 },
 async loadInitialData() {
+      console.log('Loading with mushaf:', this.mushafType); // <-- Check this first
+    
+
   this.isLoading = true;
   this.cacheStatus = 'checking';
   try {
@@ -2534,7 +2585,6 @@ async loadInitialData() {
       return;
        } else if (this.currentLanguage !== 'ar' && this.mushafType !== 'hafs') {
         this.mushafType = 'hafs'; // Default to hafs for non-Arabic if something else was set
-  
     }
     if ('serviceWorker' in navigator && 'caches' in window) {
       const cached = await this.checkServiceWorkerCache();
@@ -3500,7 +3550,13 @@ resumeVerseDisplayFromHold() {
 
 displayCurrentPart() {
     if (this.isPausedByHold) return;
-
+if (this.displayMode === 'revision') {
+  this.displayedWords = [];
+  this.currentPartWords = [];
+  this.correctWords = [];
+  this.mistakeWords = [];
+  this.unreadVerses = [];
+}
   this.clearAnimationTimers();
 
   // Always reset highlights for the new part
@@ -3570,6 +3626,9 @@ displayCurrentPart() {
     if (this.displayMode !== 'revision' && !this.isPausedByPause) {
       this.partTimeoutId = setTimeout(() => this.displayNextPart(), currentPartDuration);
     }
+      this.mistakeWords = [];
+  this.unreadVerses = [];
+  this.displayedWords = [];
   });
 },
 
@@ -3631,6 +3690,8 @@ handleAppMouseDown(event) {
   if (this.displayMode !== 'full-surah') {
     event.preventDefault();
   }
+      this.showLanguageMenu = false;
+
   this.isHoldingGlobal = true;
   clearTimeout(this.holdStartTimeoutId);
   if (!this.isPausedByHold) { // Only set up a new hold if not already in a hold-paused state
@@ -3647,7 +3708,14 @@ handleAppMouseDown(event) {
     }, this.HOLD_THRESHOLD);
   }
 }
-,
+,handleHifdhScreenClick(e) {
+    const x = e.clientX || (e.touches && e.touches[0].clientX);
+    if (x < window.innerWidth / 2) {
+      this.selectVerse(false); // Left: previous
+    } else {
+      this.selectVerse(true);  // Right: next
+    }
+  },
 handleAppMouseUp(event) {
   // 1. Handle specific overlay/UI element interactions that might consume the event
   // or where navigation is not intended.
@@ -3700,13 +3768,13 @@ handleAppMouseUp(event) {
       const clickX = event.clientX;
       const screenWidth = window.innerWidth;
 
-      if (clickX < screenWidth / 2) { // left half
+      if (clickX > screenWidth / 2) { 
         if (this.currentPartIndex < this.currentTextParts.length - 1) {
           this.displayNextPart();
         } else {
           this.selectVerse(true);
         }
-      } else { // Left half
+      } else {
         if (this.currentPartIndex > 0) {
           this.displayPreviousPart();
         } else {
@@ -3801,7 +3869,7 @@ handleAppTouchEnd(event) {
       let actionIsPrevious = false;
       if (isArabic) { // RTL
         if (touchX >= screenWidth / 2) actionIsNext = true; // Left side for next
-        else actionIsPrevious = true; // Right side for previous
+        else actionIsPrevious = false; // Right side for previous
       } else { // LTR
         if (touchX < screenWidth / 2) actionIsNext = true; // Right side for next
         else actionIsPrevious = true; // Left side for previous
@@ -3920,11 +3988,12 @@ processArabicText(text) {
     .replace(/\s+/g, ' ') // Normalize spaces
     .trim();
 },
+closeFassarli() { this.fassarliMode = false; this.exit()},
 exit() {
+  if (this.highlightMode) {this.highlightMode = false; this.exitHighlightMode(); return;}
   this.displayMode = 'verse';
   this.isRevisionMode = false;
   this.stopSpeechRecognition && this.stopSpeechRecognition();
-  this.selectVerse();
 },
   toggleNotesOverlay() {
     this.showNotesOverlay = !this.showNotesOverlay;
@@ -4126,7 +4195,7 @@ async loadVerseCompletion(verseUuid) {
 async completeCurrentLoop() { // Make async
   if (!this.currentVerseData || this.HifdhVerseQueue.length === 0) return;
   this.currentLoopIteration++;
-  if (this.currentLoopIteration >= this.HifdhLoopCount) {
+  if (true) {
     // Move to the next verse after the current queue
     const lastVerse = this.HifdhVerseQueue[this.HifdhVerseQueue.length - 1];
     const nextVerse = this.getNextVerse(lastVerse);
@@ -4464,7 +4533,14 @@ shareVerse() {
   }
 },
   },
-
+watch: {
+  hifdhLoopCount(newVal, oldVal) {
+    if (this.displayMode === 'Hifdh') {
+      this.currentLoop = 0;
+      this.startHifdhLoop(); // or whatever method starts the loop
+    }
+  }
+},
   async mounted() {
 
 window.addEventListener('dblclick', (e) => {

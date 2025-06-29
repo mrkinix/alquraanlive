@@ -1,8 +1,24 @@
+ <!-- @todo 
+* full surah mode; add highlight btn
+notes: click not touchstart
+qaloon mushaf
+ full surah mode save scroll
+ lazy load
+
+-->
+
+
 <template>
-  <ocr  class="z-[99999]"/>
-  <instructions @click="closeInstructions" v-if="showNavigationInstructions" />
-  <div
-    class="app-container"
+  <fassarli
+    v-if="fassarliMode"
+     @close="closeFassarli"
+  @choose-tafsir="openTafsirMode"
+
+    :verse="selectedVerse"
+    :surah="currentVerseData ? currentVerseData.surah : 1"
+    class="z-[9999999] fixed w-full h-full"
+  />  <div
+    class="app-container overflow-hidden"
     :class="[currentTheme === 'dark' ? 'dark-theme' : currentTheme === 'sepia' ? 'sepia-theme' : 'light-theme']"
     @mousedown="handleAppMouseDown"
     @mouseup="handleAppMouseUp"
@@ -52,74 +68,80 @@
     </div>
 
     <!-- Full Surah Display -->
-    <div
-      v-if="displayMode === 'full-surah' && currentSurahData"
-      class="full-surah-display text-justify sm:px-[30%] leading-relaxed"
-      :key="currentSurahData.id"
-      ref="versesContainer"
-    >
-      <h2 class="surah-title-header font-amiri" :dir="currentLanguage === 'ar' ? 'rtl' : 'ltr'">
-        <span class="title-text">
-          {{ currentLanguage === 'ar' ? currentSurahData.arabicName : currentSurahData.englishName }}
-        </span>
-      </h2>
-      <div
-        v-for="verse in displayedVerses"
-        :key="verse.uuid"
-          :data-verse-uuid="verse.uuid"
-
-        class="verse-line flex items-center justify-start py-2 cursor-pointer"
-        :dir="currentLanguage === 'ar' ? 'rtl' : 'ltr'"
-      >
-      
-        <span class="verse-text text-2xl font-amiri flex-1">
-<span
-  v-for="(word, index) in verse.text.split(' ')"
-  :key="`${verse.uuid}-${index}`"
-  :data-word-uuid="`${verse.uuid}-${index}`"
-  class="inline-block mx-1 py-3"
-  :class="[
-  { 'highlighted': isWordHighlighted(index, verse.uuid) },
-  getHighlightClass(index, verse.uuid)
-]"
-  @mousedown.stop="startWordSelection($event, index, verse.uuid)"
-  @mousemove.stop="updateWordSelection($event, index, verse.uuid)"
-  @mouseup.stop="endWordSelection($event)"
-  @touchstart.stop="startWordSelection($event, index, verse.uuid)"
-  @touchmove.stop="updateWordSelection($event, index, verse.uuid)"
-  @touchend.stop="endWordSelection($event)"
-  @click.stop="handleWordClick(index, verse)"
+<div
+  v-if="displayMode === 'full-surah' && currentSurahData"
+  class="full-surah-display text-justify sm:px-[16.66%] sm:text-xl leading-relaxed select-none"
+  :key="currentSurahData.id"
+  ref="versesContainer"
+  @scroll="handleFullSurahScroll"
 >
-  {{ word }} 
-</span>         <!-- Verse Number Decoration -->
-          <svg
-            @click.stop.prevent="openVerseNote(verse)"
-            @touchend.stop.prevent="openVerseNote(verse)"
-            width="26"
-            height="26"
-            viewBox="0 0 26 26"
-            class="verse-number-svg ml-2 decorative-number cursor-pointer inline-block align-middle"
-            xmlns="http://www.w3.org/2000/svg"
-          >
-            <circle cx="13" cy="13" r="11.5" stroke="currentColor" stroke-width="1.5" fill="transparent" />
-            <text
-              x="50%"
-              y="50%"
-              dominant-baseline="middle"
-              text-anchor="middle"
-              fill="currentColor"
-              class="font-amiri"
-              style="font-size: 11px;" 
-            >
-              {{ verse.verse }}
-            </text>
-          </svg>
-        </span>
+  <h2 class="surah-title-header font-amiri cursor-pointer mb-24"
+      @touchstart.stop="toggleSurahVerseMenu"
+      @touchend.stop="toggleSurahVerseMenu"
+      @click.stop="toggleSurahVerseMenu"
+      :dir="currentLanguage === 'ar' ? 'rtl' : 'ltr'">
+    <span class="title-text">
+      {{ currentLanguage === 'ar' ? currentSurahData.arabicName : currentSurahData.englishName }}
+    </span>
+  </h2>
+  <div
+    v-for="verse in visibleSurahVerses"
+    :key="verse.uuid"
+    :data-verse-uuid="verse.uuid"
+    class="verse-line flex items-center justify-start cursor-pointer py-6"
+    :dir="currentLanguage === 'ar' ? 'rtl' : 'ltr'"
+  >
+    <span class="verse-text text-2xl font-amiri flex-1">
+      <span
+        v-for="(word, index) in verse.text.split(' ')"
+        :key="`${verse.uuid}-${index}`"
+        :data-word-uuid="`${verse.uuid}-${index}`"
+        class="inline-block mx-1 pb-7 "
+        :class="[
+          { 'highlighted': isWordHighlighted(index, verse.uuid) },
+          getHighlightClass(index, verse.uuid)
+        ]"
+        @mousedown.stop="highlightMode ? startWordSelection($event, index, verse.uuid) : null"
+        @mousemove.stop="highlightMode ? updateWordSelection($event, index, verse.uuid) : null"
+        @mouseup.stop="highlightMode ? endWordSelection($event) : null"
+        @touchstart.stop="highlightMode ? startWordSelection($event, index, verse.uuid) : null"
+        @touchmove.stop="highlightMode ? updateWordSelection($event, index, verse.uuid) : null"
+        @touchend.stop="highlightMode ? endWordSelection($event) : null"
+        @click.stop="highlightMode ? handleWordClick(index, verse) : handleVerseClick(verse.verse, lastSurahId)"
+      >
+        {{ word }}
+      </span>
+      <!-- Verse Number Decoration -->
+      <svg
+        @click.stop.prevent="openVerseNote(verse)"
+        @touchend.stop
+        width="26"
+        height="26"
+        viewBox="0 0 26 26"
+        class="verse-number-svg ml-2 mr-1 decorative-number cursor-pointer inline-block align-middle"
+        xmlns="http://www.w3.org/2000/svg"
+      >
+        <circle cx="13" cy="13" r="11.5" stroke="currentColor" stroke-width="1.5" fill="transparent" />
+        <text
+          x="50%"
+          y="50%"
+          dominant-baseline="middle"
+          text-anchor="middle"
+          fill="currentColor"
+          class="font-amiri"
+          style="font-size: 11px;"
+        >
+          {{ verse.verse }}
+        </text>
+      </svg>
+    </span>
+  </div>
+</div>
 
-      </div>
-    </div>
+
   
-    <transition v-if="displayMode !== 'full-surah'" name="fade" mode="out-in" class="main-content-transition">
+ <!-- verse Display -->
+    <transition v-if="displayMode !== 'full-surah'" name="fade" mode="out-in" class="main-content-transition select-none">
       <div v-if="isLoading" class="loading-message text-xl text-center" key="loading">
         <p v-if="currentLanguage === 'ar'">بِسْمِ اللَّهِ الرَّحْمَنِ الرَّحِيمِ</p>
         <p v-else>In the name of Allah, the Most Gracious, the Most Merciful.</p>
@@ -152,13 +174,17 @@
     { 'mistake-glow': isWordMistake(index) },
     { 'opacity-40': isWordUnread(index) }
               ]"
-              @mousedown.stop="startWordSelection($event, index, currentVerseData.uuid)"
-              @mousemove.stop="updateWordSelection($event, index, currentVerseData.uuid)"
-              @mouseup.stop="endWordSelection"
-              @touchstart.stop="startWordSelection($event, index, currentVerseData.uuid)"
-              @touchmove.stop="updateWordSelection($event, index, currentVerseData.uuid)"
-              @touchend="endWordSelection"
+
+
+            v-on:mousedown="displayMode === 'Hifdh' && highlightMode ? (e) => { e.stopPropagation(); startWordSelection(e, index, currentVerseData.uuid); } : null"
+    v-on:mousemove="displayMode === 'Hifdh' && highlightMode ? (e) => { e.stopPropagation(); updateWordSelection(e, index, currentVerseData.uuid); } : null"
+    v-on:mouseup="displayMode === 'Hifdh' && highlightMode ? (e) => { e.stopPropagation(); endWordSelection(e); } : null"
+    v-on:touchstart="displayMode === 'Hifdh' && highlightMode ? (e) => { e.stopPropagation(); startWordSelection(e, index, currentVerseData.uuid); } : null"
+    v-on:touchmove="displayMode === 'Hifdh' && highlightMode ? (e) => { e.stopPropagation(); updateWordSelection(e, index, currentVerseData.uuid); } : null"
+    v-on:touchend="displayMode === 'Hifdh' && highlightMode ? (e) => { e.stopPropagation(); endWordSelection(e); } : null"
+    v-on:click="displayMode === 'Hifdh' && highlightMode ? (e) => { e.stopPropagation(); handleWordClick(index, verse); } : null"
             >
+            <!-- -->
               {{ word }}
             </span>
           </transition-group>
@@ -171,8 +197,9 @@
 
     <!-- Bottom Information Display -->
     <div
-      v-if="!isLoading && !errorMessage && currentVerseData"
-      class="bottom-info control-buttons-container w-auto text-sm font-amiri z-[55] fixed bottom-5 px-5 rounded-md text-center cursor-pointer"
+  v-if="showBottomInfo && !isLoading && !errorMessage && currentVerseData && displayMode !== 'Hifdh'"
+      class="bottom-info control-buttons-container w-auto text-sm font-amiri z-[55] fixed max-sm:bottom-16 bottom-5 px-5 rounded-md text-center cursor-pointer"
+      :class="displayMode === 'full-surah' ? 'max-sm:bottom-16 bottom-5' : ''"
       :dir="currentLanguage === 'ar' ? 'rtl' : 'ltr'"
         @touchstart.stop="toggleSurahVerseMenu"
         @touchend.stop="toggleSurahVerseMenu"
@@ -188,24 +215,25 @@
     <!-- Search Overlay -->
     <div
       v-if="showSearchOverlay"
-      class="search-overlay bg-none fixed inset-0 flex flex-col items-center justify-start sm:p-[2rem] sm:pt-8 z-50"
+      class="search-overlay bg-none fixed inset-0 flex flex-col items-center justify-start sm:p-[2rem] sm:pt-8 z-[100]"
       :class="currentTheme === 'dark' ? 'dark-theme' : 'light-theme'"
       style="background-color: transparent !important;"
             @click="closeOverlay('search')"
 
     >
       <div
-        class="search-container bg-opacity-80 p-6 rounded-lg w-full !flex !flex-col h-full max-w-2xl"
+        class="search-container bg-opacity-80 rounded-lg w-full !flex !flex-col h-full max-w-2xl"
         :class="currentTheme === 'dark' ? 'bg-black/40' : 'bg-white'"
       >
-        <div class="flex items-center mb-4 max-sm:flex-col">
+        <div class="flex items-center  py-6  max-sm:flex-col z-[99]"
+        :class="currentTheme === 'dark' ? 'bg-black text-white' : 'bg-white text-gray-800'">
           <input
             v-model="searchQuery"
              @click.stop
             @keyup.enter="performSearch"
             type="text"
             :placeholder="currentLanguage === 'ar' ? 'ابحث في القرآن...' : 'Search in Quran...'"
-            class="flex-1 p-2 rounded-l-lg border border-gray-300 focus:outline-none search-input"
+            class="flex-1 p-2  w-[88%] rounded-l-lg border border-gray-300 focus:outline-none search-input"
             :class="[currentTheme === 'dark' ? 'bg-gray-700 text-white' : 'bg-white text-gray-800', currentLanguage === 'ar' ? 'text-right' : 'text-left']"
             ref="searchInput"
           />
@@ -232,7 +260,7 @@
         <div v-if="isSearching" class="text-center py-4">
           {{ currentLanguage === 'ar' ? 'جاري البحث...' : 'Searching...' }}
         </div>
-        <div v-else-if="!isSearching && searchResults.length === 0 && searchQuery" class="text-center py-4">
+            <div v-else-if="searched && !isSearching && searchResults.length === 0 && searchQuery.trim().length > 0 && !errorMessage" class="text-center py-4">
           {{ currentLanguage === 'ar' ? 'لم يتم العثور على نتائج' : 'No results found' }}
         </div>
         <div v-else class="search-results h-full overflow-y-auto">
@@ -240,10 +268,10 @@
             v-for="result in paginatedResults"
             :key="result.uuid"
             @click.stop="selectSearchResult(result)"
-            class="search-result-item p-4 border-b cursor-pointer"
+            class="search-result-item px-12 py-6  border-b cursor-pointer"
             :class="currentTheme === 'dark' ? 'border-gray-700 hover:bg-gray-700' : 'border-gray-200 hover:bg-gray-100'"
           >
-            <p class="text-lg" :dir="currentLanguage === 'ar' ? 'rtl' : 'ltr'">
+            <p class="text-2xl leading-loose" :dir="currentLanguage === 'ar' ? 'rtl' : 'ltr'">
               {{ result.text }}
             </p>
             <p class="text-sm opacity-80">
@@ -277,7 +305,7 @@
     <!-- Voice Search Overlay -->
     <div
       v-if="showVoiceSearchOverlay"
-      class="voice-search-overlay fixed inset-0 flex items-center justify-center z-50"
+      class="voice-search-overlay fixed inset-0 flex items-center justify-center z-[100]"
       :class="currentTheme === 'dark' ? 'dark-theme' : 'light-theme'"
       @click.stop="closeOverlay('voice')"
     >
@@ -318,7 +346,7 @@
     </div>
 
     <!-- Language Selection Overlay -->
-    <div v-if="showLanguageSelection" class="language-selection-overlay">
+    <div v-if="showLanguageSelection" class="language-selection-overlay text-white">
       <button
         v-for="lang in ['ar', 'en', 'fr', 'bn', 'tr', 'ur']"
         :key="lang"
@@ -327,6 +355,7 @@
       >
         {{ lang === 'ar' ? 'العربية' : langNames[lang] }}
       </button>
+
     </div>
 
     <!-- Surah and Verse Selection Overlay -->
@@ -392,7 +421,7 @@
       </div>
     </div>
 
-    <!-- Notes Overlay (Hifz Mode) -->
+    <!-- Notes Overlay (Hifdh Mode) -->
     <div
       v-if="showNotesOverlay"
       class="notes-overlay fixed inset-0 flex items-center justify-center z-50"
@@ -431,17 +460,19 @@
       </div>
     </div>
 
-    <!-- Loops Menu (Hifz Mode) -->
+    <!-- Loops Menu (Hifdh Mode) -->
     <div
       v-if="showLoopsMenu"
       class="loops-overlay fixed inset-0 flex items-center justify-center z-50"
       :class="currentTheme === 'dark' ? 'dark-theme' : 'light-theme'"
+        @click.stop="showLoopsMenu = false"
+        @touchstart.stop="showLoopsMenu = false"
     >
       <div
         class="loops-container bg-opacity-80 p-6 rounded-lg"
         :class="currentTheme === 'dark' ? 'bg-gray-800' : 'bg-white'"
         @click.stop="showLoopsMenu = false"
-        @touchstart="startLoopSwipe"
+        @touchstart.stop="startLoopSwipe"
         @touchmove="handleLoopSwipe"
         @touchend="endLoopSwipe"
       >
@@ -452,7 +483,7 @@
         </div>
         <div class="loops-picker w-full h-full p-10">
           <div class="loop-value text-2xl text-center">
-            {{ hifzLoopCount }}
+            {{ HifdhLoopCount }}
           </div>
         </div>
       </div>
@@ -525,51 +556,67 @@
     <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 32 32"><path fill="currentColor" d="M11 2a1 1 0 0 0-1 1v1H8.25A3.25 3.25 0 0 0 5 7.25v18.5A3.25 3.25 0 0 0 8.25 29h9.25v-5.75A3.25 3.25 0 0 1 20.75 20H27V7.25A3.25 3.25 0 0 0 23.75 4H22V3a1 1 0 1 0-2 0v1h-3V3a1 1 0 1 0-2 0v1h-3V3a1 1 0 0 0-1-1m15.414 20H20.75c-.69 0-1.25.56-1.25 1.25v5.616a1 1 0 0 0 .207-.159zM10 11a1 1 0 0 1 1-1h10a1 1 0 1 1 0 2H11a1 1 0 0 1-1-1m1 4h10a1 1 0 1 1 0 2H11a1 1 0 1 1 0-2m-1 6a1 1 0 0 1 1-1h4a1 1 0 1 1 0 2h-4a1 1 0 0 1-1-1"/></svg>     
   </button>
 </div>
+
+
     <!-- Control Buttons Container -->
-    <div   v-show="controlMenuVisible || !isMobile"    :class="['control-buttons-container', { 'fade-out': controlMenuFading }, `${controlMenuVisible ? '' :'max-sm:hidden'}`]"
+    <div   v-if="(controlMenuVisible ||  (showBottomUI && !isMobile )) || displayMode === 'Hifdh' || displayMode === 'revision'"    
+    :class="['control-buttons-container', { 'fade-out': controlMenuFading }, `${controlMenuVisible ? '' :'max-sm:hidden'}`, displayMode === 'full-surah' ? '!bottom-0 bg-black/50' : '']"
   @mousedown.stop="showControlMenu"
   @touchstart.stop="showControlMenu"
-class="control-buttons-container   bg-black/30 rounded-xl p-2 max-sm:scale-90 fixed max-sm:bottom-12 bottom-5 sm:right-5 flex space-x-2 z-50">
-      <!-- Revision Mode Button -->
+class="control-buttons-container  rounded-xl p-2 max-sm:scale-90 fixed max-sm:bottom-0 bottom-5 sm:right-5 flex space-x-2 z-50">
+      <!-- Exit Button -->
       <button
+        v-if="displayMode !== 'verse'"
+        @click.stop="exit"
+        class="control-button opacity-65 hover:opacity-100"
+        :title="currentLanguage === 'ar' ? 'الخروج من وضع الحفظ' : 'Exit Hifdh Mode'"
+      >
+        ✕
+      </button>
+      <!-- Highlight Button -->
+
+               <button
+        v-if="displayMode === 'full-surah' || displayMode === 'Hifdh'"
+        @click.stop="toggleHighLight"
+        class="control-button opacity-65 hover:opacity-100 "
+        :class="highlightMode ? '!bg-orange-400 !text-white' : ''"
+        :title="currentLanguage === 'ar' ? 'تلوين' : 'Highlight'"
+      >    <span :style="{ backgroundColor: 'lightyellow', width: '24px', height: '24px', borderRadius: '50%', display: 'inline-block', border: '2px solid #888' }"></span>
+</button>
+      
+   <button
+        v-if="displayMode === 'full-surah'"
+         @click.stop="scrollToTop" 
+        class="control-button opacity-65 hover:opacity-100"
+        :title="currentLanguage === 'ar' ? 'وضع المراجعة' : 'Revision Mode'"
+      >
+      <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24"><path fill="currentColor" fill-rule="evenodd" d="M17.53 10.03a.75.75 0 0 0 0-1.06l-5-5a.75.75 0 0 0-1.06 0l-5 5a.75.75 0 1 0 1.06 1.06l3.72-3.72v8.19c0 .713-.22 1.8-.859 2.687c-.61.848-1.635 1.563-3.391 1.563a.75.75 0 0 0 0 1.5c2.244 0 3.72-.952 4.609-2.187c.861-1.196 1.141-2.61 1.141-3.563V6.31l3.72 3.72a.75.75 0 0 0 1.06 0" clip-rule="evenodd"/></svg>
+      </button>
+
+      <!-- <button
         v-if="displayMode !== 'revision' && currentLanguage === 'ar'"
-         @click.stop="openOcr" 
+         @click.stop="fassarliMode = !fassarliMode" 
         class="control-button opacity-65 hover:opacity-100"
         :title="currentLanguage === 'ar' ? 'وضع المراجعة' : 'Revision Mode'"
       >
 <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24"><path fill="currentColor" d="M13.925 2.504a2.25 2.25 0 0 1 1.94 1.11l.814 1.387h2.071A3.25 3.25 0 0 1 22 8.25v9.5A3.25 3.25 0 0 1 18.75 21H5.25A3.25 3.25 0 0 1 2 17.75v-9.5A3.25 3.25 0 0 1 5.25 5h2.08l.875-1.424a2.25 2.25 0 0 1 1.917-1.073zM12 8a4.5 4.5 0 1 0 0 9a4.5 4.5 0 0 0 0-9m0 1.5a3 3 0 1 1 0 6a3 3 0 0 1 0-6"/></svg>      </button>
-      <!-- Revision Mode Button -->
-      <button
-        v-if="displayMode !== 'revision' && currentLanguage === 'ar'"
-        @click.stop="toggleRevisionMode"
-        class="control-button opacity-65 hover:opacity-100"
-        :title="currentLanguage === 'ar' ? 'وضع المراجعة' : 'Revision Mode'"
-      >
-        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 384 512"><path fill="currentColor" d="M192 0c-53 0-96 43-96 96v160c0 53 43 96 96 96s96-43 96-96V96c0-53-43-96-96-96M64 216c0-13.3-10.7-24-24-24s-24 10.7-24 24v40c0 89.1 66.2 162.7 152 174.4V464h-48c-13.3 0-24 10.7-24 24s10.7 24 24 24h144c13.3 0 24-10.7 24-24s-10.7-24-24-24h-48v-33.6c85.8-11.7 152-85.3 152-174.4v-40c0-13.3-10.7-24-24-24s-24 10.7-24 24v40c0 70.7-57.3 128-128 128S64 326.7 64 256z"/></svg>
-      </button>
+     -->
 
-      <!-- Hifz Mode Exit Button -->
-      <button
-        v-if="displayMode === 'hifz'"
-        @click.stop="exitHifzMode"
-        class="control-button opacity-65 hover:opacity-100"
-        :title="currentLanguage === 'ar' ? 'الخروج من وضع الحفظ' : 'Exit Hifz Mode'"
-      >
-        ✕
-      </button>
+
+
       
-      <!-- Notes Button (Hifz Mode) -->
+      <!-- Notes Button (Hifdh Mode) -->
       <button
-        v-if="displayMode === 'hifz'"
+        v-if="displayMode === 'Hifdh'"
         @click.stop="toggleNotesOverlay"
         class="control-button opacity-65 hover:opacity-100"
         :title="currentLanguage === 'ar' ? 'ملاحظات' : 'Notes'"
       >
 <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 32 32"><path fill="currentColor" d="M11 2a1 1 0 0 0-1 1v1H8.25A3.25 3.25 0 0 0 5 7.25v18.5A3.25 3.25 0 0 0 8.25 29h9.25v-5.75A3.25 3.25 0 0 1 20.75 20H27V7.25A3.25 3.25 0 0 0 23.75 4H22V3a1 1 0 1 0-2 0v1h-3V3a1 1 0 1 0-2 0v1h-3V3a1 1 0 0 0-1-1m15.414 20H20.75c-.69 0-1.25.56-1.25 1.25v5.616a1 1 0 0 0 .207-.159zM10 11a1 1 0 0 1 1-1h10a1 1 0 1 1 0 2H11a1 1 0 0 1-1-1m1 4h10a1 1 0 1 1 0 2H11a1 1 0 1 1 0-2m-1 6a1 1 0 0 1 1-1h4a1 1 0 1 1 0 2h-4a1 1 0 0 1-1-1"/></svg>      </button>
       
-      <!-- Complete Button (Hifz Mode) -->
+      <!-- Complete Button (Hifdh Mode) -->
       <button
-        v-if="displayMode === 'hifz'"
+        v-if="displayMode === 'Hifdh'"
         @click.stop="toggleComplete"
         @mousedown="startCompleteHold"
         @mouseup="stopCompleteHold"
@@ -583,24 +630,25 @@ class="control-buttons-container   bg-black/30 rounded-xl p-2 max-sm:scale-90 fi
         </svg>
       </button>
       
-      <!-- Loops Button (Hifz Mode) -->
+      <!-- Loops Button (Hifdh Mode) -->
       <button
-        v-if="displayMode === 'hifz'"
+        v-if="displayMode === 'Hifdh'"
         @click.stop="toggleLoopsMenu"
         
         class="control-button opacity-65 hover:opacity-100"
         :title="currentLanguage === 'ar' ? 'عدد التكرارات' : 'Number of Loops'"
       >
-        ({{ hifzLoopCount }})
+        ({{ HifdhLoopCount }})
       </button>
 
       <!-- Audio Button -->
-      <button
+      <!-- <button
         @click.stop="toggleAudio"
         @mousedown="startAudioHold"
         @mouseup="stopAudioHold"
         @touchstart="startAudioHold"
         @touchend="stopAudioHold"
+        v-if="displayMode === 'verse'"
         class="control-button opacity-65 hover:opacity-100"
         :class="{ 'audio-active': isAudioPlaying }"
         :title="currentLanguage === 'ar' ? (isAudioPlaying ? 'إيقاف الصوت' : 'تشغيل الصوت') : (isAudioPlaying ? 'Stop Audio' : 'Play Audio')"
@@ -611,7 +659,7 @@ class="control-buttons-container   bg-black/30 rounded-xl p-2 max-sm:scale-90 fi
         <svg v-else xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="currentColor">
           <path d="M6 7l6-5v16l-6-5H3V7h3zm6 10V7m8 6h-3m3-2h-3"/>
         </svg>
-      </button>
+      </button> -->
       
       <!-- Search Button (Desktop Only) -->
       <button
@@ -626,7 +674,7 @@ class="control-buttons-container   bg-black/30 rounded-xl p-2 max-sm:scale-90 fi
       </button>
       
       <!-- Display Mode Menu -->
-      <div class="relative">
+      <div class="relative" v-if="displayMode !== 'full-surah' && displayMode !== 'Hifdh'  && displayMode !== 'revision' && displayMode !== 'tafseer'"  >
         <button @click.stop="toggleDisplayModeMenu" class="control-button opacity-65 hover:opacity-100" :aria-label="currentLanguage === 'ar' ? 'تغيير وضع العرض' : 'Change display mode'">
           <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24">
             <path fill="currentColor" d="M4 18h16v-2H4zm0-5h16v-2H4zm0-5h16V6H4z"/>
@@ -637,42 +685,53 @@ class="control-buttons-container   bg-black/30 rounded-xl p-2 max-sm:scale-90 fi
             v-if="showDisplayModeMenu"
             class="absolute bottom-14 left-1/2 -translate-x-1/2 flex flex-col gap-3 bg-none p-3 rounded-lg z-50"
           >
-            <button
-              v-if="currentLanguage !== 'ar'"
-              @click.stop="setDisplayMode('verse')"
-              class="control-button w-12 h-12 flex items-center justify-center text-lg font-bold opacity-65 hover:opacity-100"
-              :aria-label="currentLanguage === 'ar' ? 'عرض الآية' : 'Verse view'"
-            >
-              {{ currentLanguage === 'ar' ? 'آية' : 'Verse' }}
-            </button>
+      
             <button
               @click.stop="setDisplayMode('full-surah')"
-              class="control-button w-12 h-12 flex items-center justify-center text-lg font-bold opacity-65 hover:opacity-100"
+              class="control-button w-16 h-16 flex items-center justify-center text-lg font-bold hover:opacity-100"
               :aria-label="currentLanguage === 'ar' ? 'عرض السورة كاملة' : 'Full Surah view'"
             >
               {{ currentLanguage === 'ar' ? 'سورة' : 'Surah' }}
             </button>
             <button
               @click.stop="setDisplayMode('tafseer')"
-              class="control-button w-12 h-12 flex items-center justify-center text-lg font-bold opacity-65 hover:opacity-100"
+              class="control-button w-16 h-16 flex items-center justify-center text-lg font-bold hover:opacity-100"
               :aria-label="currentLanguage === 'ar' ? 'عرض التفسير' : 'Tafseer view'"
             >
               {{ currentLanguage === 'ar' ? 'تفسير' : 'Tafseer' }}
             </button>
             <button
-              @click.stop="setDisplayMode('hifz')"
-              class="control-button w-12 h-12 flex items-center justify-center text-lg font-bold opacity-65 hover:opacity-100"
-              :aria-label="currentLanguage === 'ar' ? 'وضع الحفظ' : 'Hifz Mode'"
+              @click.stop="setDisplayMode('Hifdh')"
+              class="control-button w-16 h-16 flex items-center justify-center text-lg font-bold hover:opacity-100"
+              :aria-label="currentLanguage === 'ar' ? 'وضع الحفظ' : 'Hifdh Mode'"
             >
-              {{ currentLanguage === 'ar' ? 'حفظ' : 'Hifz' }}
+              {{ currentLanguage === 'ar' ? 'حفظ' : 'Hifdh' }}
             </button>
+            <!-- Revision Mode Button -->
+      <button
+        v-if="displayMode !== 'revision' && currentLanguage === 'ar'"
+        @click.stop="toggleRevisionMode"
+        class="control-button opacity-65 hover:opacity-100"
+        :title="currentLanguage === 'ar' ? 'وضع المراجعة' : 'Revision Mode'"
+      >
+        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 384 512"><path fill="currentColor" d="M192 0c-53 0-96 43-96 96v160c0 53 43 96 96 96s96-43 96-96V96c0-53-43-96-96-96M64 216c0-13.3-10.7-24-24-24s-24 10.7-24 24v40c0 89.1 66.2 162.7 152 174.4V464h-48c-13.3 0-24 10.7-24 24s10.7 24 24 24h144c13.3 0 24-10.7 24-24s-10.7-24-24-24h-48v-33.6c85.8-11.7 152-85.3 152-174.4v-40c0-13.3-10.7-24-24-24s-24 10.7-24 24v40c0 70.7-57.3 128-128 128S64 326.7 64 256z"/></svg>
+      </button>
           </div>
         </transition>
       </div>
-      
+                <!-- Revision Mode Button -->
+      <button
+        v-if="displayMode == 'revision' && currentLanguage === 'ar'"
+            :class="['control-button', isRevisionMode && speechRecognition ? 'glow-blue' : '']"
+        @click.stop="toggleRevisionMode"
+        class="control-button opacity-65 hover:opacity-100"
+        :title="currentLanguage === 'ar' ? 'وضع المراجعة' : 'Revision Mode'"
+      >
+        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 384 512"><path fill="currentColor" d="M192 0c-53 0-96 43-96 96v160c0 53 43 96 96 96s96-43 96-96V96c0-53-43-96-96-96M64 216c0-13.3-10.7-24-24-24s-24 10.7-24 24v40c0 89.1 66.2 162.7 152 174.4V464h-48c-13.3 0-24 10.7-24 24s10.7 24 24 24h144c13.3 0 24-10.7 24-24s-10.7-24-24-24h-48v-33.6c85.8-11.7 152-85.3 152-174.4v-40c0-13.3-10.7-24-24-24s-24 10.7-24 24v40c0 70.7-57.3 128-128 128S64 326.7 64 256z"/></svg>
+      </button>
       <!-- Language Menu -->
-      <div class="relative">
-        <button @click.stop="toggleLanguageMenu" class="control-button opacity-65 hover:opacity-100" :aria-label="languageToggleAriaLabel">
+      <div  v-if="displayMode !== 'Hifdh' && displayMode !== 'revision'"  class="relative">
+        <button @click.stop="toggleLanguageMenu" class="control-button opacity-65 hover:opacity-100 " :aria-label="languageToggleAriaLabel">
           {{ currentLanguage === 'ar' ? 'ع' : (currentLanguage === 'en' ? 'EN' : (currentLanguage === 'fr' ? 'FR' : (currentLanguage === 'bn' ? 'BN' : (currentLanguage === 'tr' ? 'TR' : 'UR')))) }}
         </button>
         <transition name="fade">
@@ -680,15 +739,23 @@ class="control-buttons-container   bg-black/30 rounded-xl p-2 max-sm:scale-90 fi
             v-if="showLanguageMenu"
             class="absolute bottom-14 left-1/2 -translate-x-1/2 flex flex-col gap-3 bg-none p-3 rounded-lg z-50"
           >
+                 <button
+              @click.stop="changeMushaf"
+              v-if="currentLanguage === 'ar'"
+              class="control-button w-16 h-16 flex items-center justify-center text-lg font-bold opacity-65 hover:opacity-100"
+              >
+              ع
+              </button>
             <button
               v-for="lang in otherLanguages"
               :key="lang"
               @click.stop="setLanguage(lang)"
-              class="control-button w-12 h-12 flex items-center justify-center text-lg font-bold opacity-65 hover:opacity-100"
+              class="control-button w-16 h-16 flex items-center justify-center text-lg font-bold opacity-65 hover:opacity-100"
               :aria-label="'Switch to ' + langNames[lang]"
             >
               {{ lang === 'ar' ? 'ع' : lang.toUpperCase() }}
             </button>
+     
           </div>
         </transition>
       </div>
@@ -696,6 +763,8 @@ class="control-buttons-container   bg-black/30 rounded-xl p-2 max-sm:scale-90 fi
       <!-- Shuffle Button -->
       <button
         @click.stop="toggleShuffleMode"
+        v-if="displayMode === 'verse'"
+        
         class="control-button opacity-65 hover:opacity-100"
         :title="isShuffleMode ? (currentLanguage === 'ar' ? 'الوضع العشوائي' : 'Shuffle Mode') : (currentLanguage === 'ar' ? 'الوضع المتسلسل' : 'Continuous Mode')"
       >
@@ -710,7 +779,7 @@ class="control-buttons-container   bg-black/30 rounded-xl p-2 max-sm:scale-90 fi
       
       <!-- Pause Button -->
       <button
-        v-if="displayMode !== 'hifz'"
+        v-if="displayMode !== 'full-surah'  && displayMode !== 'revision'"
         @click.stop="togglePause"
         class="control-button opacity-65 hover:opacity-100"
         :aria-label="isPausedByPause ? 'Resume' : 'Pause'"
@@ -725,7 +794,7 @@ class="control-buttons-container   bg-black/30 rounded-xl p-2 max-sm:scale-90 fi
       </button>
       
       <!-- Theme Toggle Button -->
-      <button @click.stop="toggleTheme" class="control-button theme-toggle-button opacity-65 hover:opacity-100" :aria-label="currentTheme === 'dark' ? 'Switch to Light Theme' : 'Switch to Dark Theme'">
+      <button v-if="displayMode !== 'Hifdh'" @click.stop="toggleTheme" class="control-button theme-toggle-button opacity-65 hover:opacity-100" :aria-label="currentTheme === 'dark' ? 'Switch to Light Theme' : 'Switch to Dark Theme'">
         <svg v-if="currentTheme !== 'dark'" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" class="w-5 h-5">
           <path d="M12 2.25a.75.75 0 01.75.75v2.25a.75.75 0 01-1.5 0V3a.75.75 0 01.75-.75zM7.5 12a4.5 4.5 0 119 0 4.5 4.5 0 01-9 0zM18.894 6.166a.75.75 0 00-1.06-1.06l-1.591 1.59a.75.75 0 101.06 1.061l1.591-1.59zM21.75 12a.75.75 0 01-.75.75h-2.25a.75.75 0 010-1.5H21a.75.75 0 01.75.75zM17.834 18.894a.75.75 0 001.06-1.06l-1.59-1.591a.75.75 0 10-1.061 1.06l1.59 1.591zM12 18a.75.75 0 01.75.75V21a.75.75 0 01-1.5 0v-2.25A.75.75 0 0112 18zM7.758 17.303a.75.75 0 00-1.061-1.06l-1.591 1.59a.75.75 0 001.06 1.061l1.591-1.59zM6 12a.75.75 0 01-.75.75H3a.75.75 0 010-1.5h2.25A.75.75 0 016 12zM6.166 7.758a.75.75 0 001.06-1.06L5.634 5.106a.75.75 0 00-1.06 1.06l1.59 1.591z"/>
         </svg>
@@ -735,10 +804,12 @@ class="control-buttons-container   bg-black/30 rounded-xl p-2 max-sm:scale-90 fi
       </button>
     </div>
     <div   
-class="hamburg   !bg-none rounded-xl p-2 max-sm:scale-90 fixed max-sm:bottom-12 bottom-5 sm:right-5 flex space-x-2 z-50">
+    v-if="displayMode !== 'revision'"
+    :class="displayMode === 'full-surah' ? '!bottom-0' : ''"
+class="hamburg   !bg-none rounded-xl p-2 max-sm:scale-90 fixed max-sm:bottom-0 bottom-5 sm:right-5 flex space-x-2 z-50">
+
     <button
-  v-if="hamburgerMenuVisible && isMobile"
-  class="fixed bottom-5 left-1/2 z-50 transform -translate-x-1/2 sepia-hamburger"
+v-if="hamburgerMenuVisible && isMobile && displayMode !== 'Hifdh'"  class="fixed bottom-5 left-1/2 z-50 transform -translate-x-1/2 sepia-hamburger"
   style="width:56px;height:56px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:2rem;box-shadow:0 2px 8px rgba(0,0,0,0.2);"
   @click="handleHamburgerClick"
 >
@@ -755,8 +826,8 @@ class="hamburg   !bg-none rounded-xl p-2 max-sm:scale-90 fixed max-sm:bottom-12 
 <script>
 import { openDB } from 'idb';
 import {ratio} from 'fuzzball';
-import ocr from './components/ocr.vue';
-
+import fassarli from './components/fassarli.vue';
+import { RecycleScroller } from 'vue-virtual-scroller';
 
 const SURAH_DATA = [
   { id: 1, arabicName: "الفاتحة", englishName: "Al-Fatiha", verses: 7 },
@@ -890,20 +961,33 @@ import instructions from './components/instructions.vue';
 export default {
   components: {
     instructions,
-    ocr
+    fassarli,
+      RecycleScroller
+
   },
   data() {
     return {
+      
       // Mushaf selection
       showMushafSelection: false,
       mushafType: 'hafs', // 'hafs', 'warsh', 'qaloon'
-         controlMenuVisible: true,
-    hamburgerMenuVisible: false,
+         controlMenuVisible: false,
+         
     controlMenuTimeoutId: null,
     controlMenuFading: false,
+    fassarliMode: false,
+    showBottomUI: true,
+showBottomInfo: true,
+searched: false,
+currentPage: 1,
+    fullSurahWindowStart: 0,
+    fullSurahWindowSize: 15,
       // Revision mode
       isRevisionMode: false,
       speechRecognition: null,
+      deepgramSocket: null,
+      deepgramStream: null,
+      deepgramRecorder: null,
       recognizedText: '',
       correctWords: [],
       mistakeWords: [],
@@ -917,15 +1001,15 @@ export default {
       wordIndex: null,
       color: null,
     },
-wasScrolling: false,
+      wasScrolling: false,
+      highlightMode: false,
 
-          hifzVerseQueue: [],
-      hifzCurrentVerseIndex: 0,
-      hifzLoopCount: 10,
+          HifdhVerseQueue: [],
+      HifdhCurrentVerseIndex: 0,
+      HifdhLoopCount: 10,
       currentLoopIteration: 0, // Track current loop iteration
             activeVerseUuidForHighlighting: null,
-controlMenuVisible: true,
-hamburgerMenuVisible: false,
+hamburgerMenuVisible: true,
 controlMenuTimeoutId: null,
       completedVerses: {}, // Track comple
       SURAH_DATA,
@@ -936,8 +1020,8 @@ controlMenuTimeoutId: null,
       currentAudio: null,
       isContinuousAudio: false,
       completions: {},
-      hifzVerseQueue: [],
-      hifzCurrentVerseIndex: 0,
+      HifdhVerseQueue: [],
+      HifdhCurrentVerseIndex: 0,
       showSurahVerseMenu: false,
       selectedSurah: 1,
       
@@ -948,7 +1032,7 @@ controlMenuTimeoutId: null,
       showNotesOverlay: false,
       currentNote: '',
       isVerseCompleted: false,
-      hifzLoopCount: 10,
+      HifdhLoopCount: 10,
       showLoopsMenu: false,
       loopSwipeStartY: null,
       showHighlightMenu: false,
@@ -1019,6 +1103,16 @@ controlMenuTimeoutId: null,
   },
   
   computed: {
+    changeMushaf() {
+      this.showLanguageMenu = false;
+      this.showMushafSelection = true
+      console.log(this.showMushafSelection)
+    },
+   visibleSurahVerses() {
+    if (!this.displayedVerses) return [];
+    // Always slice from 0
+    return this.displayedVerses.slice(0, this.fullSurahWindowSize);
+  },
     paginatedResults() {
             if (!this.searchResults) return [];
 
@@ -1047,25 +1141,139 @@ controlMenuTimeoutId: null,
     },
     isWordCorrect() {
       return (index) => {
-        if (!this.isRevisionMode) return false;
-        return this.correctWords.includes(index + this.currentPartIndex * this.WORDS_PER_PART);
-      };
+    // Indices in correctWords are relative to the current part
+        return this.isRevisionMode && this.correctWords.includes(index);
+         };
     },
     isWordMistake() {
       return (index) => {
-        if (!this.isRevisionMode) return false;
-        return this.mistakeWords.includes(index + this.currentPartIndex * this.WORDS_PER_PART);
-      };
+      // Indices in mistakeWords are relative to the current part
+        return this.isRevisionMode && this.mistakeWords.includes(index);
+        };
     },
     isWordUnread() {
       return (index) => {
-        if (!this.isRevisionMode) return false;
-        return this.unreadVerses.includes(index + this.currentPartIndex * this.WORDS_PER_PART);
+          // Indices in unreadVerses are relative to the current part
+        return this.isRevisionMode && this.unreadVerses.includes(index);
       };
     }
   },
 
   methods: {
+async startDeepgramStreaming() {
+  try {
+    this.recognizedText = '';
+    this.deepgramStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+    this.deepgramRecorder = new MediaRecorder(this.deepgramStream, { mimeType: 'audio/webm' });
+
+    const DEEPGRAM_API_KEY = 'c82459e149416df0b4825d5f1c797942b6c001ab';
+    const socketUrl = `wss://api.deepgram.com/v1/listen?language=ar&model=whisper-large&interim_results=true&punctuate=false&key=${DEEPGRAM_API_KEY}`;
+    this.deepgramSocket = new WebSocket(socketUrl);
+
+    this.deepgramSocket.onopen = () => {
+      console.log('Deepgram WebSocket connected.');
+      this.deepgramRecorder.addEventListener('dataavailable', event => {
+        if (event.data.size > 0 && this.deepgramSocket.readyState === WebSocket.OPEN) {
+          this.deepgramSocket.send(event.data);
+        }
+      });
+      this.deepgramRecorder.start(250); // Send data every 250ms
+    };
+
+    this.deepgramSocket.onmessage = (message) => {
+      const data = JSON.parse(message.data);
+      if (data.channel && data.channel.alternatives[0].transcript) {
+        const transcript = data.channel.alternatives[0].transcript;
+        this.recognizedText = transcript;
+        this.matchRecitedText(transcript);
+      }
+    };
+
+    this.deepgramSocket.onclose = () => {
+      console.log('Deepgram WebSocket closed.');
+      this.stopDeepgramStreaming();
+    };
+
+    this.deepgramSocket.onerror = (error) => {
+      console.error('Deepgram WebSocket error:', error);
+      this.stopDeepgramStreaming();
+    };
+  } catch (e) {
+    this.errorMessage = "Microphone access denied or not available.";
+    console.error('Error starting Deepgram streaming:', e);
+  }
+},
+stopDeepgramStreaming() {
+  if (this.deepgramRecorder && this.deepgramRecorder.state === 'recording') this.deepgramRecorder.stop();
+  if (this.deepgramStream) this.deepgramStream.getTracks().forEach(track => track.stop());
+  if (this.deepgramSocket && this.deepgramSocket.readyState === WebSocket.OPEN) this.deepgramSocket.close();
+  this.deepgramRecorder = null;
+  this.deepgramStream = null;
+  this.deepgramSocket = null;
+},
+     openTafsirMode(tafsirIdentifier) {
+    this.fassarliMode = false;
+    this.displayMode = 'tafseer';
+    this.selectedTafsirIdentifier = tafsirIdentifier;
+    // Now call your loadTafseer with the chosen tafsir identifier
+    this.loadTafseer(this.selectedSurah, this.selectedVerse, tafsirIdentifier);
+  },
+    handleVerseClick(verse, surah) {
+this.selectedSurah = surah
+this.selectedVerse= verse
+this.fassarliMode = true
+this.$forceUpdate()
+},
+// Replace your handleFullSurahScroll with this version:
+handleFullSurahScroll() {
+  const container = this.$refs.versesContainer;
+  if (!container) return;
+
+  const scrollTop = container.scrollTop;
+  const clientHeight = container.clientHeight;
+  const scrollHeight = container.scrollHeight;
+  const totalVerses = this.displayedVerses.length;
+
+  // Check if we're near the bottom (last 20% of scroll area)
+  const scrollBottom = scrollTop + clientHeight;
+  const isNearBottom = scrollBottom > (scrollHeight * 0.8);
+
+  // Only load more if we're near the bottom AND not already showing all verses
+  if (isNearBottom && this.fullSurahWindowSize < totalVerses) {
+    const newSize = Math.min(this.fullSurahWindowSize + 20, totalVerses);
+    if (newSize !== this.fullSurahWindowSize) {
+      this.fullSurahWindowSize = newSize;
+      // Optionally, force update if needed: this.$forceUpdate();
+      console.log(`Loading more verses, new size: ${newSize}`);
+    }
+  }
+},
+           handleDesktopMouseMove() {
+        if (this.isMobile) return;
+        this.showBottomUI = true;
+        this.startBottomUIFadeTimer();
+      },
+      startBottomUIFadeTimer() {
+        if (this.isMobile) return;
+        if (this.bottomUIFadeTimeout) clearTimeout(this.bottomUIFadeTimeout);
+        this.bottomUIFadeTimeout = setTimeout(() => {
+          this.showBottomUI = false;
+        }, 3000);
+      },
+toggleHighLight() {
+  this.highlightMode = !this.highlightMode;
+  if (this.displayMode === 'Hifdh' && this.highlightMode) {
+    this.pauseVerseDisplayByPause();
+  } else if (this.displayMode === 'Hifdh' && !this.highlightMode) {
+    this.resumeVerseDisplayFromPause();
+  }
+},
+     scrollToTop() {
+      const container = this.$refs.versesContainer;
+      if (container) {
+        container.scrollTo({ top: 0, behavior: 'smooth' });
+      }
+    },
     openOcr() {
       const hasSeen = localStorage.getItem('ocrInstructions');
       this.ocrInstructions = true
@@ -1083,6 +1291,7 @@ controlMenuTimeoutId: null,
   });
 },
     showControlMenu() {
+      if (this.displayMode === 'Hifdh') return
   this.controlMenuVisible = true;
   this.hamburgerMenuVisible = false;
   this.controlMenuFading = false;
@@ -1090,7 +1299,10 @@ controlMenuTimeoutId: null,
   
 },
 hideControlMenu() {
+      if (this.displayMode === 'Hifdh') return
+
   this.controlMenuVisible = false;
+  this.showDisplayModeMenu = false;
   this.hamburgerMenuVisible = true;
   this.controlMenuFading = false;
   if (this.controlMenuTimeoutId) clearTimeout(this.controlMenuTimeoutId);
@@ -1108,19 +1320,23 @@ showHamburgerMenu() {
       this.showNavigationInstructions = false;
       localStorage.setItem('hasSeenInstructions', 'true');
     },
-      focusTextarea() {
-    this.$refs.notesTextarea.focus();
-  },
+
     // Mushaf Selection
-    selectMushaf(type) {
-      this.mushafType = type;
-      localStorage.setItem('mushafType', type);
-            this.showMushafSelection = false; // Hide selection after choosing
+async selectMushaf(type) {
+  this.mushafType = type;
+  localStorage.setItem('mushafType', type);
+  this.showMushafSelection = false;
+  if (type === 'qaloon' || type === 'warsh') {
+    this.currentLanguage = 'ar';
+    localStorage.setItem('language', 'ar');
+  }
 if (!localStorage.getItem('hasSeenInstructions')) {
       console.log('Showing navigation instructions on first visit');
+      await new Promise(resolve => setTimeout(resolve, 3500)); // 3.5 second delay
+
       this.showNavigationInstructions = true;
     }
-      this.loadInitialData();
+      await this.loadInitialData();
     },
     
     async getVerseData(surah, verse) {
@@ -1156,26 +1372,38 @@ if (!localStorage.getItem('hasSeenInstructions')) {
     
     // Revision Mode
     toggleRevisionMode() {
-      this.isRevisionMode = !this.isRevisionMode;
-      if (this.isRevisionMode) {
-        this.initSpeechRecognition();
-      } else {
-        this.stopSpeechRecognition();
-      }
+  if (!this.isRevisionMode) {
+    this.displayMode ='revision'
+    this.isRevisionMode = true;
+  if (!this.isPausedByPause) {
+    this.pauseVerseDisplayByPause();
+  }
+
+    this.initSpeechRecognition();
+  } else {
+    // If already in revision mode, toggle voice recognition
+    if (!this.speechRecognition) {
+      this.initSpeechRecognition();
+    } else {
+      this.isRevisionMode = false;
+      this.stopSpeechRecognition();
+    }
+  }
+      this.$forceUpdate()
     },
     
-    initSpeechRecognition() {
-            this.correctWords = [];
-      this.mistakeWords = [];
-      this.unreadVerses = [];
-      this.$forceUpdate()
-      const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-      if (!SpeechRecognition) {
-        this.errorMessage = this.getLocalizedErrorMessage('voiceSearchNotSupported');
-        return;
-      }
-      
-      this.speechRecognition = new SpeechRecognition();
+initSpeechRecognition() {
+  this.correctWords = [];
+  this.mistakeWords = [];
+  this.unreadVerses = [];
+  this.$forceUpdate();
+  const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+  if (!SpeechRecognition) {
+    // Fallback to Deepgram
+    this.startDeepgramStreaming();
+    return;
+  }
+    this.speechRecognition = new SpeechRecognition();
       this.speechRecognition.lang = 'ar-SA';
       this.speechRecognition.continuous = true;
       this.speechRecognition.interimResults = true;
@@ -1192,13 +1420,15 @@ if (!localStorage.getItem('hasSeenInstructions')) {
         console.error('Speech recognition error', event.error);
       };
       
-      this.speechRecognition.start();
-    },
+      this.speechRecognition.start();},
     
     stopSpeechRecognition() {
       if (this.speechRecognition) {
         this.speechRecognition.stop();
         this.speechRecognition = null;
+      }
+      if (this.deepgramSocket) {
+        this.stopDeepgramStreaming();
       }
       this.recognizedText = '';
       this.correctWords = [];
@@ -1248,106 +1478,191 @@ removeCharacters(inputTextString) { // Renamed parameter for clarity
   }
   return currentString; // Return the single cleaned string
 },
-
 async matchRecitedText(transcript) {
-    if (!this.currentVerseData || typeof this.currentVerseData.text !== 'string') {
-      console.error("Current verse data or text is missing or not a string.");
-      return;
+  if (this.isTransitioning || !this.currentVerseData?.text) return;
+
+  // Always reset highlights for new part
+  this.correctWords = [];
+  this.mistakeWords = [];
+  this.unreadVerses = [];
+  await this.$nextTick();
+
+  const verseText = this.processArabicText(this.currentVerseData.text);
+  const verseParts = this.segmentText(verseText);
+  const currentPart = verseParts[this.currentPartIndex] || '';
+  const verseWords = currentPart.split(' ').filter(word => word.trim());
+  const recitedWords = this.processArabicText(transcript)
+    .split(' ')
+    .filter((word, i, arr) => word && (i === 0 || word !== arr[i - 1]));
+
+  let correct = [];
+  let mistakes = [];
+  let unread = [];
+  let pointer = 0;
+  let vibrated = false;
+
+  // Helper: Remove tashkeel and normalize
+  const norm = w => this.removeTashkeel(w).toLowerCase();
+
+  let i = 0;
+  while (i < recitedWords.length && pointer < verseWords.length) {
+    const recited = norm(recitedWords[i]);
+    const current = norm(verseWords[pointer]);
+
+    // Direct match
+    if (ratio(current, recited, { ignoreCase: true }) >= 70) {
+      correct.push(pointer);
+      pointer++;
+      i++;
+      continue;
     }
-    // Prevent processing if a verse transition is pending
-    if (this.isTransitioning) return;
 
-    // Clear state for highlighting
-    this.currentPartIndex = 0;
-    this.correctWords = [0];
-    this.mistakeWords = [0];
-    this.unreadVerses = [0];
-
-    this.$forceUpdate()
-
-    const verseText = this.removeCharacters(this.currentVerseData.text);
-    const verseWords = verseText.split(' ').filter(word => word.trim());
-    const recitedWords = transcript.split(' ').filter(word => word.trim());
-
-    let currentRunCorrectWords = [];
-    let currentRunMistakeWords = [];
-    let currentRunUnreadWords = [];
-
-    for (let i = 0; i < verseWords.length; i++) {
-      if (i < recitedWords.length) {
-        const verseWord = this.removeTashkeel(verseWords[i]).toLowerCase();
-        const recitedWord = this.removeTashkeel(recitedWords[i]).toLowerCase();
-        // Use fuzzball.js for fuzzy matching
-        const similarity = ratio(verseWord, recitedWord, { ignoreCase: true });
-        if (similarity >= 70) { // 80% similarity threshold
-          currentRunCorrectWords.push(i);
-        } else {
-          currentRunMistakeWords.push(i);
-          if (navigator.vibrate) navigator.vibrate([200]);
+    // Look ahead: If recited word matches a later verse word (skip)
+    let found = false;
+    for (let lookahead = pointer + 1; lookahead < verseWords.length; lookahead++) {
+      if (ratio(norm(verseWords[lookahead]), recited, { ignoreCase: true }) >= 70) {
+        // Mark skipped words as mistakes
+        for (let skip = pointer; skip < lookahead; skip++) {
+          mistakes.push(skip);
+          vibrated = true;
         }
-      } else {
-        currentRunUnreadWords.push(i);
+        correct.push(lookahead);
+        pointer = lookahead + 1;
+        i++;
+        found = true;
+        break;
       }
     }
+    if (found) continue;
 
-    // Update UI state
-    this.correctWords = currentRunCorrectWords;
-    this.mistakeWords = currentRunMistakeWords;
-    this.unreadVerses = currentRunUnreadWords;
+    // Look back: If recited word matches a previous verse word, jump back and remove highlights after that word
+    const prevIdx = correct.findIndex(idx =>
+      ratio(norm(verseWords[idx]), recited, { ignoreCase: true }) >= 70
+    );
+    if (prevIdx !== -1 && prevIdx < pointer - 1) {
+      // Remove highlights after prevIdx
+      correct = correct.filter(idx => idx <= prevIdx);
+      mistakes = mistakes.filter(idx => idx <= prevIdx);
+      pointer = prevIdx + 1;
+      i++;
+      continue;
+    }
 
-    let advanceToNextVerse = false;
-    const totalVerseWords = verseWords.length;
+    // No match: mark as mistake, vibrate
+    mistakes.push(pointer);
+    vibrated = true;
+    pointer++;
+    i++;
+  }
 
-    if (totalVerseWords === 0) return;
+  // Mark remaining as unread
+  for (let j = 0; j < verseWords.length; j++) {
+    if (!correct.includes(j) && !mistakes.includes(j)) unread.push(j);
+  }
 
-// Advance if the last word was read (correct or mistake)
-const lastIndex = totalVerseWords - 1;
-if (
-  this.correctWords.includes(lastIndex) ||
-  this.mistakeWords.includes(lastIndex)
-) {
-    this.$forceUpdate()
-    await new Promise(resolve => setTimeout(resolve, 100));
+  this.correctWords = correct;
+  this.mistakeWords = mistakes;
+  this.unreadVerses = unread;
 
-  advanceToNextVerse = true;
-}
+  // Vibrate on mistake
+  if (vibrated && window.navigator && window.navigator.vibrate) {
+    window.navigator.vibrate(120);
+  }
 
-// Go back if user recites last 3 words of previous verse in order
-// if (this.currentVerseData && this.allVerses && this.allVerses.length > 1) {
-//   const currentIndex = this.allVerses.findIndex(
-//     v => v.uuid === this.currentVerseData.uuid
-//   );
-//   if (currentIndex > 0) {
-//     const prevVerse = this.allVerses[currentIndex - 1];
-//     const prevVerseText = this.removeCharacters(prevVerse.text);
-//     const prevVerseWords = prevVerseText.split(' ').filter(word => word.trim());
-//     const last3Prev = prevVerseWords.slice(-3).map(w => this.removeTashkeel(w).toLowerCase());
-//     const recitedLast3 = recitedWords.slice(-3).map(w => this.removeTashkeel(w).toLowerCase());
-//     if (
-//       last3Prev.length === 3 &&
-//       recitedLast3.length === 3 &&
-//       last3Prev.join(' ') === recitedLast3.join(' ')
-//     ) {
-//       // Go back to previous verse
-//       this.isTransitioning = true;
-//       setTimeout(() => {
-//         this.selectVerse(false);
-//         this.isTransitioning = false;
-//       }, 1000);
-//       return;
-//     }
-//   }
-// }
+  // Advance to next part if all words are attempted (correct or mistake)
+  if (
+    (correct.length + mistakes.length === verseWords.length) &&
+    verseWords.length > 0 &&
+    !this.isTransitioning
+  ) {
+    this.isTransitioning = true;
+    setTimeout(() => {
+      this.correctWords = [];
+      this.mistakeWords = [];
+      this.unreadVerses = [];
+      if (this.currentPartIndex < verseParts.length - 1) {
+        this.currentPartIndex++;
+        this.displayCurrentPart();
+      } else {
+        this.selectVerse(true);
+      }
+      this.isTransitioning = false;
+    }, 500);
+  }
+},
 
-if (advanceToNextVerse && !this.isTransitioning) {
+async matchWord(recitedWord, verseWords, matchState) {
+  const cleanRecited = this.removeTashkeel(recitedWord).toLowerCase();
+  let matched = false;
+
+  // Check current + next 2 words for potential matches
+  for (let offset = 0; offset < 3; offset++) {
+    const versePos = matchState.currentPosition + offset;
+    if (versePos >= verseWords.length) break;
+
+    const verseWord = verseWords[versePos];
+    const cleanVerse = this.removeTashkeel(verseWord).toLowerCase();
+    const similarity = ratio(cleanVerse, cleanRecited);
+
+    if (similarity >= 75) {
+      // Mark skipped words as mistakes if jumping forward
+      if (offset > 0) {
+        for (let i = matchState.currentPosition; i < versePos; i++) {
+          matchState.mistakes.push(i);
+        }
+        if (navigator.vibrate) navigator.vibrate(100);
+      }
+
+      matchState.correct.push(versePos);
+      matchState.currentPosition = versePos + 1;
+      matched = true;
+      break;
+    }
+  }
+
+  // If no match found, mark current position as mistake
+  if (!matched && matchState.currentPosition < verseWords.length) {
+    matchState.mistakes.push(matchState.currentPosition);
+    matchState.currentPosition++;
+  }
+},
+
+async safeProgress(verseParts) {
   this.isTransitioning = true;
-  setTimeout(() => {
-    this.selectVerse(true);
-    this.isTransitioning = false;
-  }, 1000);
-}
+  
+  // Clear everything before progressing
+  this.clearAllHighlights();
+  await this.$nextTick();
+  await new Promise(resolve => setTimeout(resolve, 500));
 
-  },
+  // Store current part index before potentially changing it
+  const wasLastPart = this.currentPartIndex >= verseParts.length - 1;
+
+  if (!wasLastPart) {
+    this.currentPartIndex++;
+    this.displayCurrentPart();
+  } else {
+    await this.selectVerse(true);
+  }
+
+  // Final reset after progression
+  this.clearAllHighlights();
+  this.isTransitioning = false;
+},
+
+clearAllHighlights() {
+  // Direct assignment is fine for complete array replacement
+  this.correctWords = [];
+  this.mistakeWords = [];
+  this.unreadVerses = [];
+  
+  // Force update if needed (usually not necessary)
+  this.$nextTick(() => {
+    if (this.correctWords.length || this.mistakeWords.length || this.unreadVerses.length) {
+      this.$forceUpdate();
+    }
+  });
+},
 handleWordClick(index, verse) {
   this.showDisplayModeMenu = false;
   this.showHighlightMenu = false;
@@ -1409,147 +1724,151 @@ getWordHighlightColor(index, verseUuid) {
     }
     this.showHighlightContextMenu = false;
   },
-  async selectVerse(next = true) { // Make async
-    if (this.displayMode === 'hifz') {
-      this.selectNextHifzVerse();
-      return;
-    }
-    if (this.isRevisionMode) {
-      this.toggleRevisionMode();
-      this.toggleRevisionMode();
-      this.displayMode = "revision"
-
-    }
-    this.clearAnimationTimers();
-    // Fully reset display state
-    this.displayedWords = [];
-    this.currentTextParts = [];
-    this.currentPartWords = [];
-    this.currentPartIndex = 0;
-    this.correctWords = [];
-    this.mistakeWords = [];
-
-    if (!this.allVerses || this.allVerses.length === 0) {
-      this.currentVerseData = null;
-      this.currentTextParts = [];
-      this.unreadVerses = [];
-      if (!this.isLoading && !this.errorMessage) {
-        this.errorMessage = this.getLocalizedErrorMessage('noVersesAvailable');
-      }
-      return;
-    }
-    let newIndex;
-    const previousVerseUuid = this.currentVerseData ? this.currentVerseData.uuid : null;
-
-
-    if (this.isShuffleMode) {
-      newIndex = Math.floor(Math.random() * this.allVerses.length);
-    } else if (next && this.currentVerseData) {
-      const currentSurah = this.currentVerseData.surah;
-      const currentVerseNum = this.currentVerseData.verse;
-      const surahInfo = SURAH_DATA.find(s => s.id === currentSurah);
-      if (currentVerseNum < surahInfo.verses) {
-        newIndex = this.allVerses.findIndex(verse => verse.surah === currentSurah && verse.verse === currentVerseNum + 1);
-      } else if (currentSurah < 114) {
-        newIndex = this.allVerses.findIndex(verse => verse.surah === currentSurah + 1 && verse.verse === 1);
-      } else {
-        newIndex = this.allVerses.findIndex(verse => verse.surah === 1 && verse.verse === 1);
-      }
-    } else {
-      newIndex = this.allVerses.findIndex(verse => verse.surah === 1 && verse.verse === 1);
-    }
-    if (newIndex === -1) {
-      console.error('Next verse not found, falling back to random');
-      newIndex = 1;
-    }
-    this.currentVerseData = { ...this.allVerses[newIndex] };
-    
-    // Only reset revision highlights if the verse actually changed
-    if (!previousVerseUuid || this.currentVerseData.uuid !== previousVerseUuid) {
-      this.unreadVerses = []; // Reset for the new verse
-    }
-
-    this.currentTextParts = this.segmentText(this.currentVerseData.text);
-    this.currentPartIndex = 0;
-    this.displayedWords = []; // Clear words for the new verse before displayCurrentPart
-    this.clearAnimationTimers(); // Clear timers for the old verse
-    this.errorMessage = null;
-
-    // Load associated data for the new currentVerseData
-    if (this.currentVerseData && this.currentVerseData.uuid) {
-       await this.loadVerseNote(this.currentVerseData.uuid);
-        await this.loadVerseCompletion(this.currentVerseData.uuid);
-        await this.loadVerseHighlights(this.currentVerseData.uuid);
-    }
-
-    // Now that data is loaded, display the current part
-    this.displayCurrentPart();
-    this.saveLastViewed()
-  },
-
-  displayCurrentPart() {
-    this.clearAnimationTimers();
-        this.currentPartIndex = 0
-      // Reset revision highlights for the new part/verse
+async selectVerse(next = true) { // Make async
+  if (this.displayMode === 'Hifdh') {
+    this.selectNextHifdhVerse();
+    return;
+  }
+  if (this.displayMode === 'revision') {
+  this.displayedWords = [];
+  this.currentPartWords = [];
   this.correctWords = [];
   this.mistakeWords = [];
   this.unreadVerses = [];
-    this.displayedWords = [];
-    this.currentPartWords = [];
-    this.$forceUpdate();
-    this.$nextTick(() => {
-      if (!this.currentVerseData || this.currentPartIndex >= this.currentTextParts.length) {
-        console.log('No more parts, moving to next verse');
-        // Prevent auto-advancing in revision mode
-        if (this.displayMode !== 'revision') {
-          this.partTimeoutId = setTimeout(() => this.selectVerse(true), this.NEXT_VERSE_DELAY);
-        }
-        return;
-      }
-      const partText = this.currentTextParts[this.currentPartIndex];
-      if (!partText || partText.trim() === '') {
-        console.warn('Empty part text, skipping to next part');
-        this.displayNextPart();
-        return;
-      }
-      this.currentPartWords = partText.split(' ').filter(word => word.trim() !== '');
-      console.log('Displaying part:', this.currentPartIndex, 'Words:', this.currentPartWords);
-      this.animateWords();
-      let currentPartDuration = this.currentAudio && this.currentAudio.duration 
-        ? this.currentAudio.duration * 1000 
-        : this.PART_DISPLAY_DURATION;
-      if (this.currentPartWords.length < (this.WORDS_PER_PART * 0.8) && this.WORDS_PER_PART > 0 && !this.currentAudio) {
-        const proportion = this.currentPartWords.length / this.WORDS_PER_PART;
-        currentPartDuration = Math.max(
-          proportion * this.PART_DISPLAY_DURATION,
-          (this.currentPartWords.length * this.WORD_ANIMATION_INTERVAL) + 1000
-        );
-      }
-      const minDurationForAnimation = (this.currentPartWords.length * this.WORD_ANIMATION_INTERVAL) + 1000;
-      currentPartDuration = Math.max(currentPartDuration, minDurationForAnimation);
-      this.currentActivePartDuration = currentPartDuration;
-      this.partTimeoutStartTime = Date.now();
-      console.log('Part duration:', currentPartDuration);
-        if (this.displayMode !== 'revision') {
-          this.partTimeoutId = setTimeout(() => this.displayNextPart(), currentPartDuration);
-        }
-    });
-  },
+}
+  if (this.isRevisionMode) {
+    this.displayMode = "revision"
+      this.correctWords = [];
+  this.mistakeWords = [];
+  this.unreadVerses = [];
+  }
+    this.clearAnimationTimers();
 
-  displayNextPart() {
-     // If there are more parts, go to the next part
+    this.unreadVerses = Array.from({ length: this.currentPartWords.length }, (_, i) => i);
+
+  this.clearAnimationTimers();
+  // Fully reset display state
+  this.displayedWords = [];
+  this.currentTextParts = [];
+  this.currentPartWords = [];
+  this.currentPartIndex = 0;
+this.correctWords = [];
+this.mistakeWords = [];
+this.unreadVerses = [];
+
+  // When navigating to a new verse while paused by the button,
+  // reset the remaining time as it applies to the new verse/part.
+  if (this.isPausedByPause) {
+    this.pausedPartRemainingTime = 0;
+  }
+
+   if (!this.currentVerseData || !this.currentVerseData.surah || !this.currentVerseData.verse) {
+    const firstVerse = this.allVerses && this.allVerses.length > 0 ? this.allVerses[0] : null;
+    if (firstVerse) {
+      this.currentVerseData = { ...firstVerse };
+    } else {
+      this.errorMessage = this.getLocalizedErrorMessage('noVersesAvailable');
+      return;
+    }
+  }
+
+
+  if (!this.allVerses || this.allVerses.length === 0) {
+    this.currentVerseData = null;
+    this.currentTextParts = [];
+    this.unreadVerses = [];
+    if (!this.isLoading && !this.errorMessage) {
+      this.errorMessage = this.getLocalizedErrorMessage('noVersesAvailable');
+      this.isLoading = false; // Ensure loading is false if error occurs here
+    }
+    return;
+  }
+
+  let newIndex;
+  const previousVerseUuid = this.currentVerseData ? this.currentVerseData.uuid : null;
+
+  if (this.isShuffleMode) {
+    newIndex = Math.floor(Math.random() * this.allVerses.length);
+  } else if (next && this.currentVerseData) {
+    const currentSurah = this.currentVerseData.surah;
+    const currentVerseNum = this.currentVerseData.verse;
+    const surahInfo = SURAH_DATA.find(s => s.id === currentSurah);
+if (!surahInfo) {
+  console.error('Surah info not found for surah:', currentSurah);
+  // Fallback: go to first verse of Quran or handle as needed
+  newIndex = this.allVerses.findIndex(verse => verse.surah === 1 && verse.verse === 1);
+} else if (currentVerseNum < surahInfo.verses) {
+  newIndex = this.allVerses.findIndex(verse => verse.surah === currentSurah && verse.verse === currentVerseNum + 1);
+} else if (currentSurah < 114) {
+  newIndex = this.allVerses.findIndex(verse => verse.surah === currentSurah + 1 && verse.verse === 1);
+} else {
+  newIndex = this.allVerses.findIndex(verse => verse.surah === 1 && verse.verse === 1);
+}
+  } else { // Default to first verse if no current verse or not 'next'
+    newIndex = this.allVerses.findIndex(verse => verse.surah === 1 && verse.verse === 1);
+  }
+
+  if (newIndex === -1) { // Fallback if verse not found
+    console.error('Next verse not found, falling back to first verse of Quran.');
+    newIndex = this.allVerses.findIndex(verse => verse.surah === 1 && verse.verse === 1) || 0;
+  }
+
+  this.currentVerseData = { ...this.allVerses[newIndex] };
+  
+  // Only reset revision highlights if the verse actually changed
+  if (!previousVerseUuid || this.currentVerseData.uuid !== previousVerseUuid) {
+    this.unreadVerses = []; // Reset for the new verse
+  }
+
+  this.currentPartIndex = 0; // New verse always starts at the first part.
+  this.currentTextParts = this.segmentText(this.currentVerseData.text);
+  // displayedWords will be cleared by displayCurrentPart
+  this.errorMessage = null;
+
+  // Load associated data for the new currentVerseData
+  if (this.currentVerseData && this.currentVerseData.uuid) {
+     await this.loadVerseNote(this.currentVerseData.uuid);
+      await this.loadVerseCompletion(this.currentVerseData.uuid);
+      await this.loadVerseHighlights(this.currentVerseData.uuid);
+  }
+  this.correctWords = [];
+  this.mistakeWords = [];
+  this.unreadVerses = [];
+  // Now that data is loaded, display the current part
+  this.displayCurrentPart(); // This will handle clearing displayedWords and starting animation
+  this.saveLastViewed();
+    this.correctWords = [];
+  this.mistakeWords = [];
+  this.unreadVerses = [];
+},
+
+
+
+
+displayNextPart() {
+  if (this.isPausedByHold) return; // If paused by hold, do nothing.
+
   if (this.currentPartIndex < this.currentTextParts.length - 1) {
     this.currentPartIndex++;
     this.displayCurrentPart();
   } else {
-    // If at the last part, auto-advance to the next verse after a short delay
-        if (this.displayMode !== 'revision'){
-    setTimeout(() => {
-      this.selectVerse(true);
-    }, 800); // 800ms pause before next verse, adjust as needed
+    // At the last part of the current verse.
+    // Auto-advance to the next verse only if not in revision mode and not paused by the button.
+    if (this.displayMode !== 'revision' && !this.isPausedByPause) {
+      this.partTimeoutId = setTimeout(() => { // Ensure partTimeoutId is set for this delay
+        // Double check isPausedByPause again, in case it was set during the NEXT_VERSE_DELAY
+        if (!this.isPausedByPause && this.displayMode !== 'revision') { // Check again before advancing
+            this.selectVerse(true);
+        }
+      }, this.NEXT_VERSE_DELAY); // Use NEXT_VERSE_DELAY
+      this.partTimeoutStartTime = Date.now(); // Record start time for this specific timeout
+      this.currentActivePartDuration = this.NEXT_VERSE_DELAY; 
     }
+    // If paused by button at the end of a verse, do nothing.
+    // User must manually navigate or unpause.
+    // When unpaused, resumeVerseDisplayFromPause will handle starting the timer for the NEXT_VERSE_DELAY.
   }
-  },
+},
     
     // Existing methods
   async loadSurahVerses(surahId) {
@@ -1582,6 +1901,10 @@ getWordHighlightColor(index, verseUuid) {
     
     // Fix for Tafsir Mode Navigation
     handleAppClick(event) {
+      if (this.highlightMode && this.isSelectingWords) {
+  // Prevent navigation while highlighting
+  return;
+}
        // If in full-surah mode, don't do any verse/part navigation from global clicks
       if (this.displayMode === 'full-surah') {
         // Still handle overlay closing if click is outside content
@@ -1661,6 +1984,7 @@ getWordHighlightColor(index, verseUuid) {
           this.displayPreviousPart();
         } else {
           this.displayNextPart();
+
         }
         return;
       }
@@ -1718,15 +2042,24 @@ getWordHighlightColor(index, verseUuid) {
     },
     
     // Add Full Surah Mode to UI
-    setDisplayMode(mode) {
+   setDisplayMode(mode) {
   this.displayMode = mode;
   this.clearAnimationTimers();
   this.showDisplayModeMenu = false;
 
-  if (mode === 'hifz') {
-    this.enterHifzMode();
+  if (mode === 'Hifdh') {
+    this.enterHifdhMode();
+    this.displayedWords = [];
+    this.currentTextParts = [];
+    this.$forceUpdate();
   } else if (mode === 'tafseer') {
-    this.loadTafseer();
+    // Open fassarli overlay for current verse
+    this.fassarliMode = true;
+    // Optionally, set selectedVerse and selectedSurah if needed
+    this.selectedVerse = this.currentVerseData ? this.currentVerseData.verse : 1;
+    // If you want to ensure surah is set:
+    // this.selectedSurah = this.currentVerseData ? this.currentVerseData.surah : 1;
+    return; // Don't run the rest of the code for tafseer mode
   } else if (mode === 'full-surah') {
     if (this.currentVerseData && this.currentVerseData.surah) {
       this.loadSurahVerses(this.currentVerseData.surah);
@@ -1770,6 +2103,8 @@ getWordHighlightColor(index, verseUuid) {
         this.currentTheme = 'light';
       }
       document.documentElement.setAttribute('data-theme', this.currentTheme);
+      localStorage.setItem('theme', this.currentTheme);
+
     },
     
     // Offline Support
@@ -1860,6 +2195,9 @@ async loadTafseer() {
   }
   this.originalSurah = this.currentVerseData.surah;
   this.isLoading = true;
+    this.displayedWords = [];
+  this.currentTextParts = [];
+  this.$forceUpdate();
   try {
     const verseKey = this.currentVerseData.verseKey;
     const response = await fetch(`https://api.alquran.cloud/v1/ayah/${verseKey}/ar.waseet`);
@@ -1891,9 +2229,9 @@ getLocalizedErrorMessage(key, detail = '') {
       tr: `Not yükleme hatası: ${detail}`,
       ur: `نوٹ لوڈ کرنے میں خرابی: ${detail}`,
     },
-    hifzComplete: {
+    HifdhComplete: {
       ar: 'تم إكمال الحفظ! ابدأ من جديد؟',
-      en: 'Hifz completed! Start over?',
+      en: 'Hifdh completed! Start over?',
       fr: `Erreur lors du chargement de la note : ${detail}`,
       bn: `নোট লোডিংয়ে ত্রুটি: ${detail}`,
       tr: `Not yükleme hatası: ${detail}`,
@@ -1996,13 +2334,17 @@ getLocalizedErrorMessage(key, detail = '') {
     console.log('Shuffle mode:', this.isShuffleMode);
   },
 
-    searchPagination(direction) {
-    this.currentPage += direction;
-    if (this.currentPage < 1) this.currentPage = 1;
-    if (this.currentPage > Math.ceil(this.searchResults.length / this.resultsPerPage)) {
-      this.currentPage = Math.ceil(this.searchResults.length / this.resultsPerPage);
-    }
-  },
+searchPagination(direction) {
+  this.currentPage += direction;
+  if (this.currentPage < 1) this.currentPage = 1;
+  if (this.currentPage > Math.ceil(this.searchResults.length / this.resultsPerPage)) {
+    this.currentPage = Math.ceil(this.searchResults.length / this.resultsPerPage);
+  }
+  this.$nextTick(() => {
+    const resultsContainer = document.querySelector('.search-results');
+    if (resultsContainer) resultsContainer.scrollTop = 0;
+  });
+},
   handleResultClick(result) {
     const text = `${result.text}\n${this.currentLanguage === 'ar' ? result.surahArabicName : result.surahEnglishName} ${result.verse}`;
     navigator.clipboard.write(text)
@@ -2018,6 +2360,8 @@ getLocalizedErrorMessage(key, detail = '') {
     if (type === 'search') {
       this.showSearchOverlay = false;
       this.searchQuery = '';
+      this.searched = false;
+
       this.searchResults = [];
     } else if (type === 'voice') {
       this.showVoiceSearchOverlay = false;
@@ -2057,24 +2401,24 @@ getLocalizedErrorMessage(key, detail = '') {
 
 startWordSelection(event, index, verseUuidParam = null) {
   const targetVerseUuid = verseUuidParam || (this.currentVerseData ? this.currentVerseData.uuid : null);
-
   if (!targetVerseUuid) {
     console.warn("startWordSelection: No targetVerseUuid available.");
     return;
   }
 
   // Define which modes allow word selection for highlighting
-  const highlightEnabledModes = ['hifz', 'full-surah']; // Add 'verse', 'tafseer' if needed
+  const highlightEnabledModes = ['Hifdh', 'full-surah']; // Add 'verse', 'tafseer' if needed
   if (!highlightEnabledModes.includes(this.displayMode)) {
     return;
   }
 
   event.preventDefault();
   this.isSelectingWords = true;
-  this.selectedWordIndices = [index]; // Store the index (relative to the verse)
-  this.activeVerseUuidForHighlighting = targetVerseUuid; // Set the active UUID
+  this.selectedWordIndices = [index];
+  this.highlightSelectionStart = index;
+  this.activeVerseUuidForHighlighting = targetVerseUuid;
   this.showHighlightMenu = false;
-  this.showHighlightContextMenu = false; // Close context menu if it was open
+  this.showHighlightContextMenu = false;
 },
 
 updateWordSelection(event, index, verseUuidParam = null) {
@@ -2084,24 +2428,18 @@ updateWordSelection(event, index, verseUuidParam = null) {
     return;
   }
 
-  const highlightEnabledModes = ['hifz', 'full-surah']; // Add 'verse', 'tafseer' if needed
-  if (!highlightEnabledModes.includes(this.displayMode)) {
-    return;
-  }
-
+  if (!this.isSelectingWords || this.activeVerseUuidForHighlighting !== targetVerseUuid) return;
+  const highlightEnabledModes = ['Hifdh', 'full-surah'];
+  if (!highlightEnabledModes.includes(this.displayMode)) return;
   event.preventDefault();
-  if (!this.selectedWordIndices.includes(index)) {
-    const minIndex = Math.min(...this.selectedWordIndices, index);
-    const maxIndex = Math.max(...this.selectedWordIndices, index);
-    this.selectedWordIndices = Array.from(
-      { length: maxIndex - minIndex + 1 },
-      (_, i) => minIndex + i
-    );
-  }
+  // Always select range between start and current
+  const minIndex = Math.min(this.highlightSelectionStart, index);
+  const maxIndex = Math.max(this.highlightSelectionStart, index);
+  this.selectedWordIndices = Array.from({ length: maxIndex - minIndex + 1 }, (_, i) => minIndex + i);
 },
 
 endWordSelection(event) {
- const highlightEnabledModes = ['hifz', 'full-surah'];
+ const highlightEnabledModes = ['Hifdh', 'full-surah'];
   if (!highlightEnabledModes.includes(this.displayMode) || !this.isSelectingWords) {
     this.isSelectingWords = false;
     return;
@@ -2134,6 +2472,7 @@ endWordSelection(event) {
 },
 
 
+
 selectInitialLanguage(lang) {
   this.currentLanguage = lang;
   localStorage.setItem('language', lang);
@@ -2143,72 +2482,73 @@ selectInitialLanguage(lang) {
       console.log('Showing navigation instructions on first visit');
       this.showNavigationInstructions = true;
     }
-  this.loadInitialData().then(() => {
-    if (this.allVerses.length > 0 && !this.errorMessage) {
-      this.selectVerse();
-    } else if (!this.errorMessage) {
-      this.errorMessage = this.getLocalizedErrorMessage('noDataAfterLoad');
-      this.isLoading = false;
-    }
-  });
-
 },
 
 toggleLanguageMenu() {
   this.showLanguageMenu = !this.showLanguageMenu;
 },
- async loadLocalMushafJson(type) {
-    let url = '';
-    if (type === 'warsh') url = '/warsh.json';
-    else if (type === 'qaloon') url = '/qaloon.json';
-    else return [];
+async loadLocalMushafJson(type) {
+    const validTypes = ['warsh', 'qaloon'];
+    if (!validTypes.includes(type)) return [];
+    
     try {
-      const response = await fetch(url);
-      if (!response.ok) throw new Error('Failed to load ' + url);
-      const data = await response.json();
-      // Normalize structure if needed
-      return data.map(aya => ({
-        uuid: `${aya.sura_no}:${aya.aya_no}-ar-${type}`,
-        surah: aya.sura_no,
-        verse: aya.aya_no,
-        verseKey: `${aya.sura_no}:${aya.aya_no}`,
-        text: aya.aya_text.replace(/[\uFBC0-\uFC63]/g, ''),
-        surahArabicName: aya.sura_name_ar?.trim() || '',
-        surahEnglishName: aya.sura_name_en || '',
-        audio: null,
-        language: 'ar',
-      }));
+        const response = await fetch(`/${type}.json`);
+        if (!response.ok) throw new Error(`HTTP ${response.status} loading ${type}`);
+        
+        const data = await response.json();
+        if (!Array.isArray(data)) throw new Error('Invalid data format');
+        
+        return data.map(aya => {
+            // Validate required fields
+            if (!aya.sura_no || !aya.aya_no || !aya.aya_text) {
+                console.warn('Invalid ayah data:', aya);
+                return null;
+            }
+            return {
+                uuid: `${aya.sura_no}:${aya.aya_no}-ar-${type}`,
+                surah: parseInt(aya.sura_no),
+                verse: parseInt(aya.aya_no),
+                verseKey: `${aya.sura_no}:${aya.aya_no}`,
+                text: String(aya.aya_text).replace(/[\uFBC0-\uFC63]/g, ''),
+                surahArabicName: aya.sura_name_ar?.trim() || '',
+                surahEnglishName: aya.sura_name_en || '',
+                audio: null,
+                language: 'ar',
+            };
+        }).filter(Boolean); // Remove null entries
+        
     } catch (e) {
-      this.errorMessage = this.getLocalizedErrorMessage('loadError', e.message);
-      return [];
+        console.error(`Failed to load ${type} mushaf:`, e);
+        this.errorMessage = `Failed to load ${type} data: ${e.message}`;
+        return [];
     }
-  },
+},
 setLanguage(lang) {
   this.currentLanguage = lang;
   localStorage.setItem('language', lang);
   this.showLanguageMenu = false;
   if (lang === 'ar') {
     this.showMushafSelection = true;
-        // Do not automatically load data if mushaf selection is shown
-
   } else {
     this.showMushafSelection = false;
-     // For non-Arabic, set mushafType to hafs by default if not already set
-    if (this.mushafType !== 'hafs') {
-        this.mushafType = 'hafs';
-        localStorage.setItem('mushafType', 'hafs');
-    }
+    
     this.loadInitialData().then(() => {
-       if (this.allVerses.length > 0 && !this.errorMessage) {
-          this.selectVerse();
-        } else if (!this.errorMessage) {
-          this.errorMessage = this.getLocalizedErrorMessage('noDataAfterLoad');
-        }
-        this.isLoading = false;
-      });
+      if (this.displayMode === 'full-surah' && this.currentVerseData) {
+        this.loadSurahVerses(this.currentVerseData.surah);
+      }
+      if (this.allVerses.length > 0 && !this.errorMessage) {
+        this.selectVerse();
+      } else if (!this.errorMessage) {
+        this.errorMessage = this.getLocalizedErrorMessage('noDataAfterLoad');
+      }
+      this.isLoading = false;
+    });
   }
 },
 async loadInitialData() {
+      console.log('Loading with mushaf:', this.mushafType); // <-- Check this first
+    
+
   this.isLoading = true;
   this.cacheStatus = 'checking';
   try {
@@ -2433,54 +2773,6 @@ removeTashkeel(text) {
     .trim();
 },
 
-handleAppTouchMove(event) {
-if (this.displayMode === 'full-surah') {
-    // Only trigger swipe down if at top of scroll
-    const container = this.$refs.versesContainer;
-    if (container && container.scrollTop === 0) {
-      const touchY = event.changedTouches[0].clientY;
-      const deltaY = touchY - this.touchStartY;
-      if (deltaY > this.SWIPE_THRESHOLD) {
-        this.showSearchOverlay = true;
-        this.focusSearchInput();
-        this.hasSwiped = true;
-        return;
-      }
-    }
-    this.wasScrolling = true;
-    return;
-  }
-  if (!this.isHoldingGlobal || this.hasSwiped || this.showSearchOverlay || this.showVoiceSearchOverlay ) return;
-
-  if (event.changedTouches.length > 0) {
-    const touchX = event.changedTouches[0].clientX;
-    const touchY = event.changedTouches[0].clientY;
-    const deltaY = this.touchStartY - touchY;
-    const deltaX = Math.abs(this.touchStartX - touchX);
-    const timeElapsed = Date.now() - this.touchStartTime;
-    console.log('Touch move - x:', touchX, 'y:', touchY, 'deltaY:', deltaY, 'deltaX:', deltaX, 'time:', timeElapsed);
-    if (Math.abs(deltaY) > this.SWIPE_THRESHOLD && deltaX < this.SWIPE_HORIZONTAL_THRESHOLD && timeElapsed < this.SWIPE_TIME_THRESHOLD) {
-      this.hasSwiped = true;
-      clearTimeout(this.holdStartTimeoutId);
-      this.isHoldingGlobal = false;
-      if (deltaY > 0) {
-        console.log('Swipe up - Opening voice search');
-        this.showSearchOverlay = false;
-        this.showVoiceSearchOverlay = true;
-        this.resetVoiceSearch();
-      } else if (deltaY < 0) {
-        console.log('Swipe down - Opening text search');
-        this.showVoiceSearchOverlay = false;
-        this.showSearchOverlay = true;
-        this.focusSearchInput();
-      }
-      this.touchStartX = null;
-      this.touchStartY = null;
-      this.touchStartTime = null;
-    }
-  }
-},
-
 openSearchOverlay() {
 
   this.showSearchOverlay = true;
@@ -2493,6 +2785,16 @@ openSearchOverlay() {
 },
 
 performSearch() {
+    this.currentPage = 1;
+  setTimeout(() => {
+    // ...existing code...
+    this.$nextTick(() => {
+      const resultsContainer = document.querySelector('.search-results');
+      if (resultsContainer) resultsContainer.scrollTop = 0;
+      if (this.$refs.searchInput) this.$refs.searchInput.blur();
+    });
+  }, 300);
+
     if (!this.searchQuery.trim()) {
       this.searchResults = [];
       this.isSearching = false;
@@ -2524,29 +2826,20 @@ performSearch() {
           surahEnglishName: verse.surahEnglishName,
         }));
       this.isSearching = false;
-      if (this.searchResults.length === 0) {
-        this.errorMessage = this.getLocalizedErrorMessage('noResults');
-      }
+    this.searched = true;
+ 
       // Scroll to top of results
-      this.$nextTick(() => {
-        const resultsContainer = document.querySelector('.search-results');
-        if (resultsContainer) resultsContainer.scrollTop = 0;
-      });
-    }, 300);
-  },
-  selectSearchResult(result) {
-    
-    const verse = this.allVerses.find(v => v.uuid === result.uuid);
-     if (this.displayMode === 'full-surah' && this.currentSurahData && result.surah === this.currentSurahData.id) {
-    // Same surah, just scroll to verse
-    this.showSearchOverlay = false;
-    this.$nextTick(() => {
-      const verseEl = document.querySelector(`[data-verse-uuid="${result.uuid}"]`);
-      if (verseEl) verseEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
+ this.$nextTick(() => {
+      const resultsContainer = document.querySelector('.search-results');
+      if (resultsContainer) resultsContainer.scrollTop = 0;
+      if (this.$refs.searchInput) this.$refs.searchInput.blur();
     });
-  } else {
-    // Switch to surah mode and scroll
-    this.setDisplayMode('full-surah');
+  }, 300);
+  },
+selectSearchResult(result) {
+  const verse = this.allVerses.find(v => v.uuid === result.uuid);
+  if (!verse) return;
+  if (this.displayMode === 'full-surah') {
     this.selectedSurah = result.surah;
     this.loadSurahVerses(result.surah).then(() => {
       this.showSearchOverlay = false;
@@ -2555,19 +2848,32 @@ performSearch() {
         if (verseEl) verseEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
       });
     });
+  } else if (this.displayMode === 'tafseer') {
+    this.currentVerseData = { ...verse };
+    this.loadTafseer();
+    this.showSearchOverlay = false;
+  } else if (this.displayMode === 'Hifdh') {
+    this.currentVerseData = { ...verse };
+    this.updateHifdhVerseQueue();
+    this.HifdhCurrentVerseIndex = 0;
+    this.showSearchOverlay = false;
+    this.showBottomInfo = false;
+    this.currentTextParts = this.segmentText(verse.text);
+    this.currentPartIndex = 0;
+    this.displayedWords = [];
+    this.clearAnimationTimers();
+    this.displayCurrentPart();
+  } else {
+    // Verse mode
+    this.currentVerseData = { ...verse };
+    this.currentTextParts = this.segmentText(verse.text);
+    this.currentPartIndex = 0;
+    this.displayedWords = [];
+    this.clearAnimationTimers();
+    this.displayCurrentPart();
+    this.showSearchOverlay = false;
   }
-    if (verse) {
-      this.currentVerseData = { ...verse };
-      this.currentTextParts = this.segmentText(verse.text);
-      this.currentPartIndex = 0;
-      this.displayedWords = [];
-      this.clearAnimationTimers();
-      this.displayCurrentPart();
-      this.showSearchOverlay = false;
-      this.searchQuery = '';
-      this.searchResults = [];
-    }
-  },
+},
 
 
 startVoiceSearch() {
@@ -2588,7 +2894,7 @@ startVoiceSearch() {
       .map(result => result[0].transcript)
       .join('');
     this.detectedText = transcript;
-    this.detectedWords = transcript.split(' ').filter(word => word.trim());
+    this.detectedWords = transcript.split(' ').filter((word, i, arr) => i === 0 || word !== arr[i - 1]);
     console.log('Voice search result:', transcript);
     if (this.silenceTimeoutId) {
       clearTimeout(this.silenceTimeoutId);
@@ -2730,8 +3036,8 @@ async loadVerseHighlights(verseUuid) {
   }
 },
 isWordHighlighted(index, verseUuidParam = null) {
-    // Only show highlights in hifz or full-surah mode
-  if (this.displayMode !== 'hifz' && this.displayMode !== 'full-surah') {
+    // Only show highlights in Hifdh or full-surah mode
+  if (this.displayMode !== 'Hifdh' && this.displayMode !== 'full-surah') {
     return false;
   }
   const uuidToUse = verseUuidParam || this.activeVerseUuidForHighlighting || (this.currentVerseData ? this.currentVerseData.uuid : null);
@@ -2739,8 +3045,8 @@ isWordHighlighted(index, verseUuidParam = null) {
   return !!(this.highlights[uuidToUse] && this.highlights[uuidToUse][index]);
 },
 getHighlightClass(index, verseUuidParam = null) {
-    // Only apply highlight classes in hifz or full-surah mode
-  if (this.displayMode !== 'hifz' && this.displayMode !== 'full-surah') {
+    // Only apply highlight classes in Hifdh or full-surah mode
+  if (this.displayMode !== 'Hifdh' && this.displayMode !== 'full-surah') {
     return '';
   }
   const uuidToUse = verseUuidParam || this.activeVerseUuidForHighlighting || (this.currentVerseData ? this.currentVerseData.uuid : null);
@@ -2760,7 +3066,7 @@ toggleAudio() {
   }
 },
 readNextVerseAudio() {
-  if (this.isAudioPlaying && this.displayMode !== 'hifz') {
+  if (this.isAudioPlaying && this.displayMode !== 'Hifdh') {
     const nextVerse = this.getNextVerse(this.currentVerseData);
     if (nextVerse) {
       this.currentVerseData = nextVerse;
@@ -2806,11 +3112,9 @@ stopAudioHold() {
   },
 
     focusSearchInput() {
-  this.$nextTick(() => {
-    if (this.$refs.searchInput) {
+     this.$nextTick(() => {
       this.$refs.searchInput.focus();
-    }
-  });
+    });
 },
 
 
@@ -2829,78 +3133,60 @@ stopAudioHold() {
       }, durationPerWord);
     },
 
-displayCurrentPart() {
-  // Clear any ongoing animations and timers
-  this.clearAnimationTimers();
-  
-    this.correctWords = [];
-  this.mistakeWords = [];
-  this.unreadVerses = [];
-    this.displayedWords = [];
-    this.currentPartWords = [];
 
-  // Clear previous words immediately
-  this.displayedWords = [];
-
-  // Force DOM update to ensure screen is cleared
-  this.$forceUpdate();
-  this.$nextTick(() => {
-    // Check if there's valid data to display
-    if ((!this.currentVerseData ||  this.currentPartIndex >= this.currentTextParts.length)
-  && (this.displayMode !== 'revision') ) {
-      console.log('No more parts, moving to next verse');
-      this.partTimeoutId = setTimeout(() => this.selectVerse(true), this.NEXT_VERSE_DELAY);
-      return;
-    }
-
-    const partText = this.currentTextParts[this.currentPartIndex];
-    this.currentPartWords = partText.split(' ').filter(word => word.trim() !== '');
-    console.log('Displaying part:', this.currentPartIndex, 'Words:', this.currentPartWords);
-
-    // Start animating words
-    this.animateWords();
-
-    // Calculate duration for this part
-    let currentPartDuration = this.PART_DISPLAY_DURATION;
-    if (this.currentPartWords.length < (this.WORDS_PER_PART * 0.8) && this.WORDS_PER_PART > 0) {
-      const proportion = this.currentPartWords.length / this.WORDS_PER_PART;
-      currentPartDuration = Math.max(
-        proportion * this.PART_DISPLAY_DURATION,
-        (this.currentPartWords.length * this.WORD_ANIMATION_INTERVAL) + 1000
-      );
-    }
-    const minDurationForAnimation = (this.currentPartWords.length * this.WORD_ANIMATION_INTERVAL) + 1000;
-    currentPartDuration = Math.max(currentPartDuration, minDurationForAnimation);
-
-    this.currentActivePartDuration = currentPartDuration;
-    this.partTimeoutStartTime = Date.now();
-    console.log('Part duration:', currentPartDuration);
-
-    // Schedule the next part
-    if (this.displayMode !== 'revision')  {  
-      this.partTimeoutId = setTimeout(() => this.displayNextPart(), currentPartDuration);
-    }
-  });
-},
 
 
 
 animateWords() {
-  let wordIndex = 0; // Start fresh for the new part
-  this.displayedWords = []; // Ensure cleared again before animation
-  console.log('Starting word animation for part:', this.currentPartIndex);
+  if (this.isPausedByHold) return; // Don't animate if paused by hold
+
+  // If paused by button, and word animation was already stopped/cleared by pauseVerseDisplayByPause,
+  // don't restart it here. resumeVerseDisplayFromPause will handle it.
+  if (this.isPausedByPause && !this.wordIntervalId) {
+      // If isPausedByPause is true, but wordIntervalId IS set, it means animateWords
+      // was called (e.g. by displayCurrentPart after a manual navigation while paused),
+      // so we should let it run to display the words, but the partTimeoutId won't be set.
+      // However, if wordIntervalId is NOT set, it means we are in a state where pause button
+      // explicitly stopped it, so don't restart it here.
+      // This check is subtle: if pause button is active, and we are here,
+      // it means a new part was loaded. We *do* want to show its words.
+      // The `pauseVerseDisplayByPause` should clear `wordIntervalId`.
+      // `resumeVerseDisplayFromPause` should restart `animateWords`.
+      // So, if `isPausedByPause` is true, `animateWords` should still run to *display* the words
+      // but the `partTimeoutId` in `displayCurrentPart` won't be set.
+      // The only time `animateWords` should NOT run if `isPausedByPause` is if `wordIntervalId` was explicitly cleared by `pauseVerseDisplayByPause`
+      // and we are not in a "fresh display" scenario.
+      // This logic is tricky. Let's simplify: animateWords will always try to run if called.
+      // The pause/resume logic will manage clearing/restarting it.
+  }
+
+  // Clear any existing word animation interval before starting a new one
+  if (this.wordIntervalId) {
+    clearInterval(this.wordIntervalId);
+    this.wordIntervalId = null;
+  }
+
+  let wordIndex = this.displayedWords.length; // Start from where we left off (usually 0 as displayedWords is cleared)
+
   this.wordIntervalId = setInterval(() => {
+    if (this.isPausedByHold || (this.isPausedByPause && !this.wordIntervalId)) {
+        // If hold is activated during animation, or pause button stops it.
+        // This check inside setInterval is a secondary safety, primary is outside.
+        clearInterval(this.wordIntervalId); // Stop this interval
+        this.wordIntervalId = null;
+        return;
+    }
+
     if (wordIndex < this.currentPartWords.length) {
-      this.displayedWords = [...this.displayedWords, this.currentPartWords[wordIndex]];
+      this.displayedWords.push(this.currentPartWords[wordIndex]);
       wordIndex++;
-      console.log('Added word:', this.currentPartWords[wordIndex - 1], 'Total words:', this.displayedWords.length);
     } else {
       clearInterval(this.wordIntervalId);
-      this.wordIntervalId = null;
-      console.log('Word animation completed');
+      this.wordIntervalId = null; // Animation for this part is complete
     }
   }, this.WORD_ANIMATION_INTERVAL);
-},
+}
+,
 
 clearAnimationTimers() {
   if (this.wordIntervalId) {
@@ -2911,8 +3197,8 @@ clearAnimationTimers() {
     clearTimeout(this.partTimeoutId);
     this.partTimeoutId = null;
   }
-  console.log('Cleared animation timers');
-},
+}
+,
 
     toggleLanguage() {
       this.currentLanguage = this.currentLanguage === 'ar' ? 'en' : 'ar';
@@ -3028,146 +3314,312 @@ togglePause() {
 },
 
 pauseVerseDisplayByPause() {
-  if (this.isLoading || this.errorMessage || !this.currentVerseData || this.isPausedByPause) {
-    return;
-  }
+  if (this.isLoading || this.errorMessage || !this.currentVerseData || this.isPausedByPause) return;
   this.isPausedByPause = true;
-  console.log('Paused by pause button');
-  if (this.wordIntervalId) {
-    clearInterval(this.wordIntervalId);
-    this.wordIntervalId = null;
-  }
+
+  // Clear the auto-advance timer for the current part, if it was set.
+  // This timer would have been set *after* word animation completed.
   if (this.partTimeoutId) {
     const elapsedTime = Date.now() - this.partTimeoutStartTime;
     this.pausedPartRemainingTime = this.currentActivePartDuration - elapsedTime;
     if (this.pausedPartRemainingTime < 0) this.pausedPartRemainingTime = 0;
     clearTimeout(this.partTimeoutId);
     this.partTimeoutId = null;
-    console.log('Part timeout paused. Remaining:', this.pausedPartRemainingTime);
   } else {
+    // If no partTimeoutId, it means either:
+    // 1. Word animation is still in progress (wordIntervalId is active).
+    // 2. Word animation finished, but partTimeoutId was never set (e.g., already paused, or revision mode).
+    // 3. Part was at the very beginning.
+    // In these cases, when resumed, a full duration timer will be set.
     this.pausedPartRemainingTime = 0;
   }
-},
+
+  // DO NOT stop wordIntervalId here. Let current part's words finish animating.
+  // The displayCurrentPart method will check isPausedByPause before setting a new partTimeoutId.
+}
+
+,
 
 resumeVerseDisplayFromPause() {
   if (!this.isPausedByPause) return;
-  console.log('Resuming from pause button');
   this.isPausedByPause = false;
 
-  // Resume animating remaining words if any
-  if (this.currentPartWords && this.currentPartWords.length > this.displayedWords.length) {
-    let wordIndex = this.displayedWords.length;
-    this.wordIntervalId = setInterval(() => {
-      if (wordIndex < this.currentPartWords.length) {
-        this.displayedWords.push(this.currentPartWords[wordIndex]);
-        wordIndex++;
+  // Resume word animation if it was paused and not yet complete for the current part
+  // This scenario is removed because pause button no longer stops word animation.
+  // if (!this.wordIntervalId && this.currentPartWords && this.currentPartWords.length > 0 && this.displayedWords.length < this.currentPartWords.length) {
+  //   this.animateWords();
+  // }
+
+  // If there's no current verse data or parts, or word animation is still running, nothing to do here for timers.
+  if (!this.currentVerseData || this.currentTextParts.length === 0 || this.wordIntervalId) {
+    this.pausedPartRemainingTime = 0;
+    return;
+  }
+
+  // At this point, isPausedByPause is now false, and wordIntervalId is null (current part's words are fully displayed).
+  // We need to set the auto-advance timer for the *currently displayed part*.
+  let timeoutDuration;
+  let callback;
+
+  // If currentPartIndex is out of bounds (e.g. end of verse was reached while paused)
+  if (this.currentPartIndex >= this.currentTextParts.length) {
+      callback = () => this.selectVerse(true);
+      timeoutDuration = this.NEXT_VERSE_DELAY;
+      this.currentActivePartDuration = this.NEXT_VERSE_DELAY;
+  } else {
+      // Current part is valid and fully displayed. Set its full duration timer.
+      const partText = this.currentTextParts[this.currentPartIndex];
+      const tempCurrentPartWords = partText ? partText.split(' ').filter(word => word.trim() !== '') : [];
+
+      if (tempCurrentPartWords.length === 0) { // Current part is empty
+          callback = () => this.displayNextPart();
+          timeoutDuration = 100; // Short delay
+          this.currentActivePartDuration = 100;
       } else {
-        clearInterval(this.wordIntervalId);
-        this.wordIntervalId = null;
+          // Use the already calculated currentActivePartDuration for this part.
+          // If it's 0 (e.g. if displayCurrentPart wasn't called properly before pause), recalculate.
+          if (!this.currentActivePartDuration || this.currentActivePartDuration <= 0) {
+              let currentPartFullDuration = this.PART_DISPLAY_DURATION;
+              // (Recalculation logic from displayCurrentPart)
+              if (tempCurrentPartWords.length < (this.WORDS_PER_PART * 0.8) && this.WORDS_PER_PART > 0 && !this.currentAudio) { // Added !this.currentAudio
+                  const proportion = tempCurrentPartWords.length / this.WORDS_PER_PART;
+                  currentPartFullDuration = Math.max(
+                      proportion * this.PART_DISPLAY_DURATION,
+                      (tempCurrentPartWords.length * this.WORD_ANIMATION_INTERVAL) + 1000
+                  );
+              }
+              const minDurationForAnimation = (tempCurrentPartWords.length * this.WORD_ANIMATION_INTERVAL) + 1000;
+              this.currentActivePartDuration = Math.max(currentPartFullDuration, minDurationForAnimation);
+              if (this.currentAudio && this.currentAudio.duration) { // If audio, use its duration
+                  this.currentActivePartDuration = this.currentAudio.duration * 1000;
+              }
+          }
+          timeoutDuration = this.currentActivePartDuration;
+          callback = () => this.displayNextPart();
       }
-    }, this.WORD_ANIMATION_INTERVAL);
   }
 
-  // Resume part timeout if remaining time exists
-  if (this.pausedPartRemainingTime > 0) {
-    const resumeCallback = (this.currentVerseData && this.currentTextParts.length > 0 && this.currentPartIndex < this.currentTextParts.length)
-      ? this.displayNextPart
-      : this.selectVerse;
-    this.partTimeoutId = setTimeout(resumeCallback, this.pausedPartRemainingTime);
+  // Only set timer if not in revision mode
+  if (timeoutDuration > 0 && callback && this.displayMode !== 'revision') {
+    this.partTimeoutId = setTimeout(callback, timeoutDuration);
     this.partTimeoutStartTime = Date.now();
   }
-},
+  this.pausedPartRemainingTime = 0; // Always consume/reset
+}
 
-resumeVerseDisplayFromPause() {
-  if (!this.isPausedByPause) return;
-  console.log('Resuming from pause button');
-  if (this.currentPartWords && this.currentPartWords.length > 0 && this.displayedWords.length < this.currentPartWords.length) {
-    this.animateWords();
-  }
-  if (this.pausedPartRemainingTime > 0) {
-    const resumeCallback = (this.currentVerseData && this.currentTextParts.length > 0 && this.currentPartIndex < this.currentTextParts.length)
-      ? this.displayNextPart
-      : this.selectVerse;
-    this.partTimeoutId = setTimeout(resumeCallback, this.pausedPartRemainingTime);
-    this.partTimeoutStartTime = Date.now();
-  }
-  this.isPausedByPause = false;
-},
+,
+
 
 pauseVerseDisplayByHold() {
-  if (this.isLoading || this.errorMessage || !this.currentVerseData || this.isPausedByHold) {
-    return;
-  }
+  if (this.isLoading || this.errorMessage || !this.currentVerseData || this.isPausedByHold) return;
   this.isPausedByHold = true;
-  console.log('Paused by hold');
+  this.showBottomUI = false;
+  this.showBottomInfo = false;
+
+  // Pause word animation
   if (this.wordIntervalId) {
     clearInterval(this.wordIntervalId);
-    this.wordIntervalId = null;
+    this.wordIntervalId = null; // Mark as paused by hold
   }
+
+  // Pause part auto-advance timer
   if (this.partTimeoutId) {
     const elapsedTime = Date.now() - this.partTimeoutStartTime;
     this.pausedPartRemainingTime = this.currentActivePartDuration - elapsedTime;
     if (this.pausedPartRemainingTime < 0) this.pausedPartRemainingTime = 0;
     clearTimeout(this.partTimeoutId);
     this.partTimeoutId = null;
-    console.log('Part timeout paused by hold. Remaining:', this.pausedPartRemainingTime);
   } else {
-    this.pausedPartRemainingTime = 0;
+     // If no partTimeoutId, it might be because the part was fully displayed and waiting for NEXT_VERSE_DELAY,
+    // or it was at the very beginning (word animation might be running).
+    // If currentActivePartDuration and partTimeoutStartTime are set (meaning part timer context exists), calculate remaining.
+    if (this.currentActivePartDuration > 0 && this.partTimeoutStartTime > 0) {
+        const elapsedTime = Date.now() - this.partTimeoutStartTime;
+        this.pausedPartRemainingTime = this.currentActivePartDuration - elapsedTime;
+        if (this.pausedPartRemainingTime < 0) this.pausedPartRemainingTime = 0;
+    } else {
+        // If word animation is running, the "remaining time" for the part is effectively its full duration
+        // minus whatever word animation has already shown. But for simplicity, if no part timer, assume 0.
+        this.pausedPartRemainingTime = 0; 
+    }
   }
-},
+}
 
+,
 resumeVerseDisplayFromHold() {
-  if (!this.isPausedByHold) return;
-  console.log('Resuming from hold');
-  if (this.currentPartWords && this.currentPartWords.length > 0 && this.displayedWords.length < this.currentPartWords.length) {
-    this.animateWords();
+  if (!this.isPausedByHold) return; // Already resumed or was never paused by hold
+  this.isPausedByHold = false; // CRITICAL: Set this immediately to prevent re-entry
+
+  this.showBottomUI = true;
+  this.showBottomInfo = true;
+
+  // Ensure currentPartWords is valid
+  if (this.currentVerseData && this.currentTextParts.length > 0 && this.currentPartIndex < this.currentTextParts.length) {
+    const partText = this.currentTextParts[this.currentPartIndex];
+    if (!this.currentPartWords || this.currentPartWords.length === 0) { 
+        this.currentPartWords = partText ? partText.split(' ').filter(word => word.trim() !== '') : [];
+    }
+  } else {
+    this.currentPartWords = [];
   }
-  if (this.pausedPartRemainingTime > 0) {
-    const resumeCallback = (this.currentVerseData && this.currentTextParts.length > 0 && this.currentPartIndex < this.currentTextParts.length)
-      ? this.displayNextPart
-      : this.selectVerse;
-    this.partTimeoutId = setTimeout(resumeCallback, this.pausedPartRemainingTime);
+
+  // 1. Resume word animation if it was paused mid-way
+  if (!this.wordIntervalId && this.currentPartWords.length > 0 && this.displayedWords.length < this.currentPartWords.length) {
+    this.animateWords(); // animateWords will set wordIntervalId
+  }
+
+  // 2. Resume part timer
+  if (!this.currentVerseData || this.currentTextParts.length === 0) {
+    this.pausedPartRemainingTime = 0;
+    return;
+  }
+
+  let timeoutDuration;
+  let callback;
+
+  if (this.pausedPartRemainingTime > 0) { // Timer was paused mid-way
+    timeoutDuration = this.pausedPartRemainingTime;
+    // Check if the part was the last one of the verse AND words were fully displayed
+    if (this.currentPartIndex >= this.currentTextParts.length - 1 && 
+        (this.displayedWords.length >= this.currentPartWords.length || this.currentPartWords.length === 0) ) {
+      callback = () => this.selectVerse(true);
+    } else {
+      callback = () => this.displayNextPart();
+    }
+  } else { // pausedPartRemainingTime is 0 (hold was at start/end of part, or very short)
+    if (this.currentPartIndex >= this.currentTextParts.length) { // Beyond last part (e.g. end of verse)
+      callback = () => this.selectVerse(true);
+      timeoutDuration = this.NEXT_VERSE_DELAY;
+      this.currentActivePartDuration = this.NEXT_VERSE_DELAY;
+    } else {
+      // Current part is valid.
+      // If word animation is complete for this part, or part is empty
+      if ( (this.currentPartWords.length > 0 && this.displayedWords.length >= this.currentPartWords.length) || this.currentPartWords.length === 0 ) {
+        // Part was already complete, or is empty. Schedule next action with its original full duration.
+        timeoutDuration = this.currentActivePartDuration > 0 ? this.currentActivePartDuration : this.PART_DISPLAY_DURATION;
+        if (this.currentPartIndex < this.currentTextParts.length - 1) {
+          callback = () => this.displayNextPart();
+        } else { // Last part of the verse
+          callback = () => this.selectVerse(true);
+          // If it was the last part, the duration should be NEXT_VERSE_DELAY if currentActivePartDuration was for this part.
+          // However, if currentActivePartDuration was already NEXT_VERSE_DELAY, use that.
+          if (this.currentActivePartDuration !== this.NEXT_VERSE_DELAY) {
+             // This implies the part itself had a duration, and now we are moving to next verse.
+             // The callback is selectVerse, so the timeout should be for that transition.
+             // This case is tricky. If part was complete, and it's the last, then NEXT_VERSE_DELAY.
+             timeoutDuration = this.NEXT_VERSE_DELAY;
+          }
+        }
+      } else if (this.currentPartWords.length > 0) {
+        // Part not complete, word animation is running (or will be started by animateWords above).
+        // Set the part timer for its full original duration.
+        timeoutDuration = this.currentActivePartDuration > 0 ? this.currentActivePartDuration : this.PART_DISPLAY_DURATION;
+        callback = () => this.displayNextPart();
+      }
+    }
+  }
+
+  // Also check !this.isPausedByPause because hold might be released while pause button is active
+  if (timeoutDuration > 0 && callback && this.displayMode !== 'revision' && !this.isPausedByPause) {
+    this.partTimeoutId = setTimeout(callback, timeoutDuration);
     this.partTimeoutStartTime = Date.now();
   }
-  this.isPausedByHold = false;
-},
+  this.pausedPartRemainingTime = 0; // Always consume
+}
+
+,
 
 displayCurrentPart() {
-  this.clearAnimationTimers();
+    if (this.isPausedByHold) return;
+if (this.displayMode === 'revision') {
+  this.displayedWords = [];
+  this.currentPartWords = [];
   this.correctWords = [];
   this.mistakeWords = [];
   this.unreadVerses = [];
-    this.displayedWords = [];
-    this.currentPartWords = [];
-    this.$forceUpdate();
+}
+  this.clearAnimationTimers();
 
-  if (!this.currentVerseData || this.currentPartIndex >= this.currentTextParts.length) {
-    this.displayedWords = [];
-    this.partTimeoutId = setTimeout(this.selectVerse, this.NEXT_VERSE_DELAY);
-    return;
-  }
-
-  const partText = this.currentTextParts[this.currentPartIndex];
-  this.currentPartWords = partText.split(' ').filter(word => word.trim() !== '');
+  // Always reset highlights for the new part
   this.displayedWords = [];
-  this.animateWords();
+  this.currentPartWords = [];
+  this.correctWords = [];
+  this.mistakeWords = [];
+  this.unreadVerses = [];
+    this.correctWords = [];
+  this.mistakeWords = [];
+  this.unreadVerses = [];
+  this.displayedWords = [];
+  this.currentPartWords = [];
 
-  let currentPartDuration = this.PART_DISPLAY_DURATION;
-  if (this.currentPartWords.length < (this.WORDS_PER_PART * 0.8) && this.WORDS_PER_PART > 0) {
-    const proportion = this.currentPartWords.length / this.WORDS_PER_PART;
-    currentPartDuration = Math.max(proportion * this.PART_DISPLAY_DURATION, (this.currentPartWords.length * this.WORD_ANIMATION_INTERVAL) + 1000);
-  }
-  const minDurationForAnimation = (this.currentPartWords.length * this.WORD_ANIMATION_INTERVAL) + 1000;
-  currentPartDuration = Math.max(currentPartDuration, minDurationForAnimation);
+  this.$nextTick(() => {
+    if (!this.currentVerseData || this.currentTextParts.length === 0 || this.currentPartIndex >= this.currentTextParts.length) {
+      if (this.displayMode !== 'revision' && !this.isPausedByPause) {
+          this.correctWords = [];
+  this.mistakeWords = [];
+  this.unreadVerses = [];
+  this.displayedWords = [];
+  this.currentPartWords = [];
+        this.partTimeoutId = setTimeout(() => this.selectVerse(true), this.NEXT_VERSE_DELAY);
+          this.correctWords = [];
+  this.mistakeWords = [];
+  this.unreadVerses = [];
+  this.displayedWords = [];
+  this.currentPartWords = [];
+      }
+      return;
+    }
 
-  this.currentActivePartDuration = currentPartDuration;
-  this.partTimeoutStartTime = Date.now();
-  this.partTimeoutId = setTimeout(this.displayNextPart, currentPartDuration);
+    const partText = this.currentTextParts[this.currentPartIndex];
+    if (!partText || partText.trim() === '') {
+      if (this.displayMode !== 'revision' && !this.isPausedByPause) {
+        this.displayNextPart();
+      }
+      return;
+    }
+
+    this.currentPartWords = partText.split(' ').filter(word => word.trim() !== '');
+
+    // Set all as unread for the new part
+    this.unreadVerses = Array.from({ length: this.currentPartWords.length }, (_, i) => i);
+
+    this.animateWords();
+
+    // Calculate duration for this part
+    let currentPartDuration = this.currentAudio && this.currentAudio.duration 
+      ? this.currentAudio.duration * 1000 
+      : this.PART_DISPLAY_DURATION;
+
+    if (this.currentPartWords.length < (this.WORDS_PER_PART * 0.8) && this.WORDS_PER_PART > 0 && !this.currentAudio) {
+      const proportion = this.currentPartWords.length / this.WORDS_PER_PART;
+      currentPartDuration = Math.max(
+        proportion * this.PART_DISPLAY_DURATION,
+        (this.currentPartWords.length * this.WORD_ANIMATION_INTERVAL) + 1000
+      );
+    }
+    const minDurationForAnimation = (this.currentPartWords.length * this.WORD_ANIMATION_INTERVAL) + 1000;
+    currentPartDuration = Math.max(currentPartDuration, minDurationForAnimation);
+
+    this.currentActivePartDuration = currentPartDuration;
+    this.partTimeoutStartTime = Date.now();
+
+    // Schedule next part/verse *only if not paused by the pause button*
+    if (this.displayMode !== 'revision' && !this.isPausedByPause) {
+      this.partTimeoutId = setTimeout(() => this.displayNextPart(), currentPartDuration);
+    }
+      this.mistakeWords = [];
+  this.unreadVerses = [];
+  this.displayedWords = [];
+  });
 },
 
 handleAppTouchStart(event) {
   // Skip if touching inputs, buttons, or overlays
+ // Prevent hold if overlays are open
   if (
+    this.showLoopsMenu ||
+    this.showSearchOverlay ||
+    this.showVoiceSearchOverlay ||
     event.target.closest('input') ||
     event.target.closest('button') ||
     event.target.closest('.control-buttons-container') ||
@@ -3176,8 +3628,6 @@ handleAppTouchStart(event) {
   ) {
     return;
   }
-
-  // Only preventDefault if NOT in full-surah mode
   if (this.displayMode !== 'full-surah') {
     event.preventDefault();
   }
@@ -3192,17 +3642,24 @@ handleAppTouchStart(event) {
   }
   if (!this.isPausedByHold) {
     this.holdStartTimeoutId = setTimeout(() => {
-      if (this.isHoldingGlobal && !this.hasSwiped) {
+      if (
+        this.isHoldingGlobal &&
+        !this.hasSwiped &&
+        !this.showLoopsMenu &&
+        !this.showSearchOverlay &&
+        !this.showVoiceSearchOverlay
+      ) {
         this.pauseVerseDisplayByHold();
       }
     }, this.HOLD_THRESHOLD);
   }
-  console.log('Touch start at x:', this.touchStartX, 'y:', this.touchStartY, 'time:', this.touchStartTime);
 },
 
 handleAppMouseDown(event) {
-  // Skip if clicking on inputs, buttons, or overlays
   if (
+    this.showLoopsMenu ||
+    this.showSearchOverlay ||
+    this.showVoiceSearchOverlay ||
     event.target.closest('input') ||
     event.target.closest('button') ||
     event.target.closest('.control-buttons-container') ||
@@ -3211,143 +3668,101 @@ handleAppMouseDown(event) {
   ) {
     return;
   }
-
-  // Only preventDefault if NOT in full-surah mode
   if (this.displayMode !== 'full-surah') {
     event.preventDefault();
   }
+      this.showLanguageMenu = false;
 
   this.isHoldingGlobal = true;
   clearTimeout(this.holdStartTimeoutId);
-  if (!this.isPausedByHold) {
-    this.holdStartTimeoutId = setTimeout(() => {
-      if (this.isHoldingGlobal && !this.hasSwiped) {
+  if (!this.isPausedByHold) { // Only set up a new hold if not already in a hold-paused state
+    this.holdStartTimeoutId = setTimeout(() => { // Timer to initiate the hold
+      if (
+        this.isHoldingGlobal && // Still holding down
+        !this.hasSwiped &&
+        !this.showLoopsMenu &&
+        !this.showSearchOverlay && // Check overlays again
+        !this.showVoiceSearchOverlay
+      ) {
         this.pauseVerseDisplayByHold();
       }
     }, this.HOLD_THRESHOLD);
   }
-  console.log('Mouse down at x:', event.clientX);
-},
-handleAppMouseUp(event) {
-  if (this.showNotesOverlay) {
-  return;
 }
-    const isControlButtonClick =
+,
+handleAppMouseUp(event) {
+  // 1. Handle specific overlay/UI element interactions that might consume the event
+  // or where navigation is not intended.
+  if (this.showNotesOverlay && this.$refs.notesTextarea && this.$refs.notesTextarea.contains(event.target)) {
+    // Allow interaction with textarea within notes overlay, don't proceed to navigation.
+  } else if (this.showNotesOverlay || this.showLoopsMenu || this.showSearchOverlay || this.showVoiceSearchOverlay || this.showSurahVerseMenu || this.showHighlightMenu || this.showHighlightContextMenu) {
+    clearTimeout(this.holdStartTimeoutId);
+    this.isHoldingGlobal = false; // Reset hold state if an overlay was interacted with
+    return;
+  }
+
+  const isInteractiveElementClick =
     event.target.closest('button') ||
     event.target.closest('.control-buttons-container') ||
-    event.target.closest('.notes-overlay') ||
-    event.target.closest('.loops-overlay') ||
+    event.target.closest('.notes-overlay .notes-container button') || // More specific for buttons inside notes
+    event.target.closest('.loops-overlay .loops-container') || // Interaction with loop menu content
     event.target.closest('.highlight-menu') ||
     event.target.closest('.highlight-context-menu') ||
-    event.target.closest('.search-overlay') ||
-    event.target.closest('.voice-search-overlay') ||
-    event.target.closest('.surah-verse-overlay');
+    event.target.closest('.search-overlay .search-container') || // Interaction with search content
+    event.target.closest('.voice-search-overlay .voice-search-container') || // Interaction with voice search content
+    event.target.closest('.surah-verse-overlay .surah-verse-container'); // Interaction with surah/verse select content
 
+  // 2. Clear the timer that *starts* the hold, as mouse is now up.
   clearTimeout(this.holdStartTimeoutId);
 
-  // Prevent navigation if clicking on any button or overlay
-  if (isControlButtonClick) {
+  // 3. If isPausedByHold is true, this mouseup is the release of the hold.
+  if (this.isPausedByHold) { // Check this first. hasSwiped and isInteractiveElementClick are less relevant if already paused by hold.
+    this.resumeVerseDisplayFromHold();
+    // isPausedByHold is reset inside resumeVerseDisplayFromHold.
     this.isHoldingGlobal = false;
+    return;
+  }
+
+  // 4. Else (normal click, not a release from an active hold-pause state)
+  if (isInteractiveElementClick) {
+    this.isHoldingGlobal = false; // Click was on a UI element, not for navigation
     return;
   }
 
   if (this.displayMode === 'full-surah') {
-    const clickX = event.clientX;
-    const screenWidth = window.innerWidth;
-    if (clickX > screenWidth / 2) {
-      // Right side: next surah
-      if (this.currentSurahData && this.currentSurahData.id < 114) {
-        this.selectedSurah = this.currentSurahData.id + 1;
-        this.loadSurahVerses(this.selectedSurah);
-      }
-    } else {
-      // Left side: previous surah
-      if (this.currentSurahData && this.currentSurahData.id > 1) {
-        this.selectedSurah = this.currentSurahData.id - 1;
-        this.loadSurahVerses(this.selectedSurah);
-      }
-    }
-    this.isHoldingGlobal = false;
+    this.isHoldingGlobal = false; // No click navigation in full-surah
     return;
   }
-    // If in full-surah mode, don't do any verse/part navigation from global clicks
-if (this.displayMode === 'full-surah') {
-  const clickX = event.clientX;
-  const screenWidth = window.innerWidth;
-  if (clickX > screenWidth / 2) {
-    // Right side: next surah
-    if (this.currentSurahData && this.currentSurahData.id < 114) {
-      this.selectedSurah = this.currentSurahData.id + 1;
-      this.loadSurahVerses(this.selectedSurah);
-    }
-  } else {
-    // Left side: previous surah
-    if (this.currentSurahData && this.currentSurahData.id > 1) {
-      this.selectedSurah = this.currentSurahData.id - 1;
-      this.loadSurahVerses(this.selectedSurah);
-    }
-  }
-  this.isHoldingGlobal = false;
-  return;
-}
 
+  // At this point, it's a click on the main content area for navigation
+  // (and not a release from hold-to-pause, and not on an interactive UI element)
+  // isHoldingGlobal means mousedown happened on app container and wasn't a hold that got paused.
+  if (this.isHoldingGlobal && !this.hasSwiped) { 
+    if (this.displayMode === 'verse' || this.displayMode === 'tafseer') {
+      const clickX = event.clientX;
+      const screenWidth = window.innerWidth;
 
-if (this.displayMode === 'verse') {
-  const x = event.clientX || (event.changedTouches && event.changedTouches[0].clientX);
-  const screenWidth = window.innerWidth;
-  const isArabic = this.currentLanguage === 'ar';
-
-  // For Arabic: right side = previous, left side = next
-  // For non-Arabic: right side = next, left side = previous
-  if (( x > screenWidth / 2)) {
-    // Next part/verse
-    if (this.currentPartIndex < this.currentTextParts.length - 1) {
-      this.displayNextPart();
-    } else {
-      this.selectVerse(true);
-    }
-  } else {
-    // Previous part/verse
-    if (this.currentPartIndex > 0) {
-      this.displayPreviousPart();
-    } else {
-      this.displayPreviousVerse();
+      if (clickX > screenWidth / 2) { 
+        if (this.currentPartIndex < this.currentTextParts.length - 1) {
+          this.displayNextPart();
+        } else {
+          this.selectVerse(true);
+        }
+      } else {
+        if (this.currentPartIndex > 0) {
+          this.displayPreviousPart();
+        } else {
+          this.displayPreviousVerse();
+        }
+      }
     }
   }
-  this.isHoldingGlobal = false;
-  return;
-}
 
-
-  if (this.isHoldingGlobal && !isControlButtonClick) {
-    if (this.isPausedByPause) {
-      console.log('Resuming from pause due to UI click');
-      this.resumeVerseDisplayFromPause();
-    }
-    const clickX = event.clientX;
-    const screenWidth = window.innerWidth;
-    const isArabic = this.currentLanguage === 'ar';
-if ((clickX > screenWidth / 2)) {
-  if (this.currentPartIndex < this.currentTextParts.length - 1) {
-    console.log('Mouse up - Next part');
-    this.displayNextPart();
-  } else {
-    console.log('Mouse up - Next verse');
-    this.selectVerse(true);
-  }
-} else {
-  if (this.currentPartIndex > 0) {
-    console.log('Mouse up - Previous part');
-    this.displayPreviousPart();
-  } else {
-    console.log('Mouse up - Previous verse');
-    this.displayPreviousVerse();
-  }
-}
-  }
+  // 5. Reset interaction state
   this.isHoldingGlobal = false;
   console.log('Mouse up at x:', event.clientX);
-},
+}
+,
 // Save last viewed verse and surah to localStorage
 saveLastViewed() {
   if (this.currentVerseData) {
@@ -3361,22 +3776,33 @@ saveLastViewed() {
   }
 },
 handleAppTouchEnd(event) {
+  // 1. Handle specific overlay/UI element interactions
+  if (this.showNotesOverlay && this.$refs.notesTextarea && this.$refs.notesTextarea.contains(event.target)) {
+    // Allow interaction
+  } else if (this.showNotesOverlay || this.showLoopsMenu || this.showSearchOverlay || this.showVoiceSearchOverlay || this.showSurahVerseMenu || this.showHighlightMenu || this.showHighlightContextMenu) {
+    clearTimeout(this.holdStartTimeoutId);
+    this.isHoldingGlobal = false;
+    this.touchStartX = null; this.touchStartY = null; this.touchStartTime = null; this.hasSwiped = false;
+    return;
+  }
 
-  const isControlButtonTouch =
+  const isInteractiveElementTouch =
     event.target.closest('button') ||
     event.target.closest('.control-buttons-container') ||
-    event.target.closest('.notes-overlay') ||
-    event.target.closest('.loops-overlay') ||
+    event.target.closest('.notes-overlay .notes-container button') ||
+    event.target.closest('.loops-overlay .loops-container') ||
     event.target.closest('.highlight-menu') ||
     event.target.closest('.highlight-context-menu') ||
-    event.target.closest('.search-overlay') ||
-    event.target.closest('.voice-search-overlay') ||
-    event.target.closest('.surah-verse-overlay');
+    event.target.closest('.search-overlay .search-container') ||
+    event.target.closest('.voice-search-overlay .voice-search-container') ||
+    event.target.closest('.surah-verse-overlay .surah-verse-container');
 
+  // 2. Clear the timer that *starts* the hold, as touch has ended.
   clearTimeout(this.holdStartTimeoutId);
 
-  // Prevent navigation if tapping on any button or overlay
-  if (isControlButtonTouch) {
+  // 3. If isPausedByHold is true, this touchend is the release of the hold.
+  if (this.isPausedByHold) { // Check this first.
+    this.resumeVerseDisplayFromHold();
     this.isHoldingGlobal = false;
     this.touchStartX = null;
     this.touchStartY = null;
@@ -3385,153 +3811,107 @@ handleAppTouchEnd(event) {
     return;
   }
 
-  // Full-surah navigation for mobile
+  // 4. Else (normal tap, not a release from an active hold-pause state)
+  if (isInteractiveElementTouch) {
+    this.isHoldingGlobal = false;
+    this.touchStartX = null; this.touchStartY = null; this.touchStartTime = null; this.hasSwiped = false;
+    return;
+  }
+
   if (this.displayMode === 'full-surah') {
     if (this.wasScrolling) {
-      // Don't navigate if user was scrolling
-      this.isHoldingGlobal = false;
-      this.touchStartX = null;
-      this.touchStartY = null;
-      this.touchStartTime = null;
-      this.hasSwiped = false;
       this.wasScrolling = false;
+      this.isHoldingGlobal = false;
+      this.touchStartX = null; this.touchStartY = null; this.touchStartTime = null; this.hasSwiped = false;
       return;
     }
-    if (event.changedTouches && event.changedTouches.length > 0) {
-      const touchX = event.changedTouches[0].clientX;
-      const screenWidth = window.innerWidth;
-      if (touchX > screenWidth / 2) {
-        // Right side: next surah
-        if (this.currentSurahData && this.currentSurahData.id < 114) {
-          this.selectedSurah = this.currentSurahData.id + 1;
-          this.loadSurahVerses(this.selectedSurah);
-        }
-      } else {
-        // Left side: previous surah
-        if (this.currentSurahData && this.currentSurahData.id > 1) {
-          this.selectedSurah = this.currentSurahData.id - 1;
-          this.loadSurahVerses(this.selectedSurah);
-        }
-      }
-    }
     this.isHoldingGlobal = false;
-    this.touchStartX = null;
-    this.touchStartY = null;
-    this.touchStartTime = null;
-    this.hasSwiped = false;
-        this.wasScrolling = false;
-
+    this.touchStartX = null; this.touchStartY = null; this.touchStartTime = null; this.hasSwiped = false;
     return;
   }
-  if (this.isPausedByHold && !this.hasSwiped) {
-    if (!isControlButtonTouch) {
-      this.resumeVerseDisplayFromHold();
-    }
-    this.isHoldingGlobal = false;
-    this.touchStartX = null;
-    this.touchStartY = null;
-    this.touchStartTime = null;
-    this.hasSwiped = false;
-    return;
-  }
-  if (this.isHoldingGlobal && !isControlButtonTouch && this.touchStartTime !== null && !this.hasSwiped) { // Check touchStartTime instead of touchStartY
-    if (this.isPausedByPause) {
-      console.log('Resuming from pause due to UI tap');
-      this.resumeVerseDisplayFromPause();
-    }
+  // isHoldingGlobal means touchstart happened on app container and wasn't a hold that got paused.
+  if (this.isHoldingGlobal && this.touchStartTime !== null && !this.hasSwiped) { 
     if (event.changedTouches.length > 0) {
       const touchX = event.changedTouches[0].clientX;
       const screenWidth = window.innerWidth;
       const isArabic = this.currentLanguage === 'ar';
       const currentTime = Date.now();
       const isDoubleTap = currentTime - this.lastTapTime < this.DOUBLE_TAP_THRESHOLD;
-      const rightSideTapped = (touchX > screenWidth / 2 && !isArabic) || (touchX <= screenWidth / 2 && isArabic);
+      
+      // Determine if action is "next" or "previous" based on tap side and language
+      let actionIsNext = false;
+      let actionIsPrevious = false;
+      if (isArabic) { // RTL
+        if (touchX >= screenWidth / 2) actionIsNext = true; // Left side for next
+        else actionIsPrevious = false; // Right side for previous
+      } else { // LTR
+        if (touchX < screenWidth / 2) actionIsNext = true; // Right side for next
+        else actionIsPrevious = true; // Left side for previous
+      }
 
       if (this.displayMode === 'tafseer') {
         if (isDoubleTap) {
-          if (rightSideTapped) {
-            console.log('Double tap - Next Surah');
-            this.selectVerse(true);
-            this.loadTafseer();
-          } else {
-            console.log('Double tap - Previous Surah');
-            this.displayPreviousVerse();
-            this.loadTafseer();
+          if (actionIsNext) {
+            this.selectVerse(true); this.loadTafseer();
+          } else if (actionIsPrevious) {
+            this.displayPreviousVerse(); this.loadTafseer();
           }
         } else {
-          if (rightSideTapped) {
-            console.log('Single tap - Next Tafseer part');
-            this.displayNextPart(); // Corrected
-          } else {
-            console.log('Single tap - Previous Tafseer part');
-            this.displayPreviousPart(); // Corrected
-          }
+          if (actionIsNext) this.displayNextPart();
+          else if (actionIsPrevious) this.displayPreviousPart();
         }
-      } else if (this.displayMode === 'hifz') {
+      } else if (this.displayMode === 'Hifdh') {
         if (!this.isSelectingWords) {
-          if (rightSideTapped) {
-            console.log('Tap - Next Hifz verse');
-            this.selectNextHifzVerse(); // Corrected
-          } else {
-            console.log('Tap - Previous Hifz verse');
-            this.displayPreviousVerse(); // Corrected
-          }
+          if (actionIsNext) this.selectNextHifdhVerse();
+          else if (actionIsPrevious) this.displayPreviousVerse();
         }
       } else if (this.displayMode === 'verse') {
-        if (rightSideTapped) {
-          if (this.currentPartIndex < this.currentTextParts.length - 1) {
-            console.log('Tap - Next part');
-            this.displayNextPart();
-          } else {
-            console.log('Tap - Next verse');
-            this.selectVerse(true);
-          }
-        } else {
-          if (this.currentPartIndex > 0) {
-            console.log('Tap - Previous part');
-            this.displayPreviousPart();
-          } else {
-            console.log('Tap - Previous verse');
-            this.displayPreviousVerse();
-          }
+        if (actionIsNext) {
+          if (this.currentPartIndex < this.currentTextParts.length - 1) this.displayNextPart();
+          else this.selectVerse(true);
+        } else if (actionIsPrevious) {
+          if (this.currentPartIndex > 0) this.displayPreviousPart();
+          else this.displayPreviousVerse();
         }
       }
-
       this.lastTapTime = currentTime;
     }
   }
+
+  // 5. Reset interaction state
   this.isHoldingGlobal = false;
   this.touchStartX = null;
   this.touchStartY = null;
   this.touchStartTime = null;
   this.hasSwiped = false;
-},
+}
+,
 
 
-async enterHifzMode() { // Make async
+async enterHifdhMode() { // Make async
   this.isPausedByPause = false;
   this.isPausedByHold = false;
   this.currentLoopIteration = 0; // Reset loop iteration
-  this.updateHifzVerseQueue();
+  this.updateHifdhVerseQueue();
 
-  if (this.hifzVerseQueue.length > 0) {
-    this.currentVerseData = { ...this.hifzVerseQueue[0] };
-    this.hifzCurrentVerseIndex = 0;
+  if (this.HifdhVerseQueue.length > 0) {
+    this.currentVerseData = { ...this.HifdhVerseQueue[0] };
+    this.HifdhCurrentVerseIndex = 0;
   } else if (!this.currentVerseData && this.allVerses.length > 0) {
-    // Fallback if queue is empty and no current verse (e.g. first time entering hifz)
+    // Fallback if queue is empty and no current verse (e.g. first time entering Hifdh)
     this.currentVerseData = { ...this.allVerses[0] };
-    this.updateHifzVerseQueue(); // Try to build queue again
-    if (this.hifzVerseQueue.length > 0) {
-        this.currentVerseData = { ...this.hifzVerseQueue[0] };
-        this.hifzCurrentVerseIndex = 0;
+    this.updateHifdhVerseQueue(); // Try to build queue again
+    if (this.HifdhVerseQueue.length > 0) {
+        this.currentVerseData = { ...this.HifdhVerseQueue[0] };
+        this.HifdhCurrentVerseIndex = 0;
     } else {
         this.displayMode = 'verse';
-        this.errorMessage = "Could not start Hifz mode.";
+        this.errorMessage = "Could not start Hifdh mode.";
         return;
     }
   } else if (!this.currentVerseData) {
       this.displayMode = 'verse';
-      this.errorMessage = "No verses loaded to start Hifz mode.";
+      this.errorMessage = "No verses loaded to start Hifdh mode.";
       return;
   }
 
@@ -3548,7 +3928,7 @@ async enterHifzMode() { // Make async
   this.displayCurrentPart();
 },
 
-updateHifzVerseQueue() {
+updateHifdhVerseQueue() {
   if (!this.currentVerseData) return;
   const currentSurah = this.currentVerseData.surah;
   const currentVerseNum = this.currentVerseData.verse;
@@ -3557,7 +3937,7 @@ updateHifzVerseQueue() {
   let surah = currentSurah;
   let verseNum = currentVerseNum;
 
-  while (verseCount < this.hifzLoopCount && surah <= 114) {
+  while (verseCount < this.HifdhLoopCount && surah <= 114) {
     const verse = this.allVerses.find(v => v.surah === surah && v.verse === verseNum);
     if (verse) {
       versesInRange.push(verse);
@@ -3571,19 +3951,29 @@ updateHifzVerseQueue() {
     }
   }
 
-  this.hifzVerseQueue = versesInRange;
-  this.hifzCurrentVerseIndex = 0;
+  this.HifdhVerseQueue = versesInRange;
+  this.HifdhCurrentVerseIndex = 0;
 },
-  exitHifzMode() {
-    this.displayMode = 'verse';
-    this.selectVerse();
-  },
+processArabicText(text) {
+  // Remove non-Arabic chars and all Quranic symbols (Waqf, Sajda, Rub el Hizb, etc.)
+  return (text || '')
+    .replace(/[\u0615\u06D6-\u06ED\u06DD\u06DE\u06E9]/g, '') // Remove all Quranic marks
+    .replace(/[^\u0600-\u06FF\s]/g, '') // Remove non-Arabic chars
+    .replace(/\s+/g, ' ') // Normalize spaces
+    .trim();
+},
+closeFassarli() { this.fassarliMode = false; this.exit()},
+exit() {
+  this.displayMode = 'verse';
+  this.isRevisionMode = false;
+  this.stopSpeechRecognition && this.stopSpeechRecognition();
+},
   toggleNotesOverlay() {
     this.showNotesOverlay = !this.showNotesOverlay;
     if (this.showNotesOverlay) {
       // Determine which verse's note to load
       let verseUuidForNote = this.activeVerseUuidForNotes; // Prioritize if set by openVerseNote
-      if (!verseUuidForNote && this.currentVerseData && this.displayMode === 'hifz') { // Fallback for Hifz mode button
+      if (!verseUuidForNote && this.currentVerseData && this.displayMode === 'Hifdh') { // Fallback for Hifdh mode button
         verseUuidForNote = this.currentVerseData.uuid;
       }
       
@@ -3667,17 +4057,17 @@ getCurrentLoopVerses() {
 },
 getLoopEndVerse(startVerse) {
   let current = { ...startVerse };
-  for (let i = 0; i < this.hifzLoopRange - 1 && current; i++) {
+  for (let i = 0; i < this.HifdhLoopRange - 1 && current; i++) {
     current = this.getNextVerse(current);
   }
   return current || startVerse;
 },
 toggleComplete() {
   return current || startVerse; 
-  return this.hifzVerseQueue; // The current hifzVerseQueue is the loop
+  return this.HifdhVerseQueue; // The current HifdhVerseQueue is the loop
 },
 async toggleComplete() {
-  if (!this.currentVerseData || this.displayMode !== 'hifz') return;
+  if (!this.currentVerseData || this.displayMode !== 'Hifdh') return;
   const verseUuid = this.currentVerseData.uuid; // Declare verseUuid once
   const currentCompletionStatus = this.completions[verseUuid] || false;
   const newCompletionStatus = !currentCompletionStatus;
@@ -3686,21 +4076,22 @@ async toggleComplete() {
   this.isVerseCompleted = newCompletionStatus; // Directly update for immediate UI feedback
   this.saveVerseCompletion(); // Save this individual verse's completion
 
-  // Check if all verses in the current hifzVerseQueue are now complete
-  if (this.hifzVerseQueue.length > 0) {
-    const allInQueueComplete = this.hifzVerseQueue.every(verseInQueue => {
+  // Check if all verses in the current HifdhVerseQueue are now complete
+  if (this.HifdhVerseQueue.length > 0) {
+    const allInQueueComplete = this.HifdhVerseQueue.every(verseInQueue => {
       return this.completions[verseInQueue.uuid] === true;
     });
 
-    if (allInQueueComplete) {
-      console.log("All verses in the current Hifz queue are complete. Advancing to the next block.");
-      const lastVerseInCurrentQueue = this.hifzVerseQueue[this.hifzVerseQueue.length - 1];
+
+    if (allInQueueComplete || atLeastOneComplete) {
+      console.log("All verses in the current Hifdh queue are complete. Advancing to the next block.");
+      const lastVerseInCurrentQueue = this.HifdhVerseQueue[this.HifdhVerseQueue.length - 1];
       const nextVerseAfterQueue = this.getNextVerse(lastVerseInCurrentQueue);
 
       if (nextVerseAfterQueue) {
         this.currentVerseData = { ...nextVerseAfterQueue }; // Set the new current verse
-        this.updateHifzVerseQueue(); // This will rebuild hifzVerseQueue starting from new currentVerseData
-        this.hifzCurrentVerseIndex = 0; // Start at the beginning of the new queue
+        this.updateHifdhVerseQueue(); // This will rebuild HifdhVerseQueue starting from new currentVerseData
+        this.HifdhCurrentVerseIndex = 0; // Start at the beginning of the new queue
         this.currentLoopIteration = 0; // Reset loop repetitions for the new queue
 
         // Load data for the new current verse
@@ -3716,9 +4107,9 @@ async toggleComplete() {
         this.clearAnimationTimers();
         this.displayCurrentPart();      } else {
         // End of Quran or no next verse found
-        this.hifzVerseQueue = [];
-        this.displayMode = 'verse'; // Exit Hifz mode
-        this.errorMessage = this.getLocalizedErrorMessage('hifzComplete');
+        this.HifdhVerseQueue = [];
+        this.displayMode = 'verse'; // Exit Hifdh mode
+        this.errorMessage = this.getLocalizedErrorMessage('HifdhComplete');
         // Optionally, navigate to the beginning of the Quran or show a specific completion screen
         // this.selectVerse(false); 
       }
@@ -3727,10 +4118,10 @@ async toggleComplete() {
 
 },
   startCompleteHold(event) {
-        if (this.displayMode !== 'hifz') return;
+        if (this.displayMode !== 'Hifdh') return;
 
     this.completeHoldTimeout = setTimeout(() => {
-      if (this.displayMode === 'hifz') {
+      if (this.displayMode === 'Hifdh') {
         this.completeCurrentLoop();
       }
     }, 1000);
@@ -3775,17 +4166,17 @@ async loadVerseCompletion(verseUuid) {
   }
 },
 async completeCurrentLoop() { // Make async
-  if (!this.currentVerseData || this.hifzVerseQueue.length === 0) return;
+  if (!this.currentVerseData || this.HifdhVerseQueue.length === 0) return;
   this.currentLoopIteration++;
-  if (this.currentLoopIteration >= this.hifzLoopCount) {
+  if (this.currentLoopIteration >= this.HifdhLoopCount) {
     // Move to the next verse after the current queue
-    const lastVerse = this.hifzVerseQueue[this.hifzVerseQueue.length - 1];
+    const lastVerse = this.HifdhVerseQueue[this.HifdhVerseQueue.length - 1];
     const nextVerse = this.getNextVerse(lastVerse);
     if (nextVerse) {
       this.currentVerseData = { ...nextVerse };
-      this.updateHifzVerseQueue(); // Rebuild queue starting from next verse
+      this.updateHifdhVerseQueue(); // Rebuild queue starting from next verse
       this.currentLoopIteration = 0;
-   this.hifzCurrentVerseIndex = 0; // Reset index for the new queue
+   this.HifdhCurrentVerseIndex = 0; // Reset index for the new queue
 
       // Load data for the new current verse
       if (this.currentVerseData && this.currentVerseData.uuid) {
@@ -3801,13 +4192,13 @@ async completeCurrentLoop() { // Make async
       this.displayCurrentPart();
      } else {
       // End of Quran, reset to start or show completion
-      this.hifzVerseQueue = [];
+      this.HifdhVerseQueue = [];
       this.displayMode = 'verse';
-      this.errorMessage = this.getLocalizedErrorMessage('hifzComplete');
+      this.errorMessage = this.getLocalizedErrorMessage('HifdhComplete');
     }
   } else {
     // Repetitions not yet complete, just move to the next verse in the current queue.
-    await this.selectNextHifzVerse();
+    await this.selectNextHifdhVerse();
   }
   // Removed saveVerseCompletion() from here as completion status is managed by toggleComplete.
   // completeCurrentLoop is about repetition tracking and advancing the queue based on that.
@@ -3832,24 +4223,35 @@ getNextVerse(current) {
   startLoopSwipe(event) {
     this.loopSwipeStartY = event.changedTouches[0].clientY;
   },
-  handleLoopSwipe(event) {
-    const currentY = event.changedTouches[0].clientY;
-    const deltaY = this.loopSwipeStartY - currentY;
-    if (Math.abs(deltaY) > 20) {
-      const increment = deltaY > 0 ? 1 : -1;
-      this.hifzLoopCount = Math.max(0, Math.min(100, this.hifzLoopCount + increment));
-      this.loopSwipeStartY = currentY;
-      // Vibrate on change
-      if (navigator.vibrate) navigator.vibrate(50);
+handleLoopSwipe(event) {
+  const currentY = event.changedTouches[0].clientY;
+  const deltaY = this.loopSwipeStartY - currentY;
+  if (Math.abs(deltaY) > 20) {
+    const increment = deltaY > 0 ? 1 : -1;
+    this.HifdhLoopCount = Math.max(1, Math.min(100, this.HifdhLoopCount + increment));
+    this.loopSwipeStartY = currentY;
+    // Vibrate on change
+    if (navigator.vibrate) navigator.vibrate(50);
+    // Immediately update the queue and reset index
+    this.updateHifdhVerseQueue();
+    this.HifdhCurrentVerseIndex = 0;
+    if (this.HifdhVerseQueue.length > 0) {
+      this.currentVerseData = { ...this.HifdhVerseQueue[0] };
+      this.currentTextParts = this.segmentText(this.currentVerseData.text);
+      this.currentPartIndex = 0;
+      this.displayedWords = [];
+      this.clearAnimationTimers();
+      this.displayCurrentPart();
     }
-  },
+  }
+},
   endLoopSwipe() {
     this.loopSwipeStartY = null;
   },
-async selectNextHifzVerse() { // Make async
-  if (this.hifzVerseQueue.length === 0) return;
-  this.hifzCurrentVerseIndex = (this.hifzCurrentVerseIndex + 1) % this.hifzVerseQueue.length;
-  this.currentVerseData = { ...this.hifzVerseQueue[this.hifzCurrentVerseIndex] };
+async selectNextHifdhVerse() { // Make async
+  if (this.HifdhVerseQueue.length === 0) return;
+  this.HifdhCurrentVerseIndex = (this.HifdhCurrentVerseIndex + 1) % this.HifdhVerseQueue.length;
+  this.currentVerseData = { ...this.HifdhVerseQueue[this.HifdhCurrentVerseIndex] };
 
   if (this.currentVerseData && this.currentVerseData.uuid) { // Load data for new verse
       await this.loadVerseNote(this.currentVerseData.uuid);
@@ -3879,11 +4281,11 @@ async selectNextHifzVerse() { // Make async
 },
 
 async displayPreviousVerse() {
-  if (this.displayMode === 'hifz') {
-    // ... your hifz logic (unchanged) ...
-    if (this.hifzVerseQueue.length === 0) return;
-    this.hifzCurrentVerseIndex = (this.hifzCurrentVerseIndex - 1 + this.hifzVerseQueue.length) % this.hifzVerseQueue.length;
-    this.currentVerseData = { ...this.hifzVerseQueue[this.hifzCurrentVerseIndex] };
+  if (this.displayMode === 'Hifdh') {
+    // ... your Hifdh logic (unchanged) ...
+    if (this.HifdhVerseQueue.length === 0) return;
+    this.HifdhCurrentVerseIndex = (this.HifdhCurrentVerseIndex - 1 + this.HifdhVerseQueue.length) % this.HifdhVerseQueue.length;
+    this.currentVerseData = { ...this.HifdhVerseQueue[this.HifdhCurrentVerseIndex] };
     if (this.currentVerseData && this.currentVerseData.uuid) {
       await this.loadVerseNote(this.currentVerseData.uuid);
       await this.loadVerseCompletion(this.currentVerseData.uuid);
@@ -3895,7 +4297,7 @@ this.displayedWords = [];
 this.clearAnimationTimers();
 this.displayCurrentPart();
   } else {
-    // NON-HIFZ MODE (e.g., Verse, Tafseer)
+    // NON-Hifdh MODE (e.g., Verse, Tafseer)
     if (!this.currentVerseData || !this.allVerses || this.allVerses.length === 0) return;
     let prevVerse = null;
     if (this.currentVerseData.verse > 1) {
@@ -3928,62 +4330,53 @@ this.displayCurrentPart();
   }
 },
 
+
+
 handleAppTouchMove(event) {
-if (this.displayMode === 'full-surah') {
-    // Only trigger swipe down if at top of scroll
+  if (this.showLoopsMenu || this.showSearchOverlay || this.showVoiceSearchOverlay) {
+  this.isHoldingGlobal = false;
+  this.touchStartX = null;
+  this.touchStartY = null;
+  this.touchStartTime = null;
+  this.hasSwiped = false;
+  return;
+}
+ if (this.displayMode === 'full-surah' && !this.highlightMode) {
     const container = this.$refs.versesContainer;
-    if (container && container.scrollTop === 0) {
-      const touchY = event.changedTouches[0].clientY;
-      const deltaY = touchY - this.touchStartY;
-      if (deltaY > this.SWIPE_THRESHOLD) {
-        this.showSearchOverlay = true;
-        this.focusSearchInput();
+    if (!container) return;
+    if (event.changedTouches.length > 0) {
+      const touchX = event.changedTouches[0].clientX;
+      const deltaX = touchX - this.touchStartX;
+      const absDeltaX = Math.abs(deltaX);
+      const deltaY = event.changedTouches[0].clientY - this.touchStartY;
+      // Only trigger if horizontal swipe is dominant and > 60px
+      if (absDeltaX > 60 && absDeltaX > Math.abs(deltaY)) {
+        if (this.hasSwiped) return;
         this.hasSwiped = true;
+        if (deltaX > 0) {
+          // Swipe right: Next Surah
+          const currentIndex = this.SURAH_DATA.findIndex(s => s.id === this.currentSurahData.id);
+          if (currentIndex < this.SURAH_DATA.length - 1) {
+            const nextSurahId = this.SURAH_DATA[currentIndex + 1].id;
+            this.loadSurahVerses(nextSurahId);
+            this.selectedSurah = nextSurahId;
+            this.$nextTick(() => this.scrollToTop());
+          }
+        } else {
+          // Swipe left: Previous Surah
+          const currentIndex = this.SURAH_DATA.findIndex(s => s.id === this.currentSurahData.id);
+          if (currentIndex > 0) {
+            const prevSurahId = this.SURAH_DATA[currentIndex - 1].id;
+            this.loadSurahVerses(prevSurahId);
+            this.selectedSurah = prevSurahId;
+            this.$nextTick(() => this.scrollToTop());
+          }
+        }
         return;
       }
     }
-    this.wasScrolling = true;
-    return;
-  }
-  if (!this.isHoldingGlobal || this.hasSwiped) return;
-  if (this.showVoiceSearchOverlay) {
-    this.handleVoiceSearchTouchMove(event);
-    return;
-  }
-  if (event.changedTouches.length > 0) {
-    const touchX = event.changedTouches[0].clientX;
-    const touchY = event.changedTouches[0].clientY;
-    const deltaY = this.touchStartY - touchY;
-    const deltaX = Math.abs(this.touchStartX - touchX);
-    const timeElapsed = Date.now() - this.touchStartTime;
-    console.log('Touch move at x:', touchX, 'y:', touchY, 'deltaY:', deltaY, 'deltaX:', deltaX, 'time:', timeElapsed);
-    if (Math.abs(deltaY) > this.SWIPE_THRESHOLD && deltaX < this.SWIPE_HORIZONTAL_THRESHOLD && timeElapsed < this.SWIPE_TIME_THRESHOLD) {
-      this.hasSwiped = true;
-      clearTimeout(this.holdStartTimeoutId);
-      this.isHoldingGlobal = false;
-      if (deltaY > 0) {
-        console.log('Swipe up detected - Opening voice search');
-        this.showSearchOverlay = false;
-        this.showVoiceSearchOverlay = true;
-        this.resetVoiceSearch();
-      } else if (deltaY < 0) {
-        console.log('Swipe down detected - Opening search');
-        this.showVoiceSearchOverlay = false;
-        this.showSearchOverlay = true;
-        this.focusSearchInput();
-      }
-      this.touchStartX = null;
-      this.touchStartY = null;
-      this.touchStartTime = null;
-    }
-  }
-},
-
-handleAppTouchMove(event) {
-if (this.displayMode === 'full-surah') {
-    // Only trigger swipe down if at top of scroll
-    const container = this.$refs.versesContainer;
-    if (container && container.scrollTop === 0) {
+    // Vertical swipe for search overlays
+    if (container && container.scrollTop === 0 && event.changedTouches.length > 0) {
       const touchY = event.changedTouches[0].clientY;
       const deltaY = touchY - this.touchStartY;
       if (deltaY > this.SWIPE_THRESHOLD) {
@@ -4021,6 +4414,7 @@ if (this.displayMode === 'full-surah') {
         console.log('Swipe down detected - Opening search');
         this.showVoiceSearchOverlay = false;
         this.showSearchOverlay = true;
+        this.focusSearchInput();
       }
       this.touchStartX = null;
       this.touchStartY = null;
@@ -4058,11 +4452,18 @@ handleAppMouseLeave() {
   }
 },
 displayPreviousPart() {
+  if (this.isPausedByHold) return; // If paused by hold, do nothing.
+
   if (this.currentPartIndex > 0) {
     this.currentPartIndex--;
     this.displayCurrentPart();
+  } else {
+    // At the first part of a verse, trying to go previous.
+    // This will call displayPreviousVerse, which handles setting up the new verse and calling displayCurrentPart.
+    this.displayPreviousVerse();
   }
-},
+}
+,
  handleGlobalClick(e) {
     // If not clicking inside the control menu, hide it
      if (this.showHighlightMenu && !e.target.closest('.highlight-menu')) {
@@ -4107,6 +4508,15 @@ shareVerse() {
   },
 
   async mounted() {
+
+window.addEventListener('dblclick', (e) => {
+    e.preventDefault();
+  }, { passive: false });
+    this.currentTheme = localStorage.getItem('theme') || 'system';
+  if (!this.isMobile) {
+    document.addEventListener('mousemove', this.handleDesktopMouseMove);
+    this.startBottomUIFadeTimer();
+  }
     this.$indexedDB = await this.initIndexedDB();
     const db = await this.$indexedDB;
     await db.transaction('notes', 'readwrite').objectStore('notes');
@@ -4167,10 +4577,15 @@ shareVerse() {
   this.showControlMenu();
  document.addEventListener('mousedown', this.handleGlobalClick);
   document.addEventListener('touchstart', this.handleGlobalClick);
-  
+  this.controlMenuVisible = false;
+this.hamburgerMenuVisible = true;
   },
   
   beforeUnmount() {
+       window.removeEventListener('keydown', this.handleGlobalKeydown);
+ document.removeEventListener('mousemove', this.handleDesktopMouseMove);
+  if (this.bottomUIFadeTimeout) clearTimeout(this.bottomUIFadeTimeout);
+
     this.clearAnimationTimers();
     this.stopSpeechRecognition();
       document.removeEventListener('click', this.hideHighlightContextMenu);
@@ -4181,7 +4596,11 @@ shareVerse() {
 };
 </script>
 
-<style scoped>
+<style >
+
+html, body, #app, .app-container {
+  touch-action: manipulation;
+}
 /* Existing styles... */
 :root {
   --text-color-dark: #e5e7eb; /* gray-200 */
@@ -4334,8 +4753,8 @@ html, body {
 
 .control-button {
   font-family:Arial, Helvetica, sans-serif;
-  width: 4rem; /* ~44px */
-  height: 4rem; /* ~44px */
+    width: 4rem; /* ~44px */
+    height: 4rem; /* ~44px */
   border-radius: 9999px; /* pill shape */
   display: flex;
   font-size: 12px;
@@ -4461,7 +4880,6 @@ html, body {
   width: 100%;
   max-width: 800px;
   display: flex;
-  gap: 1rem;
 }
 
 .search-input {
@@ -4484,15 +4902,22 @@ html, body {
 
 .search-results {
   width: 100%;
-  margin-top: 2rem;
-  max-height: calc(100vh - 150px);
-
+  position: absolute;
+  overflow-y: auto;
+  margin-left: 0 !important;
+  margin-right: 0 !important;
+  padding-left: 0 !important;
+  padding-right: 0 !important;
 }
 
 .search-result-item {
-  padding: 1rem;
+  padding: 1rem 4rem;
   margin-bottom: 1rem;
   border-radius: 0.5rem;
+}
+
+.search-result-item:first-child {
+  padding-top: 10rem;
 }
 
 .search-result-item.dark-theme {
@@ -4553,7 +4978,7 @@ html, body {
   gap: 1.5rem;
 }
 
-.hifz-mode .control-button {
+.Hifdh-mode .control-button {
   /* Ensure consistent styling */
 }
 .complete-active {
@@ -4885,7 +5310,12 @@ select {
   font-size: 12px;
   z-index: 100;
 }
-
+.full-surah-display, .control-buttons-container, .control-button, .verse-line, .verse-text {
+  user-select: none !important;
+  -webkit-user-select: none !important;
+  -moz-user-select: none !important;
+  -ms-user-select: none !important;
+}
 .offline-indicator.online {
   background-color: #4CAF50;
   color: white;
@@ -4907,6 +5337,12 @@ select {
 }
 
 /* CSP-compliant styles */
+@media (max-width: 768px) {
+  .control-button {
+    width: 3.75rem; /* ~44px */
+    height: 3.75rem; /* ~44px */
+  }
+}
 @media (max-width: 768px) {
   .control-buttons-container {
     bottom: 70px;
@@ -5029,13 +5465,12 @@ select {
   /* Optional: add background, border, or padding as needed */
 }
 .sepia-theme .control-buttons-container {
-  background-color: #e6dfc9 !important;
   color: #5f4b32 !important;
 }
 .sepia-theme .control-button,
-.sepia-theme .control-button svg {
-  background-color: #e6dfc9 !important;
-  color: #5f4b32 !important;
+.sepia-theme .control-button  {
+  background-color: #e6dfc9 ;
+  color: #5f4b32 ;
   fill: #5f4b32 !important;
   border-color: #bfb59f !important;
 }
@@ -5054,5 +5489,32 @@ select {
 .control-buttons-container {
   opacity: 1;
   transition: opacity 0.3s;
+}
+
+.sepia-hamburger, .dark-theme .sepia-hamburger {
+  box-shadow: 0 0 16px 2px #60a5fa !important; /* light blue for dark */
+}
+.light-theme .sepia-hamburger {
+  box-shadow: 0 0 16px 2px #0f035c8d !important;
+}
+.sepia-theme .sepia-hamburger {
+  box-shadow: 0 0 16px 2px #bfa76f !important; /* sepia gold */
+}
+.glow-blue {
+  box-shadow: 0 0 12px 4px #3b82f6, 0 0 2px #3b82f6;
+  border-color: #3b82f6 !important;
+  background-color: #2563eb !important;
+  color: #fff !important;
+  animation: bluePulse 1.2s infinite alternate;
+}
+@keyframes bluePulse {
+  from { box-shadow: 0 0 8px 2px #3b82f6; }
+  to   { box-shadow: 0 0 18px 8px #60a5fa; }
+}
+
+.verse-line, .verse-text {
+  transition: none !important;
+  box-shadow: none !important;
+  opacity: 1 !important;
 }
 </style>
