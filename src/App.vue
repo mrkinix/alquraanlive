@@ -2565,7 +2565,7 @@ toggleLanguageMenu() {
   this.showLanguageMenu = !this.showLanguageMenu;
 },
 async loadLocalMushafJson(type) {
-    const validTypes = ['warsh', 'Qaloon'];
+    const validTypes = ['warsh', 'qaloon'];
     if (!validTypes.includes(type)) return [];
     
     try {
