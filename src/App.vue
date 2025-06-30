@@ -812,18 +812,15 @@ class="control-buttons-container  rounded-xl p-2 max-sm:scale-90 fixed max-sm:bo
     <div   
     v-if="displayMode !== 'revision'"
     :class="displayMode === 'full-surah' ? '!bottom-0' : ''"
-class="hamburg   !bg-none rounded-xl p-2 max-sm:scale-90 fixed max-sm:bottom-0 bottom-5 sm:right-5 flex space-x-2 z-50">
+class="   !bg-none rounded-xl p-2 max-sm:scale-90 fixed max-sm:bottom-0 bottom-5 sm:right-5 flex space-x-2 z-50">
 
     <button
-v-if="hamburgerMenuVisible && isMobile && displayMode !== 'Hifdh'"  class="fixed bottom-5 left-1/2 z-50 transform -translate-x-1/2 sepia-hamburger"
-  style="width:56px;height:56px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:2rem;box-shadow:0 2px 8px rgba(0,0,0,0.2);"
+v-if="hamburgerMenuVisible && isMobile && displayMode !== 'Hifdh'"  class="fixed bottom-5 left-1/2 z-50 transform -translate-x-1/2 border-solid border-blue-500 box-shadow:0 2px 8px white border-1 transition-colors duration-300"
+    :style="currentTheme === 'dark' ? 'box-shadow:0 2px 8px rgba(256,256,256,0.2)' : 'box-shadow:0 2px 8px rgba(0,0,0,0.2)'"
+  style="width:56px;height:56px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:2rem;"
   @click="handleHamburgerClick"
 >
-  <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
-    <rect y="4" width="24" height="3" rx="1.5" fill="currentColor"/>
-    <rect y="10.5" width="24" height="3" rx="1.5" fill="currentColor"/>
-    <rect y="17" width="24" height="3" rx="1.5" fill="currentColor"/>
-  </svg>
+<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24"><path fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M10 6a4 4 0 1 0-8 0a4 4 0 0 0 8 0m0 12a4 4 0 1 0-8 0a4 4 0 0 0 8 0M22 6a4 4 0 1 0-8 0a4 4 0 0 0 8 0m0 12a4 4 0 1 0-8 0a4 4 0 0 0 8 0" color="currentColor"/></svg>
 </button>
   </div>
   </div>
@@ -4886,6 +4883,8 @@ html, body {
 }
 
 
+
+
 .app-container.light-theme .control-button {
   background-color: var(--control-bg-light);
   color: var(--control-text-light);
@@ -5465,6 +5464,10 @@ select {
     position: absolute;
 }
 
+.app-container.dark-theme .hamburg {
+  background-color: var(--control-bg-dark);
+  color: var(--control-text-dark);
+}
 
 
 /* Responsive adjustments for mobile */
