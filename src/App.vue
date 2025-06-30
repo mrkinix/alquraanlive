@@ -1402,57 +1402,70 @@ if (!localStorage.getItem('hasSeenInstructions')) {
       this.$forceUpdate()
     },
     
-  initSpeechRecognition() {
-      this.$forceUpdate();
+initSpeechRecognition() {
+  this.correctWords = [];
+  this.mistakeWords = [];
+  this.unreadVerses = [];
+  this.$forceUpdate();
 
-      const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-      if (!SpeechRecognition) {
-        console.warn('Web Speech API not supported, falling back to Deepgram');
-        this.startDeepgramStreaming();
-        return;
+  const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+
+  if (!SpeechRecognition) {
+    // Fallback to Deepgram remains the same
+    this.startDeepgramStreaming();
+    return;
+  }
+
+  // If recognition is already active, stop it before starting a new instance
+  if (this.speechRecognition && this.speechRecognition.running) {
+      this.speechRecognition.stop();
+  }
+
+  this.speechRecognition = new SpeechRecognition();
+  this.speechRecognition.lang = 'ar-SA';
+  this.speechRecognition.continuous = true;
+  this.speechRecognition.interimResults = true;
+
+  // A variable to keep track of the last processed final transcript to avoid re-processing
+  let final_transcript = '';
+
+  this.speechRecognition.onresult = (event) => {
+    let interim_transcript = '';
+
+    // Iterate through all the results from the beginning
+    for (let i = event.resultIndex; i < event.results.length; ++i) {
+      // If the result is final, concatenate it to the final transcript
+      if (event.results[i].isFinal) {
+        final_transcript += event.results[i][0].transcript;
+      } else {
+        // Otherwise, it's an interim result, so we just grab it
+        interim_transcript += event.results[i][0].transcript;
       }
+    }
 
-      this.speechRecognition = new SpeechRecognition();
-      this.speechRecognition.lang = this.currentLanguage || 'ar-SA';
-      this.speechRecognition.continuous = true;
-      this.speechRecognition.interimResults = false;
+    // Now, combine the final transcript with the latest interim transcript
+    // The trim() is important to remove any leading/trailing spaces
+    const transcript = (final_transcript + interim_transcript).trim();
+    
+    // Update your component's state
+    this.recognizedText = transcript;
+    
+    // Call your matching logic
+    this.matchRecitedText(transcript);
+  };
 
-      let lastTranscript = '';
-      let lastResultTime = 0;
-      this.speechRecognition.onresult = (event) => {
-        const currentTime = Date.now();
-        if (currentTime - lastResultTime < 200) return; // Debounce rapid results
-
-        const results = Array.from(event.results)
-          .filter(result => result.isFinal)
-          .map(result => this.processArabicText(result[0].transcript).trim());
-        if (results.length === 0) return;
-
-        // Deduplicate and normalize
-        const transcript = results.join(' ');
-        const uniqueWords = transcript
-          .split(' ')
-          .filter((word, i, arr) => word && (i === 0 || word !== arr[i - 1]))
-          .join(' ');
-
-        if (uniqueWords !== lastTranscript) {
-          this.recognizedText = uniqueWords;
-          this.matchRecitedText(uniqueWords);
-          lastTranscript = uniqueWords;
-          lastResultTime = currentTime;
-        }
-      };
-
+       this.speechRecognition.onend = () => {
+      // You might want to automatically restart recognition here,
+      // depending on your application's logic.
+      console.log("Speech recognition service disconnected");
+  };
+      
       this.speechRecognition.onerror = (event) => {
-        console.error('Speech recognition error:', event.error);
-        this.startVoiceSearch();
+        console.error('Speech recognition error', event.error);
       };
-
-      this.speechRecognition.onend = () => {
-        if (this.displayMode === 'revision' && !this.isPausedByPause && !this.isPausedByHold) {
-          this.startVoiceSearch();
-        }
-      };
+      
+      this.speechRecognition.start();
+     this.speechRecognition.running = true; // Custom flag to track state 
     },
     
     stopSpeechRecognition() {
@@ -1917,11 +1930,6 @@ displayNextPart() {
   async loadSurahVerses(surahId) {
   this.isLoading = true;
   try {
-            // Ensure currentLanguage is set
-        if (!this.currentLanguage) {
-          this.currentLanguage = 'ar-SA';
-          console.warn('currentLanguage was undefined, defaulting to ar-SA');
-        }
     const surahVerses = this.allVerses.filter(v => v.surah === surahId);
     this.currentSurahData = this.SURAH_DATA.find(s => s.id === surahId);
     this.displayedVerses = surahVerses;
