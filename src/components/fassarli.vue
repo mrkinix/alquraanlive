@@ -72,11 +72,15 @@
                   <span>{{ tafsirCollapseStates[tafsir.edition.identifier] ? '➕' : '➖' }}</span>
                 </div>
               </div>
+              <div v-if="!tafsir.text && !tafsirCollapseStates[tafsir.edition.identifier]" class="loading-indicator">
+  جاري التحميل...
+</div>
               <p
                 v-if="!tafsirCollapseStates[tafsir.edition.identifier]"
                 class="mt-2 text-right text-lg leading-relaxed font-arabic"
                 :style="{ fontSize: fontSize + 'rem' }"
               >
+              
                 {{ tafsir.text }}
               </p>
             </div>
@@ -198,96 +202,140 @@ async function fetchVerse(surahId, verseId) {
   }
 }
 
-// Fetch tafsir data, now with an optional identifier to fetch a specific one
+
+// Update your tafsir configuration
+const alquranwebTafsirs = [
+  { 
+    id: 'saadi',
+    book_id: 102, // From API response
+    name: "تفسير السعدي",
+    englishName: "Tafsir Al-Saadi"
+  },
+  { 
+    id: 'kathir',
+    book_id: 50, // From API response
+    name: "تفسير ابن كثير",
+    englishName: "Tafsir Ibn Kathir"
+  },
+  { 
+    id: 'tabari',
+    book_id: 14, // From API response
+    name: "تفسير الطبري",
+    englishName: "Tafsir Al-Tabari"
+  },
+  { 
+    id: 'jazaeri',
+    book_id: 128, // From API response
+    name: "تفسير الجزائري",
+    englishName: "Tafsir Al-Jaza'iri"
+  },
+  { 
+    id: 'uthaymin',
+    book_id: 113, // From API response
+    name: "تفسير ابن عثيمين",
+    englishName: "Tafsir Ibn Uthaymin"
+  },
+  { 
+    id: 'ashur',
+    book_id: 105, // From API response
+    name: "تفسير ابن عاشور",
+    englishName: "Tafsir Ibn Ashur"
+  }
+];
+
+// Modified fetchTafsir function with lazy loading
 const fetchTafsir = async (surah, verse, identifierToFetch = null) => {
-  // If fetching a specific identifier, only clear that one, otherwise clear all
   if (!identifierToFetch) {
-    tafsirData.value = []; // Clear current tafsir data if fetching all
+    // Initial load - only prepare the structure without content
+    tafsirData.value = alquranwebTafsirs.map(tafsir => ({
+      edition: {
+        identifier: `alquranweb-${tafsir.id}`,
+        name: tafsir.name,
+        englishName: tafsir.englishName,
+        language: 'ar',
+        format: 'text',
+        type: 'tafsir',
+        source: 'AlQuranWeb'
+      },
+      text: null, // Content will be loaded when expanded
+      loading: false
+    }));
+    
+    // Also fetch the standard tafsirs from alquran.cloud
+    const cloudPromises = tafsirEditions.map(edition =>
+      fetch(`https://api.alquran.cloud/v1/ayah/${surah}:${verse}/${edition}`)
+        .then(res => res.json())
+        .catch(() => null)
+    );
+    
+    const cloudResults = await Promise.all(cloudPromises);
+    const cloudTafsirs = cloudResults
+      .filter(r => r?.status === 'OK')
+      .map(r => r.data);
+    
+    tafsirData.value = [...cloudTafsirs, ...tafsirData.value];
+    
+    // Initialize collapse states
+    let statesChanged = false;
+    tafsirData.value.forEach(tafsir => {
+      const identifier = tafsir.edition.identifier;
+      if (tafsirCollapseStates.value[identifier] === undefined) {
+        tafsirCollapseStates.value[identifier] = true;
+        statesChanged = true;
+      }
+    });
+    
+    if (statesChanged) {
+      localStorage.setItem('tafsirCollapseStatesById', JSON.stringify(tafsirCollapseStates.value));
+    }
+    
+    return;
   }
 
+  // Fetch specific tafsir when expanded
   try {
-    const cloudPromises = tafsirEditions
-      .filter(edition => !identifierToFetch || edition === identifierToFetch) // Filter if a specific one is requested
-      .map(edition =>
-        fetch(`https://api.alquran.cloud/v1/ayah/${surah}:${verse}/${edition}`)
-          .then(res => res.json())
-          .catch(() => null)
-      );
+    const tafsirInfo = alquranwebTafsirs.find(t => `alquranweb-${t.id}` === identifierToFetch);
+    if (!tafsirInfo) return;
 
-    const extraTafsirIds = [
-      { id: 3, name: "تفسير السعدي" },
-      { id: 4, name: "تفسير ابن كثير" },
-      { id: 8, name: "تفسير الطبري" }
-    ];
-    const extraPromises = extraTafsirIds
-      .filter(t => !identifierToFetch || `qtafsir-${t.id}` === identifierToFetch) // Filter if a specific one is requested
-      .map(t =>
-        fetch(`/api/tafseer/${t.id}/${surah}/${verse}`)
-          .then(res => res.ok ? res.json() : null)
-          .then(data => data && {
-            text: data.text,
-            edition: {
-              identifier: `qtafsir-${t.id}`,
-              name: t.name,
-              englishName: t.name,
-              language: 'ar'
-            }
-          })
-          .catch(() => null)
-      );
+    // Find the tafsir in our data
+    const tafsirIndex = tafsirData.value.findIndex(t => t.edition.identifier === identifierToFetch);
+    if (tafsirIndex === -1) return;
 
-    const results = await Promise.all([...cloudPromises, ...extraPromises]);
-
-    let fetchedTafsirs = results
-      .filter(r => r && (r.status === 'OK' || r.text))
-      .map(r => r.status === 'OK' ? r.data : r);
-
-    if (fetchedTafsirs.length > 0) {
-      if (identifierToFetch) {
-        // If a specific tafsir was fetched, update only that one in the existing array
-        const existingIndex = tafsirData.value.findIndex(t => t.edition.identifier === identifierToFetch);
-        if (existingIndex !== -1) {
-          tafsirData.value[existingIndex] = fetchedTafsirs[0];
-        } else {
-          // If for some reason it wasn't in the list, add it.
-          tafsirData.value.push(fetchedTafsirs[0]);
-        }
-      } else {
-        // If fetching all, then apply sorting and initial collapse states
-        const savedOrderIdentifiers = JSON.parse(localStorage.getItem('tafsirOrderByIdentifiers') || 'null');
-        if (savedOrderIdentifiers && Array.isArray(savedOrderIdentifiers)) {
-          const tafsirMap = new Map(fetchedTafsirs.map(t => [t.edition.identifier, t]));
-          const orderedTafsirs = [];
-          savedOrderIdentifiers.forEach(id => {
-            if (tafsirMap.has(id)) {
-              orderedTafsirs.push(tafsirMap.get(id));
-              tafsirMap.delete(id);
-            }
-          });
-          orderedTafsirs.push(...tafsirMap.values());
-          tafsirData.value = orderedTafsirs;
-        } else {
-          tafsirData.value = fetchedTafsirs;
-        }
-
-        let statesChanged = false;
-        tafsirData.value.forEach(tafsir => {
-          const identifier = tafsir.edition.identifier;
-          if (tafsirCollapseStates.value[identifier] === undefined) {
-            tafsirCollapseStates.value[identifier] = true; // Default to collapsed
-            statesChanged = true;
-          }
-        });
-        if (statesChanged) {
-          localStorage.setItem('tafsirCollapseStatesById', JSON.stringify(tafsirCollapseStates.value));
-        }
-      }
+    // Set loading state
+    tafsirData.value[tafsirIndex].loading = true;
+    
+    const response = await fetch(
+      `/api/alquranweb/books-content?sura=${surah}&aya=${verse}&book_ids=${tafsirInfo.book_id}`
+    );
+    
+    if (!response.ok) throw new Error('Failed to fetch tafsir');
+    
+    const data = await response.json();
+    const content = data.data?.[0]?.content || data.data?.[0]?.text;
+    
+    if (content) {
+      tafsirData.value[tafsirIndex].text = content;
     }
   } catch (err) {
-    console.error('Tafsir fetch error:', err);
+    console.error(`Error fetching ${identifierToFetch}:`, err);
+  } finally {
+    if (tafsirData.value[tafsirIndex]) {
+      tafsirData.value[tafsirIndex].loading = false;
+    }
   }
 };
 
+// Modified toggleTafsir function
+const toggleTafsir = async (tafsir) => {
+  const identifier = tafsir.edition.identifier;
+  tafsirCollapseStates.value[identifier] = !tafsirCollapseStates.value[identifier];
+  localStorage.setItem('tafsirCollapseStatesById', JSON.stringify(tafsirCollapseStates.value));
+
+  // If expanding and tafsir text is not loaded yet
+  if (!tafsirCollapseStates.value[identifier] && !tafsir.text && verseData.value) {
+    await fetchTafsir(verseData.value.surahId, verseData.value.verseId, identifier);
+  }
+};
 
 const copyVerse = () => {
   if (!verseData.value) return;
@@ -356,18 +404,7 @@ const saveTheme = () => {
   localStorage.setItem('theme', theme.value);
 };
 
-// Tafsir collapse and order
-const toggleTafsir = async (tafsir) => {
-  const identifier = tafsir.edition.identifier;
-  tafsirCollapseStates.value[identifier] = !tafsirCollapseStates.value[identifier];
-  localStorage.setItem('tafsirCollapseStatesById', JSON.stringify(tafsirCollapseStates.value));
 
-  // If expanding and tafsir text is not present, fetch it
-  if (!tafsirCollapseStates.value[identifier] && !tafsir.text && verseData.value) {
-    console.log(`Fetching tafsir for ${identifier} on expand...`);
-    await fetchTafsir(verseData.value.surahId, verseData.value.verseId, identifier);
-  }
-};
 
 // Check if a tafsir item can be moved (dragged)
 const checkMove = (evt) => {
@@ -444,5 +481,12 @@ video {
 .slide-up-enter-to, .slide-up-leave-from {
   opacity: 1;
   transform: translate(-50%, 0);
+}
+
+.loading-indicator {
+  padding: 1rem;
+  text-align: center;
+  color: #666;
+  font-style: italic;
 }
 </style>

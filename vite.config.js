@@ -120,14 +120,17 @@ workbox: {
 
     })
   ],
-  server: {
-    proxy: {
-      // Proxy requests from /api/tafseer to the target API
-      '/api/tafseer': {
-        target: 'http://api.quran-tafseer.com', // Keep as http as per your previous clarification
-        changeOrigin: true,
-        rewrite: (path) => path.replace(/^\/api\/tafseer/, '/tafseer'),
-      },
-    }
+server: {
+  proxy: {
+    '/api/alquranweb': {
+      target: 'https://backend.alquranweb.com/api/v2',
+      changeOrigin: true,
+      rewrite: (path) => path.replace(/^\/api\/alquranweb/, ''),
+      headers: {
+        'Authorization': 'bearer j6pUeJaG4jmbQP4rewewKSHG3ieyO7a98Qfx0zm7', 
+      }
+    },
   }
+}
+
 })
