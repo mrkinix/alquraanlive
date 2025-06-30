@@ -1409,30 +1409,66 @@ initSpeechRecognition() {
   this.mistakeWords = [];
   this.unreadVerses = [];
   this.$forceUpdate();
+
   const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+
   if (!SpeechRecognition) {
-    // Fallback to Deepgram
+    // Fallback to Deepgram remains the same
     this.startDeepgramStreaming();
     return;
   }
-    this.speechRecognition = new SpeechRecognition();
-      this.speechRecognition.lang = 'ar-SA';
-      this.speechRecognition.continuous = true;
-      this.speechRecognition.interimResults = true;
-      
-      this.speechRecognition.onresult = (event) => {
-        const transcript = Array.from(event.results)
-          .map(result => result[0].transcript)
-          .join(' ');
-        this.recognizedText = transcript;
-        this.matchRecitedText(transcript);
-      };
+
+  // If recognition is already active, stop it before starting a new instance
+  if (this.speechRecognition && this.speechRecognition.running) {
+      this.speechRecognition.stop();
+  }
+
+  this.speechRecognition = new SpeechRecognition();
+  this.speechRecognition.lang = 'ar-SA';
+  this.speechRecognition.continuous = true;
+  this.speechRecognition.interimResults = true;
+
+  // A variable to keep track of the last processed final transcript to avoid re-processing
+  let final_transcript = '';
+
+  this.speechRecognition.onresult = (event) => {
+    let interim_transcript = '';
+
+    // Iterate through all the results from the beginning
+    for (let i = event.resultIndex; i < event.results.length; ++i) {
+      // If the result is final, concatenate it to the final transcript
+      if (event.results[i].isFinal) {
+        final_transcript += event.results[i][0].transcript;
+      } else {
+        // Otherwise, it's an interim result, so we just grab it
+        interim_transcript += event.results[i][0].transcript;
+      }
+    }
+
+    // Now, combine the final transcript with the latest interim transcript
+    // The trim() is important to remove any leading/trailing spaces
+    const transcript = (final_transcript + interim_transcript).trim();
+    
+    // Update your component's state
+    this.recognizedText = transcript;
+    
+    // Call your matching logic
+    this.matchRecitedText(transcript);
+  };
+
+       this.speechRecognition.onend = () => {
+      // You might want to automatically restart recognition here,
+      // depending on your application's logic.
+      console.log("Speech recognition service disconnected");
+  };
       
       this.speechRecognition.onerror = (event) => {
         console.error('Speech recognition error', event.error);
       };
       
-      this.speechRecognition.start();},
+      this.speechRecognition.start();
+     this.speechRecognition.running = true; // Custom flag to track state 
+    },
     
     stopSpeechRecognition() {
       if (this.speechRecognition) {
@@ -1502,8 +1538,8 @@ async matchRecitedText(transcript) {
   const verseText = this.processArabicText(this.currentVerseData.text);
   const verseParts = this.segmentText(verseText);
   const currentPart = verseParts[this.currentPartIndex] || '';
-  const verseWords = currentPart.split(' ').filter(word => word.trim());
-  const recitedWords = this.processArabicText(transcript)
+  let verseWords = currentPart.split(' ').filter(word => word.trim());
+  let recitedWords = this.processArabicText(transcript)
     .split(' ')
     .filter((word, i, arr) => word && (i === 0 || word !== arr[i - 1]));
 
@@ -1587,11 +1623,19 @@ async matchRecitedText(transcript) {
     verseWords.length > 0 &&
     !this.isTransitioning
   ) {
+      this.toggleRevisionMode();
     this.isTransitioning = true;
     setTimeout(() => {
       this.correctWords = [];
       this.mistakeWords = [];
       this.unreadVerses = [];
+  correct = [];
+   mistakes = [];
+   unread = [];
+   verseWords = [];
+   recitedWords = [];
+  pointer = 0;
+  vibrated = false;
       if (this.currentPartIndex < verseParts.length - 1) {
         this.currentPartIndex++;
         this.displayCurrentPart();
@@ -1599,6 +1643,7 @@ async matchRecitedText(transcript) {
         this.selectVerse(true);
       }
       this.isTransitioning = false;
+      this.toggleRevisionMode();
     }, 500);
   }
 },
