@@ -5599,15 +5599,7 @@ select {
   transition: opacity 0.3s;
 }
 
-.sepia-hamburger, .dark-theme .sepia-hamburger {
-  box-shadow: 0 0 16px 2px #60a5fa !important; /* light blue for dark */
-}
-.light-theme .sepia-hamburger {
-  box-shadow: 0 0 16px 2px #0f035c8d !important;
-}
-.sepia-theme .sepia-hamburger {
-  box-shadow: 0 0 16px 2px #bfa76f !important; /* sepia gold */
-}
+
 .glow-blue {
   box-shadow: 0 0 12px 4px #3b82f6, 0 0 2px #3b82f6;
   border-color: #3b82f6 !important;
