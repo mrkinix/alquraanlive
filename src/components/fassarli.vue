@@ -1,21 +1,17 @@
 <template>
   <div :class="['min-h-screen flex flex-col', theme === 'dark' ? 'bg-gray-900 text-white' : theme === 'sepia' ? 'bg-sepia-100 text-sepia-900' : 'bg-white text-gray-900']">
-    <!-- Fullscreen Results Overlay -->
     <div v-if="!verseSelection" class="fixed inset-0 overflow-y-auto p-6 flex flex-col" :class="theme === 'dark' ? 'bg-gray-900' : theme === 'sepia' ? 'bg-sepia-100' : 'bg-white'">
-      <!-- Header with controls -->
       <div class="flex items-end justify-end mb-4">
-        <!-- Close Button -->
         <button @click="closeFassarliMode" class="p-2 rounded bg-red-500 text-white hover:bg-red-600">
           ✕ Close
         </button>
       </div>
 
-      <!-- Verse Display -->
       <div v-if="verseData" class="mb-6 ">
         <h2 class="text-2xl font-semibold mb-2 text-right leading-relaxed">{{ verseData.surahName }} ({{ verseData.surahTransliteration }}) - آية {{ verseData.verseId }}</h2>
         <p class="text-xl mb-4 text-right leading-relaxed font-arabic" :style="{ fontSize: fontSize + 'rem' }">{{ verseData.verseText }}</p>
 
-        <div class="mb-6 flex flex-row gap-2">
+        <div class="mb-6 flex flex-row gap-2 justify-end">
           <button @click="toggleAudio" class="flex items-center gap-2 p-2 rounded bg-blue-500 text-white hover:bg-blue-600">
             <svg v-if="!isPlaying" class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z"/>
@@ -26,7 +22,6 @@
             <span>{{ isPlaying ? 'إيقاف' : 'تشغيل' }}</span>
           </button>
           
-          <!-- Copy Verse Button -->
           <button @click="copyVerse" class="flex items-center gap-2 p-2 rounded bg-green-500 text-white hover:bg-green-600">
             <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
               <path d="M6 11c0-2.828 0-4.243.879-5.121C7.757 5 9.172 5 12 5h3c2.828 0 4.243 0 5.121.879C21 6.757 21 8.172 21 11v5c0 2.828 0 4.243-.879 5.121C19.243 22 17.828 22 15 22h-3c-2.828 0-4.243 0-5.121-.879C6 20.243 6 18.828 6 16z"/>
@@ -35,7 +30,6 @@
             <span>نسخ الآية</span>
           </button>
           
-          <!-- Font size controls -->
           <div class="flex items-center gap-2">
             <button @click="decreaseFontSize" class="p-2 rounded bg-gray-500 text-white hover:bg-gray-600" title="Decrease font size">
               <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 20 20"><path fill="currentColor" d="M12 16h-1.05a.44.44 0 0 1-.29-.09a.6.6 0 0 1-.17-.22l-.7-1.84H6.2l-.7 1.84a.56.56 0 0 1-.16.21a.43.43 0 0 1-.29.1H4l3.31-8.35h1.38zm-2.57-3.13L8.28 9.82a9 9 0 0 1-.28-.9q-.06.27-.14.5l-.14.4l-1.15 3zM15 6l3-4h-6z"/></svg>
@@ -47,10 +41,8 @@
         </div>
       </div>
 
-      <!-- Separator -->
       <hr class="my-4 border-t" :class="theme === 'dark' ? 'border-gray-600' : 'border-gray-300'">
 
-      <!-- Tafsir Section -->
       <div v-if="tafsirData?.length" class="flex-1 space-y-4">
         <draggable
           v-model="tafsirData"
@@ -66,7 +58,7 @@
               class="border rounded-lg p-4"
               :class="theme === 'dark' ? 'border-gray-600' : 'border-gray-300'"
             >
-              <div class="flex justify-between items-center cursor-pointer" @click="toggleTafsir(tafsir.edition.identifier)">
+              <div class="flex justify-between items-center cursor-pointer" @click="toggleTafsir(tafsir)">
                 <h3 class="text-lg font-medium text-right flex items-center gap-2">
                   {{ tafsir.edition.name }} ({{ tafsir.edition.englishName }})
                 </h3>
@@ -91,7 +83,6 @@
           </template>
         </draggable>
 
-        <!-- Modal or overlay for selected tafsir book -->
         <div v-if="selectedTafsir" class="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-60">
           <div class="bg-white dark:bg-gray-900 rounded-lg shadow-lg max-w-2xl w-full p-6 relative">
             <button @click="closeTafsirBook" class="absolute top-2 left-2 p-2 rounded bg-red-500 text-white hover:bg-red-600">✕</button>
@@ -112,7 +103,6 @@
         </div>
       </div>
 
-      <!-- Fallback when no tafsir data -->
       <div v-else-if="tafsirData" class="text-center py-8 text-gray-500">
         Loading...
       </div>
@@ -134,13 +124,11 @@
   </div>
 </template>
 
-
-
 <script setup>
 import { ref, onMounted, onUnmounted } from 'vue';
 import draggable from 'vuedraggable';
-import { surah } from './data.js';
-const props = defineProps({ surah: Number, verse: Number }); // <--- Accept as props
+import { surah } from './data.js'; // Ensure this path is correct if you're using it
+const props = defineProps({ surah: Number, verse: Number });
 
 const verseData = ref(null);
 const tafsirData = ref([]);
@@ -159,12 +147,13 @@ function showCopiedMessage() {
     showCopiedOverlay.value = false;
   }, 1200);
 }
+
+// Ensure the tafsirEditions list is comprehensive.
 const tafsirEditions = [
   'ar.muyassar', 'ar.jalalayn', 'ar.qurtubi', 'ar.miqbas', 'ar.waseet', 'ar.baghawi'
 ];
 
 const emit = defineEmits(['close', 'choose-tafsir']);
-
 
 const closeFassarliMode = () => emit('close');
 
@@ -202,81 +191,96 @@ async function fetchVerse(surahId, verseId) {
       };
       await fetchTafsir(surahId, verseId);
     } else {
+      console.error('Failed to fetch verse:', data.status);
     }
   } catch (err) {
     console.error('Verse fetch error:', err);
   }
 }
 
-// Fetch tafsir
-// Fetch tafsir
-const fetchTafsir = async (surah, verse) => {
-  tafsirData.value = [];
-  try {
-    // 1. Fetch from alquran.cloud
-    const cloudPromises = tafsirEditions.map(edition =>
-      fetch(`https://api.alquran.cloud/v1/ayah/${surah}:${verse}/${edition}`)
-        .then(res => res.json())
-        .catch(() => null)
-    );
+// Fetch tafsir data, now with an optional identifier to fetch a specific one
+const fetchTafsir = async (surah, verse, identifierToFetch = null) => {
+  // If fetching a specific identifier, only clear that one, otherwise clear all
+  if (!identifierToFetch) {
+    tafsirData.value = []; // Clear current tafsir data if fetching all
+  }
 
-    // 2. Fetch from quran-tafseer.com (السعدي: id=3, ابن كثير: id=4)
+  try {
+    const cloudPromises = tafsirEditions
+      .filter(edition => !identifierToFetch || edition === identifierToFetch) // Filter if a specific one is requested
+      .map(edition =>
+        fetch(`https://api.alquran.cloud/v1/ayah/${surah}:${verse}/${edition}`)
+          .then(res => res.json())
+          .catch(() => null)
+      );
+
     const extraTafsirIds = [
       { id: 3, name: "تفسير السعدي" },
-      { id: 4, name: "تفسير ابن كثير" }
+      { id: 4, name: "تفسير ابن كثير" },
+      { id: 8, name: "تفسير الطبري" }
     ];
-    const extraPromises = extraTafsirIds.map(t => // Use the proxy path
-      fetch(`/api/tafseer/${t.id}/${surah}/${verse}`)
-        .then(res => res.ok ? res.json() : null)
-        .then(data => data && {
-          text: data.text,
-          edition: {
-            identifier: `qtafsir-${t.id}`,
-            name: t.name,
-            englishName: t.name,
-            language: 'ar'
-          }
-        })
-        .catch(() => null)
-    );
+    const extraPromises = extraTafsirIds
+      .filter(t => !identifierToFetch || `qtafsir-${t.id}` === identifierToFetch) // Filter if a specific one is requested
+      .map(t =>
+        fetch(`/api/tafseer/${t.id}/${surah}/${verse}`)
+          .then(res => res.ok ? res.json() : null)
+          .then(data => data && {
+            text: data.text,
+            edition: {
+              identifier: `qtafsir-${t.id}`,
+              name: t.name,
+              englishName: t.name,
+              language: 'ar'
+            }
+          })
+          .catch(() => null)
+      );
 
-    // 3. Wait for all
     const results = await Promise.all([...cloudPromises, ...extraPromises]);
 
-    // 4. Normalize and filter
     let fetchedTafsirs = results
       .filter(r => r && (r.status === 'OK' || r.text))
       .map(r => r.status === 'OK' ? r.data : r);
 
-    // 5. Order and store
     if (fetchedTafsirs.length > 0) {
-      const savedOrderIdentifiers = JSON.parse(localStorage.getItem('tafsirOrderByIdentifiers') || 'null');
-      if (savedOrderIdentifiers && Array.isArray(savedOrderIdentifiers)) {
-        const tafsirMap = new Map(fetchedTafsirs.map(t => [t.edition.identifier, t]));
-        const orderedTafsirs = [];
-        savedOrderIdentifiers.forEach(id => {
-          if (tafsirMap.has(id)) {
-            orderedTafsirs.push(tafsirMap.get(id));
-            tafsirMap.delete(id);
+      if (identifierToFetch) {
+        // If a specific tafsir was fetched, update only that one in the existing array
+        const existingIndex = tafsirData.value.findIndex(t => t.edition.identifier === identifierToFetch);
+        if (existingIndex !== -1) {
+          tafsirData.value[existingIndex] = fetchedTafsirs[0];
+        } else {
+          // If for some reason it wasn't in the list, add it.
+          tafsirData.value.push(fetchedTafsirs[0]);
+        }
+      } else {
+        // If fetching all, then apply sorting and initial collapse states
+        const savedOrderIdentifiers = JSON.parse(localStorage.getItem('tafsirOrderByIdentifiers') || 'null');
+        if (savedOrderIdentifiers && Array.isArray(savedOrderIdentifiers)) {
+          const tafsirMap = new Map(fetchedTafsirs.map(t => [t.edition.identifier, t]));
+          const orderedTafsirs = [];
+          savedOrderIdentifiers.forEach(id => {
+            if (tafsirMap.has(id)) {
+              orderedTafsirs.push(tafsirMap.get(id));
+              tafsirMap.delete(id);
+            }
+          });
+          orderedTafsirs.push(...tafsirMap.values());
+          tafsirData.value = orderedTafsirs;
+        } else {
+          tafsirData.value = fetchedTafsirs;
+        }
+
+        let statesChanged = false;
+        tafsirData.value.forEach(tafsir => {
+          const identifier = tafsir.edition.identifier;
+          if (tafsirCollapseStates.value[identifier] === undefined) {
+            tafsirCollapseStates.value[identifier] = true; // Default to collapsed
+            statesChanged = true;
           }
         });
-        orderedTafsirs.push(...tafsirMap.values()); // Add any new/unsorted tafsirs
-        tafsirData.value = orderedTafsirs;
-      } else {
-        tafsirData.value = fetchedTafsirs;
-      }
-
-      // Initialize or confirm collapse states for all tafsirs
-      let statesChanged = false;
-      tafsirData.value.forEach(tafsir => {
-        const identifier = tafsir.edition.identifier;
-        if (tafsirCollapseStates.value[identifier] === undefined) {
-          tafsirCollapseStates.value[identifier] = true; // Default to collapsed
-          statesChanged = true;
+        if (statesChanged) {
+          localStorage.setItem('tafsirCollapseStatesById', JSON.stringify(tafsirCollapseStates.value));
         }
-      });
-      if (statesChanged) {
-        localStorage.setItem('tafsirCollapseStatesById', JSON.stringify(tafsirCollapseStates.value));
       }
     }
   } catch (err) {
@@ -353,12 +357,17 @@ const saveTheme = () => {
 };
 
 // Tafsir collapse and order
-const toggleTafsir = (identifier) => {
+const toggleTafsir = async (tafsir) => {
+  const identifier = tafsir.edition.identifier;
   tafsirCollapseStates.value[identifier] = !tafsirCollapseStates.value[identifier];
   localStorage.setItem('tafsirCollapseStatesById', JSON.stringify(tafsirCollapseStates.value));
+
+  // If expanding and tafsir text is not present, fetch it
+  if (!tafsirCollapseStates.value[identifier] && !tafsir.text && verseData.value) {
+    console.log(`Fetching tafsir for ${identifier} on expand...`);
+    await fetchTafsir(verseData.value.surahId, verseData.value.verseId, identifier);
+  }
 };
-
-
 
 // Check if a tafsir item can be moved (dragged)
 const checkMove = (evt) => {
@@ -386,6 +395,7 @@ onUnmounted(async () => {
   audio.value.pause();
 });
 </script>
+
 
 <style>
 .bg-sepia-100 { background-color: #f4ecd8; }
