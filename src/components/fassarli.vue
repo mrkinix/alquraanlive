@@ -81,7 +81,7 @@
                 :style="{ fontSize: fontSize + 'rem' }"
               >
               
-                {{ tafsir.text }}
+                {{ formatted(tafsir.text) }}
               </p>
             </div>
           </template>
@@ -374,6 +374,11 @@ const saveTafsirOrder = () => {
    }
 };
 
+const formatted = (text) => {
+  if (!text) return '';
+  return text.replace(/<br\s*\/?>/g, '\n'); // Replaces all <br>, <br/>, <br /> with newlines
+};
+
 // Audio playback
 const toggleAudio = async () => {
   if (!verseData.value) return;
@@ -488,5 +493,12 @@ video {
   text-align: center;
   color: #666;
   font-style: italic;
+}
+
+.tafsir-text {
+  white-space: pre-line; /* This makes newlines show as line breaks */
+  text-align: right;
+  direction: rtl;
+  line-height: 1.8;
 }
 </style>
