@@ -1403,7 +1403,6 @@ if (!localStorage.getItem('hasSeenInstructions')) {
     },
     
   initSpeechRecognition() {
-      this.resetRevisionState();
       this.$forceUpdate();
 
       const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
@@ -1446,7 +1445,6 @@ if (!localStorage.getItem('hasSeenInstructions')) {
 
       this.speechRecognition.onerror = (event) => {
         console.error('Speech recognition error:', event.error);
-        this.resetRevisionState();
         this.startVoiceSearch();
       };
 
@@ -2567,7 +2565,7 @@ toggleLanguageMenu() {
   this.showLanguageMenu = !this.showLanguageMenu;
 },
 async loadLocalMushafJson(type) {
-    const validTypes = ['warsh', 'qaloon'];
+    const validTypes = ['warsh', 'Qaloon'];
     if (!validTypes.includes(type)) return [];
     
     try {
